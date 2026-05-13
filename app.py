@@ -20,7 +20,7 @@ st.markdown("""
         top: 0;
         left: 0;
         right: 0;
-        height: 100px;
+        height: 80px;
         background-color: #1e3a8a; /* 진한 파란색 배경 */
         display: flex;
         align-items: center;
@@ -33,7 +33,7 @@ st.markdown("""
     /* 2. 대형 제목 스타일 */
     .main-title-text {
         color: white !important; /* 글자색 흰색으로 변경 */
-        font-size: 42px !important; /* 글씨 크기 대폭 확대 */
+        font-size: 36px !important; /* 글씨 크기 대폭 확대 */
         font-weight: 900;
         margin: 0;
         margin-right: 50px; /* 제목과 버튼 사이 간격 */
