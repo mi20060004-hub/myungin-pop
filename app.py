@@ -14,40 +14,31 @@ st.set_page_config(
 # --- 2. CSS 스타일 (해상도에 상관없이 중앙 정렬되는 파란색 헤더) ---
 st.markdown("""
     <style>
-    /* 1. 상단 고정 블루 헤더 바 */
-    .fixed-header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 100px;
-        background-color: #1e3a8a; /* 명인제약 진한 파란색 */
-        z-index: 999998;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center; /* 가로 중앙 정렬 */
-    }
-    
-    /* 2. 헤더 내 컨텐츠 박스 (제목 + 버튼을 묶음) */
-    .header-content {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        max-width: 1200px;
-        gap: 40px; /* 제목과 버튼 사이 간격 */
-    }
+/* 1. 상단 고정 블루 헤더 바 (수정: z-index를 낮춤) */
+.fixed-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100px;
+    background-color: #1e3a8a;
+    z-index: 999990; /* 사이드바(999999)보다 낮게 설정 */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
-    /* 3. 대형 제목 스타일 */
-    .main-title-text {
-        color: white !important;
-        font-size: 46px !important;
-        font-weight: 900;
-        margin: 0;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        white-space: nowrap;
-    }
+/* 2. 사이드바를 최상단으로 올리기 (새로 추가) */
+[data-testid="stSidebar"] {
+    top: 0 !important;
+    z-index: 999999 !important; /* 헤더를 덮고 천장까지 닿게 함 */
+}
+
+/* 3. 헤더 내 제목 위치 조정 (새로 추가) */
+.main-title-text {
+    padding-left: 300px; /* 사이드바 너비만큼 제목을 우측으로 밀어 겹침 방지 */
+}
 
     /* 4. 버튼 영역 스타일 */
     .fixed-button-box {
