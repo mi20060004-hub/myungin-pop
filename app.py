@@ -4,45 +4,62 @@ from datetime import datetime, timedelta, timezone
 import gspread
 from google.oauth2.service_account import Credentials
 
-# --- 1. 페이지 설정 (최우선 실행) ---
+# --- 1. 페이지 설정 (사이드바 확장 유지) ---
 st.set_page_config(
     layout="wide", 
     page_title="명인제약 생산 시점 관리 시스템",
-    initial_sidebar_state="expanded"  # 사이드바 강제 열기
+    initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS 스타일 (사이드바와 헤더가 겹치지 않게 수정) ---
+# --- 2. CSS 스타일 (제목 고정 및 공정 바 디자인 추가) ---
 st.markdown("""
     <style>
-    /* 메인 컨텐츠 여백 조정 */
-    .main .block-container {
-        padding-top: 5rem;
-    }
-    /* 고정 헤더 디자인 (사이드바를 가리지 않도록 너비 조정) */
+    /* 1. 상단 고정 헤더 제목 */
     .fixed-header {
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        height: 70px;
-        background-color: #ffffff;
+        height: 60px;
+        background-color: #1e3a8a; /* 명인제약 다크블루 */
         display: flex;
         align-items: center;
-        padding: 0 20px;
-        z-index: 99;
-        border-bottom: 2px solid #1e3a8a;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        justify-content: center;
+        z-index: 10000;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
     .header-title {
+        color: white !important;
         font-size: 24px !important;
         font-weight: 800;
-        color: #1e3a8a;
-        margin-left: 50px; /* 사이드바 아이콘 자리 확보 */
+        margin: 0;
     }
-    /* 설비 카드 및 기타 스타일 */
+
+    /* 2. 메인 컨텐츠 상단 여백 (헤더 공간 확보) */
+    .main .block-container {
+        padding-top: 80px;
+    }
+
+    /* 3. 공정 가로 바 디자인 (Stage Bar) */
+    .stage-bar {
+        background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
+        color: white;
+        padding: 8px 20px;
+        border-radius: 5px;
+        font-size: 18px;
+        font-weight: 700;
+        margin-top: 30px;
+        margin-bottom: 20px;
+        width: 100%;
+        display: block;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+
+    /* 4. 설비 타이틀 및 기타 기존 스타일 */
     .machine-title {
         background: #f8fafc; padding: 4px; text-align: center; font-size: 11px; font-weight: 700;
         border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1;
+        min-height: 28px; display: flex; align-items: center; justify-content: center;
     }
     .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 2px 0; border-radius: 3px; margin-bottom: 4px; }
     .bg-waiting { background-color: #3b82f6; } .bg-progress { background-color: #ef4444; }
@@ -64,7 +81,7 @@ worksheet = sh.worksheet('현재생산중')
 log_sheet = sh.worksheet('공정이력')
 master_sheet = sh.worksheet('제품마스터')
 
-# --- 4. 데이터 및 유틸리티 ---
+# --- 4. 데이터 로드 및 설정 ---
 machine_map = {
     "과립": ["P100", "KM100", "SM100", "P400", "GS400", "SM600", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
     "건조": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
@@ -90,40 +107,34 @@ def load_data():
 
 master_dict, curr_df = load_data()
 
-# --- 5. 사이드바 구성 (무조건 실행되도록 위치 조정) ---
+# --- 5. 사이드바 구성 ---
 with st.sidebar:
-    st.title("📋 생산 관리 메뉴")
+    st.header("🏭 생산 관리 메뉴")
     st.divider()
-    
-    st.subheader("🆕 신규 로트 투입")
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()) if master_dict else ["데이터 없음"])
     lot_in = st.text_input("제조번호(Lot) 입력")
-    
     if st.button("➕ 대기열 추가", use_container_width=True):
         if lot_in:
             if 'pending' not in st.session_state: st.session_state.pending = []
             st.session_state.pending.append({'제품': sel_p, 'Lot': lot_in})
             st.rerun()
-
     if 'pending' in st.session_state and st.session_state.pending:
-        st.write(f"현재 대기: {len(st.session_state.pending)}건")
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             for p in st.session_state.pending:
-                # 첫 공정 및 설비 자동 배정
                 f_stg = next((s for s in STAGES if master_dict.get(p['제품'], {}).get(s)), "과립")
                 f_m = master_dict[p['제품']][f_stg][0] if master_dict[p['제품']][f_stg] else ""
                 worksheet.append_row([p['Lot'], p['제품'], f_stg, "대기", "", get_now_kst(), "0", "일반", "", f_m])
             st.session_state.pending = []
             st.rerun()
-
     st.divider()
     st.subheader("📊 실시간 공정 현황")
     for stage in STAGES:
         count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         st.write(f"**{stage}:** {count}건")
 
-# --- 6. 메인 화면 출력 ---
-st.markdown('<div class="fixed-header"><div class="header-title">🏭 명인제약 생산 시점 관리 시스템</div></div>', unsafe_allow_html=True)
+# --- 6. 메인 화면 ---
+# 최상단 고정 제목
+st.markdown('<div class="fixed-header"><p class="header-title">🏭 명인제약 생산 시점 관리 시스템</p></div>', unsafe_allow_html=True)
 
 if st.button("📊 이력 확인 / 현황판 전환", type="secondary"):
     if 'page' not in st.session_state: st.session_state.page = 'main'
@@ -134,7 +145,8 @@ current_page = st.session_state.get('page', 'main')
 
 if current_page == 'main':
     for stage in STAGES:
-        st.markdown(f"#### 🔹 {stage}")
+        # 공정 가로 바 형태 제목
+        st.markdown(f'<div class="stage-bar">▶ {stage} 공정</div>', unsafe_allow_html=True)
         cols = st.columns(10)
         for m_idx, machine in enumerate(machine_map[stage]):
             with cols[m_idx]:
@@ -147,13 +159,20 @@ if current_page == 'main':
                         cls = "bg-waiting" if row['상태'] == '대기' else "bg-progress"
                         st.markdown(f"<div class='status-bar {cls}'>{row['상태']}</div>", unsafe_allow_html=True)
                         if st.button("시작" if row['상태']=='대기' else "완료", key=f"btn_{row['Lot']}_{stage}"):
-                            # 상태 업데이트 로직 (간략화)
                             if row['상태'] == '대기':
                                 worksheet.update_cell(row['Row'], 4, "진행중")
                                 worksheet.update_cell(row['Row'], 5, get_now_kst())
                             else:
-                                # 완료 및 다음 공정 이동 로직 실행
-                                st.write("공정 이동 중...")
+                                n_idx = STAGES.index(stage) + 1
+                                next_stg = next((STAGES[i] for i in range(n_idx, len(STAGES)) if master_dict.get(row['제품'], {}).get(STAGES[i])), None)
+                                if next_stg:
+                                    worksheet.update_cell(row['Row'], 3, next_stg)
+                                    worksheet.update_cell(row['Row'], 4, "대기")
+                                    worksheet.update_cell(row['Row'], 5, "")
+                                    worksheet.update_cell(row['Row'], 10, master_dict[row['제품']][next_stg][0])
+                                else:
+                                    log_sheet.append_row([row['Lot'], row['제품'], "생산완료", "", get_now_kst(), "완료"])
+                                    worksheet.delete_rows(row['Row'])
                             st.rerun()
 else:
     st.header("📋 공정 이력 리스트")
