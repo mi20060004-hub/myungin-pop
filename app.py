@@ -20,7 +20,7 @@ st.markdown("""
         top: 0;
         left: 0;
         right: 0;
-        height: 100px;
+        height: 80px;
         background-color: #1e3a8a; /* 명인제약 진한 파란색 */
         z-index: 999998;
         box-shadow: 0 4px 10px rgba(0,0,0,0.3);
@@ -32,7 +32,7 @@ st.markdown("""
         top: 20px;
         left: 40px;
         color: white !important;
-        font-size: 46px !important; /* 글씨 크기 더 확대 */
+        font-size: 30px !important; /* 글씨 크기 더 확대 */
         font-weight: 900;
         z-index: 999999;
         margin: 0;
