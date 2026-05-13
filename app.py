@@ -20,7 +20,7 @@ st.markdown("""
         top: 0;
         left: 0;
         right: 0;
-        height: 80px;
+        height: 60px;
         background-color: #1e3a8a; /* 명인제약 진한 파란색 */
         z-index: 999998;
         box-shadow: 0 4px 10px rgba(0,0,0,0.3);
