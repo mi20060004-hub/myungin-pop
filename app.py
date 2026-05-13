@@ -11,7 +11,6 @@ def get_gspread_client():
     return gspread.authorize(creds)
 
 gc = get_gspread_client()
-# 사용자님의 시트 ID
 SHEET_ID = "1ST-zbOoIoP5MvWkoTCFNDvi76yavH8pu2Ak7kudyzBM"
 sh = gc.open_by_key(SHEET_ID)
 worksheet = sh.worksheet('현재생산중')
@@ -31,7 +30,7 @@ st.markdown("""
         padding: 5px 12px; border-radius: 15px; font-size: 0.85em; font-weight: bold; color: white;
     }
     </style>
-    """, unsafe_allow_config=True)
+    """, unsafe_allow_html=True) # <- 이 부분이 수정되었습니다.
 
 st.title("🏭 명인제약 생산 시점 관리 시스템 (POP)")
 
@@ -46,13 +45,11 @@ except Exception as e:
 if not df.empty:
     cols = st.columns(3) 
     for idx, row in df.iterrows():
-        # 상태에 따른 색상 (시트의 '상태' 열 기준)
         status_color = "#6c757d" 
-        if row.get('상태') == '진행중': status_color = "#28a745"
-        elif row.get('상태') == '대기': status_color = "#ffc107"
+        if str(row.get('상태')) == '진행중': status_color = "#28a745"
+        elif str(row.get('상태')) == '대기': status_color = "#ffc107"
 
         with cols[idx % 3]:
-            # 시트에 실제 존재하는 '공정', '제품명', '제조번호'만 표시
             st.markdown(f"""
                 <div class="process-card">
                     <div style="display:flex; justify-content: space-between; align-items:center;">
@@ -66,7 +63,7 @@ if not df.empty:
                     <p><b>제품명:</b> {row.get('제품명', '-')}</p>
                     <p style="font-size: 0.8em; color: gray;">조회시간: {datetime.now().strftime('%H:%M:%S')}</p>
                 </div>
-                """, unsafe_allow_config=True)
+                """, unsafe_allow_html=True) # <- 이 부분도 수정되었습니다.
             
             if st.button(f"작업 관리 ({row.get('제조번호', idx)})", key=f"btn_{idx}"):
                 st.info(f"'{row.get('공정')}' 공정 기록 모듈을 실행합니다.")
