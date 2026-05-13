@@ -7,23 +7,50 @@ from google.oauth2.service_account import Credentials
 # --- 1. 페이지 설정 ---
 st.set_page_config(
     layout="wide", 
-    page_title="명인제약 생산 시점 관리 시스템",
+    page_title="명인제약 생산 시점 관리",
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS 스타일 (제목 고정 및 공정 바 디자인) ---
+# --- 2. CSS 스타일 (상단 고정 헤더 및 디자인) ---
 st.markdown("""
     <style>
-    .main-title {
-        text-align: center;
-        color: #1e3a8a;
-        font-size: 36px;
-        font-weight: 900;
-        padding-bottom: 15px;
+    /* 1. 상단 고정 헤더 영역 */
+    .fixed-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 70px;
+        background-color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
         border-bottom: 3px solid #1e3a8a;
-        margin-bottom: 30px;
-        margin-top: -40px;
+        padding: 0 20px;
     }
+    
+    /* 2. 헤더 내 제목 스타일 */
+    .header-container {
+        display: flex;
+        align-items: center;
+        gap: 30px; /* 제목과 버튼 사이 간격 */
+    }
+    
+    .main-title-text {
+        color: #1e3a8a;
+        font-size: 32px;
+        font-weight: 900;
+        margin: 0;
+        white-space: nowrap;
+    }
+
+    /* 3. 메인 컨텐츠 상단 여백 (헤더 높이만큼 띄움) */
+    .main .block-container {
+        padding-top: 90px;
+    }
+
+    /* 4. 공정 가로 바 디자인 */
     .stage-bar {
         background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
         color: white;
@@ -31,13 +58,15 @@ st.markdown("""
         border-radius: 8px;
         font-size: 20px;
         font-weight: 700;
-        margin-top: 40px;
+        margin-top: 30px;
         margin-bottom: 20px;
         width: 100%;
         display: block;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         text-align: left;
     }
+
+    /* 5. 설비 및 상태 바 스타일 유지 */
     .machine-title {
         background: #f8fafc; padding: 4px; text-align: center; font-size: 11px; font-weight: 700;
         border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1;
@@ -45,7 +74,11 @@ st.markdown("""
     }
     .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 2px 0; border-radius: 3px; margin-bottom: 4px; }
     .bg-waiting { background-color: #3b82f6; } .bg-progress { background-color: #ef4444; }
-    .stButton>button { width: 100%; }
+    
+    /* 버튼 위치 조정을 위한 커스텀 스타일 */
+    div[data-testid="stHorizontalBlock"] {
+        align-items: center;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -90,34 +123,26 @@ def load_data():
 
 master_dict, curr_df = load_data()
 
-# --- 5. 사이드바 구성 (제조 투입) ---
+# --- 5. 사이드바 구성 ---
 with st.sidebar:
-    st.header("🏭 제조 투입")  # 제목 변경
+    st.header("🏭 제조 투입")
     st.divider()
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()) if master_dict else ["데이터 없음"])
     lot_in = st.text_input("제조번호(Lot) 입력")
-    
-    # [추가] 제품 구분 및 메모 입력란
     type_in = st.radio("제품 구분", ["일반제품", "PV"], horizontal=True)
     memo_in = st.text_area("상세설명 (메모)", placeholder="특이사항을 입력하세요")
     
-    if st.button("➕ 대기열 추가"):
+    if st.button("➕ 대기열 추가", use_container_width=True):
         if lot_in:
             if 'pending' not in st.session_state: st.session_state.pending = []
-            st.session_state.pending.append({
-                '제품': sel_p, 
-                'Lot': lot_in,
-                '구분': type_in,
-                '메모': memo_in
-            })
+            st.session_state.pending.append({'제품': sel_p, 'Lot': lot_in, '구분': type_in, '메모': memo_in})
             st.rerun()
             
     if 'pending' in st.session_state and st.session_state.pending:
-        if st.button("🚀 전체 투입 확정", type="primary"):
+        if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             for p in st.session_state.pending:
                 f_stg = next((s for s in STAGES if master_dict.get(p['제품'], {}).get(s)), "과립")
                 f_m = master_dict[p['제품']][f_stg][0] if master_dict[p['제품']][f_stg] else ""
-                # 시트 구조: Lot(0), 제품(1), 공정(2), 상태(3), 시작시간(4), 종료시간(5), 수량(6), 구분(7), 메모(8), 설비(9)
                 worksheet.append_row([p['Lot'], p['제품'], f_stg, "대기", "", get_now_kst(), "0", p['구분'], p['메모'], f_m])
             st.session_state.pending = []
             st.rerun()
@@ -128,12 +153,21 @@ with st.sidebar:
         st.write(f"**{stage}:** {count}건")
 
 # --- 6. 메인 화면 ---
-st.markdown('<div class="main-title">명인제약 생산 시점 관리 시스템</div>', unsafe_allow_html=True)
 
-if st.button("📊 이력 확인 / 현황판 전환", type="secondary"):
-    if 'page' not in st.session_state: st.session_state.page = 'main'
-    st.session_state.page = 'history' if st.session_state.page == 'main' else 'main'
-    st.rerun()
+# [상단 고정 헤더 레이아웃]
+if 'page' not in st.session_state: st.session_state.page = 'main'
+
+# 헤더 HTML 및 버튼 배치
+st.markdown('<div class="fixed-header"><div class="header-container"><p class="main-title-text">명인제약 생산 시점 관리</p></div></div>', unsafe_allow_html=True)
+
+# 제목 옆에 버튼을 배치하기 위해 컬럼 사용 (헤더 높이에 맞춰 조정)
+head_col1, head_col2, head_col3 = st.columns([2.5, 1.2, 5])
+with head_col2:
+    # 스크롤에 상관없이 고정된 위치에 버튼이 보이도록 함
+    btn_text = "현황판 돌아가기" if st.session_state.page == 'history' else "완료 이력 확인"
+    if st.button(btn_text, type="secondary"):
+        st.session_state.page = 'history' if st.session_state.page == 'main' else 'main'
+        st.rerun()
 
 current_page = st.session_state.get('page', 'main')
 
