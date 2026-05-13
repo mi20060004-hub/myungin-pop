@@ -14,7 +14,6 @@ st.set_page_config(
 # --- 2. CSS 스타일 (제목 고정 및 공정 바 디자인) ---
 st.markdown("""
     <style>
-    /* 1. 메인 화면 중앙 제목 스타일 */
     .main-title {
         text-align: center;
         color: #1e3a8a;
@@ -23,10 +22,8 @@ st.markdown("""
         padding-bottom: 15px;
         border-bottom: 3px solid #1e3a8a;
         margin-bottom: 30px;
-        margin-top: -40px; /* 상단 여백 제거 */
+        margin-top: -40px;
     }
-
-    /* 2. 공정 가로 바 디자인 (Stage Bar) */
     .stage-bar {
         background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
         color: white;
@@ -41,19 +38,13 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         text-align: left;
     }
-
-    /* 3. 설비 타이틀 스타일 */
     .machine-title {
         background: #f8fafc; padding: 4px; text-align: center; font-size: 11px; font-weight: 700;
         border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1;
         min-height: 28px; display: flex; align-items: center; justify-content: center;
     }
-
-    /* 4. 상태 바 스타일 */
     .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 2px 0; border-radius: 3px; margin-bottom: 4px; }
     .bg-waiting { background-color: #3b82f6; } .bg-progress { background-color: #ef4444; }
-    
-    /* 5. 버튼 스타일 유지 */
     .stButton>button { width: 100%; }
     </style>
     """, unsafe_allow_html=True)
@@ -93,29 +84,41 @@ def load_data():
     master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(val).split(',') if m.strip()] 
                    for s, val in zip(STAGES, r[3:10])} for r in m_values[1:] if r and r[0]}
     c_values = worksheet.get_all_values()
-    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'Row':i+2, '설비':r[9] if len(r)>9 else ""} 
+    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'메모':r[8] if len(r)>8 else '','Row':i+2, '설비':r[9] if len(r)>9 else ""} 
                             for i,r in enumerate(c_values[1:]) if r and r[0]])
     return master_dict, curr_df
 
 master_dict, curr_df = load_data()
 
-# --- 5. 사이드바 구성 ---
+# --- 5. 사이드바 구성 (제조 투입) ---
 with st.sidebar:
-    st.header("🏭 생산 관리 메뉴")
+    st.header("🏭 제조 투입")  # 제목 변경
     st.divider()
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()) if master_dict else ["데이터 없음"])
     lot_in = st.text_input("제조번호(Lot) 입력")
+    
+    # [추가] 제품 구분 및 메모 입력란
+    type_in = st.radio("제품 구분", ["일반제품", "PV"], horizontal=True)
+    memo_in = st.text_area("상세설명 (메모)", placeholder="특이사항을 입력하세요")
+    
     if st.button("➕ 대기열 추가"):
         if lot_in:
             if 'pending' not in st.session_state: st.session_state.pending = []
-            st.session_state.pending.append({'제품': sel_p, 'Lot': lot_in})
+            st.session_state.pending.append({
+                '제품': sel_p, 
+                'Lot': lot_in,
+                '구분': type_in,
+                '메모': memo_in
+            })
             st.rerun()
+            
     if 'pending' in st.session_state and st.session_state.pending:
         if st.button("🚀 전체 투입 확정", type="primary"):
             for p in st.session_state.pending:
                 f_stg = next((s for s in STAGES if master_dict.get(p['제품'], {}).get(s)), "과립")
                 f_m = master_dict[p['제품']][f_stg][0] if master_dict[p['제품']][f_stg] else ""
-                worksheet.append_row([p['Lot'], p['제품'], f_stg, "대기", "", get_now_kst(), "0", "일반", "", f_m])
+                # 시트 구조: Lot(0), 제품(1), 공정(2), 상태(3), 시작시간(4), 종료시간(5), 수량(6), 구분(7), 메모(8), 설비(9)
+                worksheet.append_row([p['Lot'], p['제품'], f_stg, "대기", "", get_now_kst(), "0", p['구분'], p['메모'], f_m])
             st.session_state.pending = []
             st.rerun()
     st.divider()
@@ -125,8 +128,6 @@ with st.sidebar:
         st.write(f"**{stage}:** {count}건")
 
 # --- 6. 메인 화면 ---
-
-# [메인 화면 최상단 중앙 제목 추가]
 st.markdown('<div class="main-title">명인제약 생산 시점 관리 시스템</div>', unsafe_allow_html=True)
 
 if st.button("📊 이력 확인 / 현황판 전환", type="secondary"):
@@ -138,10 +139,8 @@ current_page = st.session_state.get('page', 'main')
 
 if current_page == 'main':
     for stage in STAGES:
-        # [공정 가로 바 디자인]
         st.markdown(f'<div class="stage-bar">▶ {stage} 공정</div>', unsafe_allow_html=True)
-        
-        cols = st.columns(10) # 10열 설비 배치 유지
+        cols = st.columns(10)
         for m_idx, machine in enumerate(machine_map[stage]):
             with cols[m_idx]:
                 st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
@@ -154,6 +153,7 @@ if current_page == 'main':
                         with st.container(border=True):
                             st.markdown(f"<div style='font-size:11px; font-weight:800; text-align:center;'>{row['제품']}</div>", unsafe_allow_html=True)
                             st.markdown(f"<div style='font-size:11px; font-weight:900; color:#1e40af; text-align:center;'>{row['Lot']}</div>", unsafe_allow_html=True)
+                            if row['메모']: st.caption(f"📝 {row['메모']}")
                             cls = "bg-waiting" if row['상태'] == '대기' else "bg-progress"
                             st.markdown(f"<div class='status-bar {cls}'>{row['상태']}</div>", unsafe_allow_html=True)
                             
@@ -180,5 +180,3 @@ else:
     log_data = log_sheet.get_all_values()
     if len(log_data) > 1:
         st.dataframe(pd.DataFrame(log_data[1:], columns=log_data[0]), use_container_width=True)
-
-st.markdown("</div>", unsafe_allow_html=True)
