@@ -29,8 +29,8 @@ st.markdown("""
     /* 2. 제목 스타일 (글씨 더 크게) */
     .main-title-text {
         position: fixed;
-        top: 10px;
-        left: 240px;
+        top: 5px;
+        left: 300px;
         color: white !important;
         font-size: 30px !important; /* 글씨 크기 더 확대 */
         font-weight: 900;
