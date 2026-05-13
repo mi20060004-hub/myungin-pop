@@ -11,10 +11,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS 스타일 (상단 고정 헤더 및 디자인) ---
+# --- 2. CSS 스타일 (상단 제목+버튼 고정 레이아웃) ---
 st.markdown("""
     <style>
-    /* 1. 상단 고정 헤더 영역 */
+    /* 1. 상단 전체 고정 바 */
     .fixed-header {
         position: fixed;
         top: 0;
@@ -24,30 +24,25 @@ st.markdown("""
         background-color: white;
         display: flex;
         align-items: center;
-        justify-content: center;
-        z-index: 10000;
+        justify-content: flex-start; /* 왼쪽부터 정렬 */
+        z-index: 999999; /* 최상단 우선순위 */
         border-bottom: 3px solid #1e3a8a;
-        padding: 0 20px;
+        padding: 0 40px;
     }
     
-    /* 2. 헤더 내 제목 스타일 */
-    .header-container {
-        display: flex;
-        align-items: center;
-        gap: 30px; /* 제목과 버튼 사이 간격 */
-    }
-    
+    /* 2. 제목 스타일 */
     .main-title-text {
         color: #1e3a8a;
-        font-size: 32px;
+        font-size: 30px;
         font-weight: 900;
         margin: 0;
+        margin-right: 30px; /* 제목과 버튼 사이 간격 */
         white-space: nowrap;
     }
 
-    /* 3. 메인 컨텐츠 상단 여백 (헤더 높이만큼 띄움) */
+    /* 3. 메인 컨텐츠 상단 여백 (헤더 공간 확보) */
     .main .block-container {
-        padding-top: 90px;
+        padding-top: 100px !important;
     }
 
     /* 4. 공정 가로 바 디자인 */
@@ -75,9 +70,9 @@ st.markdown("""
     .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 2px 0; border-radius: 3px; margin-bottom: 4px; }
     .bg-waiting { background-color: #3b82f6; } .bg-progress { background-color: #ef4444; }
     
-    /* 버튼 위치 조정을 위한 커스텀 스타일 */
-    div[data-testid="stHorizontalBlock"] {
-        align-items: center;
+    /* 버튼이 담긴 컨테이너 위치 조정 */
+    .stButton {
+        margin-top: 0 !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -154,20 +149,25 @@ with st.sidebar:
 
 # --- 6. 메인 화면 ---
 
-# [상단 고정 헤더 레이아웃]
+# [상단 고정 헤더: 제목과 버튼을 하나의 행으로 구성]
 if 'page' not in st.session_state: st.session_state.page = 'main'
 
-# 헤더 HTML 및 버튼 배치
-st.markdown('<div class="fixed-header"><div class="header-container"><p class="main-title-text">명인제약 생산 시점 관리</p></div></div>', unsafe_allow_html=True)
+# HTML로 제목 영역을 먼저 고정
+st.markdown('<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 
-# 제목 옆에 버튼을 배치하기 위해 컬럼 사용 (헤더 높이에 맞춰 조정)
-head_col1, head_col2, head_col3 = st.columns([2.5, 1.2, 5])
-with head_col2:
-    # 스크롤에 상관없이 고정된 위치에 버튼이 보이도록 함
-    btn_text = "현황판 돌아가기" if st.session_state.page == 'history' else "완료 이력 확인"
-    if st.button(btn_text, type="secondary"):
-        st.session_state.page = 'history' if st.session_state.page == 'main' else 'main'
-        st.rerun()
+# 버튼을 제목 오른쪽 위치에 띄우기 위해 상단 레이어 위에 버튼 배치
+# (CSS z-index로 띄워진 fixed-header 위에 streamlit 버튼을 올림)
+with st.container():
+    # 빈 공간을 확보하여 제목 오른쪽에 버튼이 오도록 컬럼 배치
+    header_col1, header_col2, header_col3 = st.columns([2.3, 1.2, 5])
+    with header_col2:
+        # 이 컨테이너는 CSS에 의해 상단에 고정된 것처럼 보입니다.
+        st.markdown('<div style="position: fixed; top: 15px; z-index: 1000000;">', unsafe_allow_html=True)
+        btn_text = "현황판 돌아가기" if st.session_state.page == 'history' else "완료 이력 확인"
+        if st.button(btn_text, type="secondary"):
+            st.session_state.page = 'history' if st.session_state.page == 'main' else 'main'
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 current_page = st.session_state.get('page', 'main')
 
