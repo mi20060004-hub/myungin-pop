@@ -4,10 +4,9 @@ from datetime import datetime, timedelta, timezone
 import gspread
 from google.oauth2.service_account import Credentials
 
-# --- 1. 페이지 설정 및 디자인 (Colab 스타일 100% 이식) ---
+# --- 1. 페이지 설정 및 디자인 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리 시스템")
 
-# CSS 스타일 적용
 st.markdown("""
     <style>
     .stApp { background-color: #ffffff; }
@@ -31,18 +30,15 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 인증 및 시트 연결 로직 ---
+# --- 2. 인증 및 시트 연결 ---
 def get_gspread_client():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    # Colab의 default() 대신 Streamlit Secrets 사용
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
     return gspread.authorize(creds)
 
 gc = get_gspread_client()
-try:
-    sh = gc.open('생산관리_시스템')
-except:
-    sh = gc.open_by_key("1ST-zbOoIoP5MvWkoTCFNDvi76yavH8pu2Ak7kudyzBM")
+SHEET_ID = "1ST-zbOoIoP5MvWkoTCFNDvi76yavH8pu2Ak7kudyzBM"
+sh = gc.open_by_key(SHEET_ID)
 
 worksheet = sh.worksheet('현재생산중')
 log_sheet = sh.worksheet('공정이력')
@@ -60,64 +56,74 @@ machine_map = {
 }
 STAGES = list(machine_map.keys())
 
-# --- 4. 데이터 로딩 함수 ---
+# --- 4. 데이터 로딩 ---
 def get_now_kst():
     return (datetime.now(timezone(timedelta(hours=9)))).strftime('%Y-%m-%d KST %H:%M:%S')
 
 def load_data():
     m_values = master_sheet.get_all_values()
     master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(val).split(',') if m.strip()] 
-                   for s, val in zip(STAGES, r[3:10])} for r in m_values[1:] if r[0]}
+                   for s, val in zip(STAGES, r[3:10])} for r in m_values[1:] if r and r[0]}
     
     c_values = worksheet.get_all_values()
-    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'시작':r[4],'최초시작시간':r[5],'Row':i+2, '설비':r[9] if len(r)>9 else ""} 
+    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'Row':i+2, '설비':r[9] if len(r)>9 else ""} 
                             for i,r in enumerate(c_values[1:]) if r and r[0]])
     return master_dict, curr_df
 
 master_dict, curr_df = load_data()
 
-# --- 5. 세션 상태 관리 ---
-if 'page' not in st.session_state: st.session_state.page = 'main'
+# --- 5. 세션 상태 ---
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
+if 'page' not in st.session_state: st.session_state.page = 'main'
 
-# --- 6. UI 레이아웃 및 로직 ---
+# --- 6. 사이드바 (제품 투입 및 현황) ---
+with st.sidebar:
+    st.title("🆕 로트 신규 투입")
+    sel_p = st.selectbox("제품명 선택", list(master_dict.keys()) if master_dict else ["등록된 제품 없음"])
+    lot_in = st.text_input("제조번호 입력")
+    
+    if st.button("➕ 대기열 추가", use_container_width=True):
+        if lot_in.strip():
+            st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in.strip()})
+            st.rerun()
+
+    if st.session_state.pending_lots:
+        st.markdown("---")
+        st.subheader("📋 투입 대기 목록")
+        for i, p in enumerate(st.session_state.pending_lots):
+            st.write(f"{i+1}. {p['제품']} ({p['Lot']})")
+        
+        if st.button("🚀 전체 투입 확정", use_container_width=True):
+            for p in st.session_state.pending_lots:
+                first_stg = next((s for s in STAGES if master_dict.get(p['제품'], {}).get(s)), "과립")
+                first_m = master_dict[p['제품']][first_stg][0] if master_dict[p['제품']][first_stg] else ""
+                worksheet.append_row([p['Lot'], p['제품'], first_stg, "대기", "", get_now_kst(), "0", "일반로트", "", first_m])
+            st.session_state.pending_lots = []
+            st.rerun()
+
+    st.markdown("---")
+    st.subheader("📊 현재 공정별 현황")
+    for stage in STAGES:
+        cnt = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
+        st.write(f"{stage}: {cnt}건")
+
+# --- 7. 메인 화면 ---
 st.markdown('<div class="fixed-header"><div class="header-title">🏭 명인제약 생산 시점 관리 시스템</div></div>', unsafe_allow_html=True)
 st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
-# 페이지 전환 버튼 (고정 위치 스타일)
-if st.button("📊 이력 확인" if st.session_state.page == 'main' else "⬅️ 현황판", type="primary"):
+# 페이지 상단 버튼
+if st.button("📊 이력 및 완료 확인" if st.session_state.page == 'main' else "⬅️ 현황판 돌아가기", type="primary"):
     st.session_state.page = 'history' if st.session_state.page == 'main' else 'main'
     st.rerun()
 
 if st.session_state.page == 'main':
-    # 사이드바: 신규 투입
-    with st.sidebar:
-        st.header("🆕 로트 신규 투입")
-        sel_p = st.selectbox("제품명 선택", list(master_dict.keys()))
-        lot_in = st.text_input("제조번호 입력")
-        if st.button("➕ 대기열 추가"):
-            if lot_in:
-                st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': '일반로트', '비고': ''})
-                st.rerun()
-        
-        # 대기열 및 투입 로직
-        if st.session_state.pending_lots:
-            if st.button("🚀 전체 투입"):
-                for p in st.session_state.pending_lots:
-                    f_stg = next((s for s in STAGES if master_dict[p['제품']][s]), "과립")
-                    m = master_dict[p['제품']][f_stg][0]
-                    worksheet.append_row([p['Lot'], p['제품'], f_stg, "대기", "", get_now_kst(), "0", p['유형'], p['비고'], m])
-                st.session_state.pending_lots = []
-                st.rerun()
-
-    # 메인 현황판 (10열 설비 배치)
     for stage in STAGES:
-        st.subheader(f"🔹 {stage}")
+        st.markdown(f"### 🔹 {stage}")
         cols = st.columns(10)
         for m_idx, machine in enumerate(machine_map[stage]):
             with cols[m_idx]:
                 st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
-                m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine)]
+                m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine)] if not curr_df.empty else pd.DataFrame()
                 for _, row in m_items.iterrows():
                     with st.container(border=True):
                         st.markdown(f"<div class='block-prod-name'>{row['제품']}</div>", unsafe_allow_html=True)
@@ -126,26 +132,25 @@ if st.session_state.page == 'main':
                         st.markdown(f"<div class='status-bar {cls}'>{row['상태']}</div>", unsafe_allow_html=True)
                         
                         if row['상태'] == '대기':
-                            if st.button("시작", key=f"s_{row['Lot']}"):
+                            if st.button("시작", key=f"s_{row['Lot']}_{stage}"):
                                 worksheet.update_cell(row['Row'], 4, "진행중")
                                 worksheet.update_cell(row['Row'], 5, get_now_kst())
                                 st.rerun()
                         elif row['상태'] == '진행중':
-                            if st.button("완료", key=f"e_{row['Lot']}"):
-                                # 다음 공정 이동 또는 완료 로직
+                            if st.button("완료", key=f"e_{row['Lot']}_{stage}"):
                                 n_idx = STAGES.index(stage) + 1
-                                next_stg = next((STAGES[i] for i in range(n_idx, len(STAGES)) if master_dict[row['제품']][STAGES[i]]), None)
+                                next_stg = next((STAGES[i] for i in range(n_idx, len(STAGES)) if master_dict.get(row['제품'], {}).get(STAGES[i])), None)
                                 if next_stg:
                                     worksheet.update_cell(row['Row'], 3, next_stg)
                                     worksheet.update_cell(row['Row'], 4, "대기")
+                                    worksheet.update_cell(row['Row'], 5, "")
                                     worksheet.update_cell(row['Row'], 10, master_dict[row['제품']][next_stg][0])
                                 else:
-                                    log_sheet.append_row([row['Lot'], row['제품'], "생산완료", row['최초시작시간'], get_now_kst()])
+                                    log_sheet.append_row([row['Lot'], row['제품'], "생산완료", "", get_now_kst(), "완료"])
                                     worksheet.delete_rows(row['Row'])
                                 st.rerun()
 else:
-    # 이력 페이지
-    st.header("📋 공정 이력")
+    st.header("📋 전체 공정 이력")
     log_data = log_sheet.get_all_values()
     if len(log_data) > 1:
         st.dataframe(pd.DataFrame(log_data[1:], columns=log_data[0]), use_container_width=True)
