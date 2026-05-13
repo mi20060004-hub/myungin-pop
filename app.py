@@ -11,42 +11,49 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS 스타일 (파란색 상단 고정 헤더 디자인) ---
+# --- 2. CSS 스타일 (파란색 대형 헤더 및 버튼 절대 위치 고정) ---
 st.markdown("""
     <style>
-    /* 1. 상단 전체 고정 블루 바 */
+    /* 1. 상단 고정 블루 헤더 바 */
     .fixed-header {
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        height: 60px;
-        background-color: #1e3a8a; /* 진한 파란색 배경 */
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        z-index: 999999;
-        padding: 0 40px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        height: 100px;
+        background-color: #1e3a8a; /* 명인제약 진한 파란색 */
+        z-index: 999998;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
     
-    /* 2. 대형 제목 스타일 */
+    /* 2. 제목 스타일 (글씨 더 크게) */
     .main-title-text {
-        color: white !important; /* 글자색 흰색으로 변경 */
-        font-size: 30px !important; /* 글씨 크기 대폭 확대 */
+        position: fixed;
+        top: 20px;
+        left: 40px;
+        color: white !important;
+        font-size: 46px !important; /* 글씨 크기 더 확대 */
         font-weight: 900;
+        z-index: 999999;
         margin: 0;
-        margin-right: 50px; /* 제목과 버튼 사이 간격 */
-        white-space: nowrap;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        white-space: nowrap;
     }
 
-    /* 3. 메인 컨텐츠 상단 여백 (커진 헤더 높이에 맞춤) */
+    /* 3. 버튼 위치 강제 고정 (제목 우측) */
+    .fixed-button-box {
+        position: fixed;
+        top: 35px; /* 제목 높이에 맞춰 조정 */
+        left: 560px; /* 제목이 끝나는 지점 우측으로 고정 */
+        z-index: 999999;
+    }
+
+    /* 4. 메인 컨텐츠 상단 여백 */
     .main .block-container {
         padding-top: 130px !important;
     }
 
-    /* 4. 공정 가로 바 디자인 */
+    /* 5. 공정 가로 바 디자인 */
     .stage-bar {
         background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
         color: white;
@@ -62,7 +69,7 @@ st.markdown("""
         text-align: left;
     }
 
-    /* 5. 설비 및 상태 바 스타일 유지 */
+    /* 6. 설비 타이틀 및 기타 스타일 유지 */
     .machine-title {
         background: #f8fafc; padding: 4px; text-align: center; font-size: 11px; font-weight: 700;
         border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1;
@@ -70,13 +77,6 @@ st.markdown("""
     }
     .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 2px 0; border-radius: 3px; margin-bottom: 4px; }
     .bg-waiting { background-color: #3b82f6; } .bg-progress { background-color: #ef4444; }
-    
-    /* 버튼 위치 고정 컨테이너 */
-    .fixed-button-container {
-        position: fixed;
-        top: 30px; /* 제목 높이에 맞춤 */
-        z-index: 1000000;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -95,7 +95,19 @@ worksheet = sh.worksheet('현재생산중')
 log_sheet = sh.worksheet('공정이력')
 master_sheet = sh.worksheet('제품마스터')
 
-# --- 4. 데이터 로드 및 설정 ---
+# --- 4. 데이터 로드 함수 ---
+def get_now_kst():
+    return (datetime.now(timezone(timedelta(hours=9)))).strftime('%Y-%m-%d KST %H:%M:%S')
+
+def load_data():
+    m_values = master_sheet.get_all_values()
+    master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(val).split(',') if m.strip()] 
+                   for s, val in zip(list(machine_map.keys()), r[3:10])} for r in m_values[1:] if r and r[0]}
+    c_values = worksheet.get_all_values()
+    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'메모':r[8] if len(r)>8 else '','Row':i+2, '설비':r[9] if len(r)>9 else ""} 
+                            for i,r in enumerate(c_values[1:]) if r and r[0]])
+    return master_dict, curr_df
+
 machine_map = {
     "과립": ["P100", "KM100", "SM100", "P400", "GS400", "SM600", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
     "건조": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
@@ -106,22 +118,24 @@ machine_map = {
     "코팅": ["SFC150FH", "SFC170FH", "SFC170FSH", "SFC130FSH", "V150", "SFC80"]
 }
 STAGES = list(machine_map.keys())
-
-def get_now_kst():
-    return (datetime.now(timezone(timedelta(hours=9)))).strftime('%Y-%m-%d KST %H:%M:%S')
-
-def load_data():
-    m_values = master_sheet.get_all_values()
-    master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(val).split(',') if m.strip()] 
-                   for s, val in zip(STAGES, r[3:10])} for r in m_values[1:] if r and r[0]}
-    c_values = worksheet.get_all_values()
-    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'메모':r[8] if len(r)>8 else '','Row':i+2, '설비':r[9] if len(r)>9 else ""} 
-                            for i,r in enumerate(c_values[1:]) if r and r[0]])
-    return master_dict, curr_df
-
 master_dict, curr_df = load_data()
 
-# --- 5. 사이드바 구성 ---
+# --- 5. 상단 헤더 렌더링 (제목 + 버튼) ---
+if 'page' not in st.session_state: st.session_state.page = 'main'
+
+# 파란 배경 바와 제목 출력
+st.markdown('<div class="fixed-header"></div>', unsafe_allow_html=True)
+st.markdown('<p class="main-title-text">명인제약 생산 시점 관리</p>', unsafe_allow_html=True)
+
+# 버튼을 제목 우측에 강제 배치
+st.markdown('<div class="fixed-button-box">', unsafe_allow_html=True)
+btn_text = "현황판 돌아가기" if st.session_state.page == 'history' else "완료 이력 확인"
+if st.button(btn_text, key="top_history_btn"):
+    st.session_state.page = 'history' if st.session_state.page == 'main' else 'main'
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 6. 사이드바 구성 ---
 with st.sidebar:
     st.header("🏭 제조 투입")
     st.divider()
@@ -150,25 +164,7 @@ with st.sidebar:
         count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         st.write(f"**{stage}:** {count}건")
 
-# --- 6. 메인 화면 ---
-
-# [상단 고정 헤더: 제목 표시]
-if 'page' not in st.session_state: st.session_state.page = 'main'
-st.markdown('<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
-
-# [제목 옆 버튼 배치]
-# 제목 영역 오른쪽 여백을 계산하여 버튼 컨테이너를 배치
-with st.container():
-    # 제목 길이에 따른 버튼 시작 위치 조정
-    col_space, col_btn, col_rest = st.columns([3.5, 1.5, 5])
-    with col_btn:
-        st.markdown('<div class="fixed-button-container">', unsafe_allow_html=True)
-        btn_text = "현황판 돌아가기" if st.session_state.page == 'history' else "완료 이력 확인"
-        if st.button(btn_text, key="top_history_btn"):
-            st.session_state.page = 'history' if st.session_state.page == 'main' else 'main'
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
+# --- 7. 페이지 컨텐츠 ---
 current_page = st.session_state.get('page', 'main')
 
 if current_page == 'main':
