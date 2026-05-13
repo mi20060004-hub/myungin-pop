@@ -4,110 +4,150 @@ from datetime import datetime, timedelta, timezone
 import gspread
 from google.oauth2.service_account import Credentials
 
-# --- 1. 페이지 기본 설정 (Colab 스타일 테마) ---
-st.set_page_config(layout="wide", page_title="명인제약 생산 관리 시스템")
+# --- 1. 페이지 설정 및 디자인 (Colab 스타일 100% 이식) ---
+st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리 시스템")
 
-# CSS: Colab에서 보던 깔끔한 블록 디자인 재현
+# CSS 스타일 적용
 st.markdown("""
     <style>
-    .main { background-color: #f0f2f6; }
-    .stApp { max-width: 1200px; margin: 0 auto; }
-    .process-container {
-        background-color: white;
-        padding: 20px;
-        border-radius: 15px;
-        border-top: 5px solid #1E3A8A;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        transition: transform 0.2s;
+    .stApp { background-color: #ffffff; }
+    [data-testid="stHeader"] { display: none; }
+    .fixed-header {
+        position: fixed; top: 0; left: 0; right: 0; height: 80px; background-color: white;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 40px; z-index: 999; border-bottom: 3px solid #1e293b;
     }
-    .process-container:hover { transform: translateY(-5px); }
-    .status-badge {
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 14px;
-        font-weight: bold;
-        color: white;
+    .header-title { font-size: 28px !important; font-weight: 900; color: #1e293b; }
+    .main-content { margin-top: 100px; }
+    .machine-title {
+        background: #f8fafc; padding: 2px; text-align: center; font-size: 11px; font-weight: 700;
+        border-radius: 4px; margin-bottom: 8px; border: 2px solid #cbd5e1;
+        min-height: 28px; display: flex; align-items: center; justify-content: center;
     }
+    .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 2px 0; border-radius: 3px; margin-bottom: 4px; }
+    .bg-waiting { background-color: #3b82f6; } .bg-progress { background-color: #ef4444; } .bg-pause { background-color: #f59e0b; }
+    .block-prod-name { font-size: 11px !important; font-weight: 800; color: #1e293b; text-align: center; }
+    .block-batch-no { font-size: 11px !important; font-weight: 900; color: #1e40af; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 인증 및 구글 시트 연결 (Streamlit Cloud 전용) ---
+# --- 2. 인증 및 시트 연결 로직 ---
 def get_gspread_client():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    # Streamlit Secrets에 저장된 정보를 사용하여 인증
+    # Colab의 default() 대신 Streamlit Secrets 사용
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
     return gspread.authorize(creds)
 
+gc = get_gspread_client()
 try:
-    gc = get_gspread_client()
-    # 사용자님의 고유 시트 ID
-    SHEET_ID = "1ST-zbOoIoP5MvWkoTCFNDvi76yavH8pu2Ak7kudyzBM"
-    sh = gc.open_by_key(SHEET_ID)
-    worksheet = sh.worksheet('현재생산중')
-except Exception as e:
-    st.error(f"⚠️ 연결 오류: 시트 ID나 권한을 확인하세요. ({e})")
-    st.stop()
+    sh = gc.open('생산관리_시스템')
+except:
+    sh = gc.open_by_key("1ST-zbOoIoP5MvWkoTCFNDvi76yavH8pu2Ak7kudyzBM")
 
-# --- 3. 데이터 로드 및 전처리 ---
+worksheet = sh.worksheet('현재생산중')
+log_sheet = sh.worksheet('공정이력')
+master_sheet = sh.worksheet('제품마스터')
+
+# --- 3. 설정 데이터 ---
+machine_map = {
+    "과립": ["P100", "KM100", "SM100", "P400", "GS400", "SM600", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
+    "건조": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
+    "정립": ["Comil0112", "Comil0212", "Comil0312", "파워밀", "오실레이터"],
+    "혼합": ["드럼혼합기", "PM1000", "PM2000"],
+    "타정": ["킬리안", "63S-1", "41S", "63S-3", "PR1023", "MRC45", "MRC45S", "63S-2", "31S", "PH300"],
+    "캡슐": ["SF150", "보쉬충전기", "PTK충전기", "SF35"],
+    "코팅": ["SFC150FH", "SFC170FH", "SFC170FSH", "SFC130FSH", "V150", "SFC80"]
+}
+STAGES = list(machine_map.keys())
+
+# --- 4. 데이터 로딩 함수 ---
+def get_now_kst():
+    return (datetime.now(timezone(timedelta(hours=9)))).strftime('%Y-%m-%d KST %H:%M:%S')
+
 def load_data():
-    data = worksheet.get_all_records()
-    df = pd.DataFrame(data)
-    # 컬럼명의 앞뒤 공백을 제거하여 KeyError 방지
-    df.columns = [c.strip() for c in df.columns]
-    return df
-
-df = load_data()
-
-# --- 4. 메인 화면 구성 ---
-st.title("🏭 명인제약 생산 시점 관리(POP) 시스템")
-kst_now = datetime.now(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S')
-st.write(f"⏱️ 현재 시간(KST): {kst_now}")
-st.divider()
-
-if not df.empty:
-    # 3열 배치를 통해 Colab의 시각적 레이아웃 재현
-    cols = st.columns(3)
+    m_values = master_sheet.get_all_values()
+    master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(val).split(',') if m.strip()] 
+                   for s, val in zip(STAGES, r[3:10])} for r in m_values[1:] if r[0]}
     
-    for idx, row in df.iterrows():
-        # 상태에 따른 색상 정의
-        status = str(row.get('상태', '대기')).strip()
-        bg_color = "#6c757d" # 기본 회색
-        if status == "진행중": bg_color = "#28a745" # 초록
-        elif status == "대기": bg_color = "#ffc107" # 노랑
-        elif status == "완료": bg_color = "#007bff" # 파랑
+    c_values = worksheet.get_all_values()
+    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'시작':r[4],'최초시작시간':r[5],'Row':i+2, '설비':r[9] if len(r)>9 else ""} 
+                            for i,r in enumerate(c_values[1:]) if r and r[0]])
+    return master_dict, curr_df
 
-        with cols[idx % 3]:
-            # HTML 카드로 공정 정보 표시
-            st.markdown(f"""
-                <div class="process-container">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h2 style="margin:0; font-size: 22px; color: #1E3A8A;">{row.get('공정', '알 수 없음')}</h2>
-                        <span class="status-badge" style="background-color: {bg_color};">{status}</span>
-                    </div>
-                    <p style="margin: 5px 0;"><b>📦 제품명:</b> {row.get('제품명', '-')}</p>
-                    <p style="margin: 5px 0;"><b>🔢 제조번호:</b> {row.get('제조번호', '-')}</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            # 작업 제어 버튼
-            btn_label = "🏁 작업 종료" if status == "진행중" else "🚀 작업 시작"
-            if st.button(btn_label, key=f"btn_{idx}", use_container_width=True):
-                new_status = "완료" if status == "진행중" else "진행중"
-                
-                # 구글 시트 업데이트 (실제 데이터 반영)
-                # '상태' 열이 D열(4번째)이라고 가정할 때의 로직
-                row_idx = idx + 2 # 헤더(1) + 인덱스(0부터 시작)
-                worksheet.update_cell(row_idx, 4, new_status) # 4번째 열(상태) 업데이트
-                
-                st.success(f"[{row.get('공정')}] 상태가 '{new_status}'(으)로 변경되었습니다!")
-                st.rerun() # 화면 새로고침
+master_dict, curr_df = load_data()
 
-else:
-    st.warning("조회된 생산 데이터가 없습니다. 구글 시트를 확인해 주세요.")
+# --- 5. 세션 상태 관리 ---
+if 'page' not in st.session_state: st.session_state.page = 'main'
+if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
 
-# 하단 정보
-st.sidebar.header("시스템 정보")
-st.sidebar.info("본 시스템은 구글 시트와 실시간으로 동기화됩니다.")
-if st.sidebar.button("🔄 강제 새로고침"):
+# --- 6. UI 레이아웃 및 로직 ---
+st.markdown('<div class="fixed-header"><div class="header-title">🏭 명인제약 생산 시점 관리 시스템</div></div>', unsafe_allow_html=True)
+st.markdown('<div class="main-content">', unsafe_allow_html=True)
+
+# 페이지 전환 버튼 (고정 위치 스타일)
+if st.button("📊 이력 확인" if st.session_state.page == 'main' else "⬅️ 현황판", type="primary"):
+    st.session_state.page = 'history' if st.session_state.page == 'main' else 'main'
     st.rerun()
+
+if st.session_state.page == 'main':
+    # 사이드바: 신규 투입
+    with st.sidebar:
+        st.header("🆕 로트 신규 투입")
+        sel_p = st.selectbox("제품명 선택", list(master_dict.keys()))
+        lot_in = st.text_input("제조번호 입력")
+        if st.button("➕ 대기열 추가"):
+            if lot_in:
+                st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': '일반로트', '비고': ''})
+                st.rerun()
+        
+        # 대기열 및 투입 로직
+        if st.session_state.pending_lots:
+            if st.button("🚀 전체 투입"):
+                for p in st.session_state.pending_lots:
+                    f_stg = next((s for s in STAGES if master_dict[p['제품']][s]), "과립")
+                    m = master_dict[p['제품']][f_stg][0]
+                    worksheet.append_row([p['Lot'], p['제품'], f_stg, "대기", "", get_now_kst(), "0", p['유형'], p['비고'], m])
+                st.session_state.pending_lots = []
+                st.rerun()
+
+    # 메인 현황판 (10열 설비 배치)
+    for stage in STAGES:
+        st.subheader(f"🔹 {stage}")
+        cols = st.columns(10)
+        for m_idx, machine in enumerate(machine_map[stage]):
+            with cols[m_idx]:
+                st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
+                m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine)]
+                for _, row in m_items.iterrows():
+                    with st.container(border=True):
+                        st.markdown(f"<div class='block-prod-name'>{row['제품']}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='block-batch-no'>{row['Lot']}</div>", unsafe_allow_html=True)
+                        cls = "bg-waiting" if row['상태'] == '대기' else "bg-progress"
+                        st.markdown(f"<div class='status-bar {cls}'>{row['상태']}</div>", unsafe_allow_html=True)
+                        
+                        if row['상태'] == '대기':
+                            if st.button("시작", key=f"s_{row['Lot']}"):
+                                worksheet.update_cell(row['Row'], 4, "진행중")
+                                worksheet.update_cell(row['Row'], 5, get_now_kst())
+                                st.rerun()
+                        elif row['상태'] == '진행중':
+                            if st.button("완료", key=f"e_{row['Lot']}"):
+                                # 다음 공정 이동 또는 완료 로직
+                                n_idx = STAGES.index(stage) + 1
+                                next_stg = next((STAGES[i] for i in range(n_idx, len(STAGES)) if master_dict[row['제품']][STAGES[i]]), None)
+                                if next_stg:
+                                    worksheet.update_cell(row['Row'], 3, next_stg)
+                                    worksheet.update_cell(row['Row'], 4, "대기")
+                                    worksheet.update_cell(row['Row'], 10, master_dict[row['제품']][next_stg][0])
+                                else:
+                                    log_sheet.append_row([row['Lot'], row['제품'], "생산완료", row['최초시작시간'], get_now_kst()])
+                                    worksheet.delete_rows(row['Row'])
+                                st.rerun()
+else:
+    # 이력 페이지
+    st.header("📋 공정 이력")
+    log_data = log_sheet.get_all_values()
+    if len(log_data) > 1:
+        st.dataframe(pd.DataFrame(log_data[1:], columns=log_data[0]), use_container_width=True)
+
+st.markdown("</div>", unsafe_allow_html=True)
