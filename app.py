@@ -4,65 +4,57 @@ from datetime import datetime, timedelta, timezone
 import gspread
 from google.oauth2.service_account import Credentials
 
-# --- 1. 페이지 설정 (사이드바 확장 유지) ---
+# --- 1. 페이지 설정 ---
 st.set_page_config(
     layout="wide", 
     page_title="명인제약 생산 시점 관리 시스템",
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS 스타일 (제목 고정 및 공정 바 디자인 추가) ---
+# --- 2. CSS 스타일 (제목 고정 및 공정 바 디자인) ---
 st.markdown("""
     <style>
-    /* 1. 상단 고정 헤더 제목 */
-    .fixed-header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 60px;
-        background-color: #1e3a8a; /* 명인제약 다크블루 */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
-    .header-title {
-        color: white !important;
-        font-size: 24px !important;
-        font-weight: 800;
-        margin: 0;
+    /* 1. 메인 화면 중앙 제목 스타일 */
+    .main-title {
+        text-align: center;
+        color: #1e3a8a;
+        font-size: 36px;
+        font-weight: 900;
+        padding-bottom: 15px;
+        border-bottom: 3px solid #1e3a8a;
+        margin-bottom: 30px;
+        margin-top: -40px; /* 상단 여백 제거 */
     }
 
-    /* 2. 메인 컨텐츠 상단 여백 (헤더 공간 확보) */
-    .main .block-container {
-        padding-top: 80px;
-    }
-
-    /* 3. 공정 가로 바 디자인 (Stage Bar) */
+    /* 2. 공정 가로 바 디자인 (Stage Bar) */
     .stage-bar {
         background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
         color: white;
-        padding: 8px 20px;
-        border-radius: 5px;
-        font-size: 18px;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 20px;
         font-weight: 700;
-        margin-top: 30px;
+        margin-top: 40px;
         margin-bottom: 20px;
         width: 100%;
         display: block;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        text-align: left;
     }
 
-    /* 4. 설비 타이틀 및 기타 기존 스타일 */
+    /* 3. 설비 타이틀 스타일 */
     .machine-title {
         background: #f8fafc; padding: 4px; text-align: center; font-size: 11px; font-weight: 700;
         border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1;
         min-height: 28px; display: flex; align-items: center; justify-content: center;
     }
+
+    /* 4. 상태 바 스타일 */
     .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 2px 0; border-radius: 3px; margin-bottom: 4px; }
     .bg-waiting { background-color: #3b82f6; } .bg-progress { background-color: #ef4444; }
+    
+    /* 5. 버튼 스타일 유지 */
+    .stButton>button { width: 100%; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -113,13 +105,13 @@ with st.sidebar:
     st.divider()
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()) if master_dict else ["데이터 없음"])
     lot_in = st.text_input("제조번호(Lot) 입력")
-    if st.button("➕ 대기열 추가", use_container_width=True):
+    if st.button("➕ 대기열 추가"):
         if lot_in:
             if 'pending' not in st.session_state: st.session_state.pending = []
             st.session_state.pending.append({'제품': sel_p, 'Lot': lot_in})
             st.rerun()
     if 'pending' in st.session_state and st.session_state.pending:
-        if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
+        if st.button("🚀 전체 투입 확정", type="primary"):
             for p in st.session_state.pending:
                 f_stg = next((s for s in STAGES if master_dict.get(p['제품'], {}).get(s)), "과립")
                 f_m = master_dict[p['제품']][f_stg][0] if master_dict[p['제품']][f_stg] else ""
@@ -133,8 +125,9 @@ with st.sidebar:
         st.write(f"**{stage}:** {count}건")
 
 # --- 6. 메인 화면 ---
-# 최상단 고정 제목
-st.markdown('<div class="fixed-header"><p class="header-title">🏭 명인제약 생산 시점 관리 시스템</p></div>', unsafe_allow_html=True)
+
+# [메인 화면 최상단 중앙 제목 추가]
+st.markdown('<div class="main-title">명인제약 생산 시점 관리 시스템</div>', unsafe_allow_html=True)
 
 if st.button("📊 이력 확인 / 현황판 전환", type="secondary"):
     if 'page' not in st.session_state: st.session_state.page = 'main'
@@ -145,35 +138,47 @@ current_page = st.session_state.get('page', 'main')
 
 if current_page == 'main':
     for stage in STAGES:
-        # 공정 가로 바 형태 제목
+        # [공정 가로 바 디자인]
         st.markdown(f'<div class="stage-bar">▶ {stage} 공정</div>', unsafe_allow_html=True)
-        cols = st.columns(10)
+        
+        cols = st.columns(10) # 10열 설비 배치 유지
         for m_idx, machine in enumerate(machine_map[stage]):
             with cols[m_idx]:
                 st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
                 m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine)] if not curr_df.empty else pd.DataFrame()
-                for _, row in m_items.iterrows():
-                    with st.container(border=True):
-                        st.write(f"**{row['제품']}**")
-                        st.caption(f"Lot: {row['Lot']}")
-                        cls = "bg-waiting" if row['상태'] == '대기' else "bg-progress"
-                        st.markdown(f"<div class='status-bar {cls}'>{row['상태']}</div>", unsafe_allow_html=True)
-                        if st.button("시작" if row['상태']=='대기' else "완료", key=f"btn_{row['Lot']}_{stage}"):
+                
+                if m_items.empty:
+                    st.markdown("<div style='text-align:center; color:#e2e8f0; font-size:10px;'>-</div>", unsafe_allow_html=True)
+                else:
+                    for _, row in m_items.iterrows():
+                        with st.container(border=True):
+                            st.markdown(f"<div style='font-size:11px; font-weight:800; text-align:center;'>{row['제품']}</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div style='font-size:11px; font-weight:900; color:#1e40af; text-align:center;'>{row['Lot']}</div>", unsafe_allow_html=True)
+                            cls = "bg-waiting" if row['상태'] == '대기' else "bg-progress"
+                            st.markdown(f"<div class='status-bar {cls}'>{row['상태']}</div>", unsafe_allow_html=True)
+                            
                             if row['상태'] == '대기':
-                                worksheet.update_cell(row['Row'], 4, "진행중")
-                                worksheet.update_cell(row['Row'], 5, get_now_kst())
-                            else:
-                                n_idx = STAGES.index(stage) + 1
-                                next_stg = next((STAGES[i] for i in range(n_idx, len(STAGES)) if master_dict.get(row['제품'], {}).get(STAGES[i])), None)
-                                if next_stg:
-                                    worksheet.update_cell(row['Row'], 3, next_stg)
-                                    worksheet.update_cell(row['Row'], 4, "대기")
-                                    worksheet.update_cell(row['Row'], 5, "")
-                                    worksheet.update_cell(row['Row'], 10, master_dict[row['제품']][next_stg][0])
-                                else:
-                                    log_sheet.append_row([row['Lot'], row['제품'], "생산완료", "", get_now_kst(), "완료"])
-                                    worksheet.delete_rows(row['Row'])
-                            st.rerun()
+                                if st.button("시작", key=f"s_{row['Lot']}_{stage}"):
+                                    worksheet.update_cell(row['Row'], 4, "진행중")
+                                    worksheet.update_cell(row['Row'], 5, get_now_kst())
+                                    st.rerun()
+                            elif row['상태'] == '진행중':
+                                if st.button("완료", key=f"e_{row['Lot']}_{stage}"):
+                                    n_idx = STAGES.index(stage) + 1
+                                    next_stg = next((STAGES[i] for i in range(n_idx, len(STAGES)) if master_dict.get(row['제품'], {}).get(STAGES[i])), None)
+                                    if next_stg:
+                                        worksheet.update_cell(row['Row'], 3, next_stg)
+                                        worksheet.update_cell(row['Row'], 4, "대기")
+                                        worksheet.update_cell(row['Row'], 5, "")
+                                        worksheet.update_cell(row['Row'], 10, master_dict[row['제품']][next_stg][0])
+                                    else:
+                                        log_sheet.append_row([row['Lot'], row['제품'], "생산완료", "", get_now_kst(), "완료"])
+                                        worksheet.delete_rows(row['Row'])
+                                    st.rerun()
 else:
     st.header("📋 공정 이력 리스트")
-    st.dataframe(pd.DataFrame(log_sheet.get_all_values()), use_container_width=True)
+    log_data = log_sheet.get_all_values()
+    if len(log_data) > 1:
+        st.dataframe(pd.DataFrame(log_data[1:], columns=log_data[0]), use_container_width=True)
+
+st.markdown("</div>", unsafe_allow_html=True)
