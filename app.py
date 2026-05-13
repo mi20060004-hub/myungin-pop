@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 2. CSS 스타일 (파란색 대형 헤더 및 버튼 절대 위치 고정) ---
+# --- 2. CSS 스타일 (해상도에 상관없이 중앙 정렬되는 파란색 헤더) ---
 st.markdown("""
     <style>
     /* 1. 상단 고정 블루 헤더 바 */
@@ -20,40 +20,47 @@ st.markdown("""
         top: 0;
         left: 0;
         right: 0;
-        height: 60px;
+        height: 100px;
         background-color: #1e3a8a; /* 명인제약 진한 파란색 */
         z-index: 999998;
         box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center; /* 가로 중앙 정렬 */
     }
     
-    /* 2. 제목 스타일 (글씨 더 크게) */
+    /* 2. 헤더 내 컨텐츠 박스 (제목 + 버튼을 묶음) */
+    .header-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        max-width: 1200px;
+        gap: 40px; /* 제목과 버튼 사이 간격 */
+    }
+
+    /* 3. 대형 제목 스타일 */
     .main-title-text {
-        position: fixed;
-        top: 5px;
-        left: 300px;
         color: white !important;
-        font-size: 30px !important; /* 글씨 크기 더 확대 */
+        font-size: 46px !important;
         font-weight: 900;
-        z-index: 999999;
         margin: 0;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         white-space: nowrap;
     }
 
-    /* 3. 버튼 위치 강제 고정 (제목 우측) */
+    /* 4. 버튼 영역 스타일 */
     .fixed-button-box {
-        position: fixed;
-        top: 35px; /* 제목 높이에 맞춰 조정 */
-        left: 560px; /* 제목이 끝나는 지점 우측으로 고정 */
-        z-index: 999999;
+        display: flex;
+        align-items: center;
     }
 
-    /* 4. 메인 컨텐츠 상단 여백 */
+    /* 5. 메인 컨텐츠 상단 여백 (헤더 공간 확보) */
     .main .block-container {
         padding-top: 130px !important;
     }
 
-    /* 5. 공정 가로 바 디자인 */
+    /* 6. 공정 가로 바 디자인 */
     .stage-bar {
         background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
         color: white;
@@ -69,7 +76,7 @@ st.markdown("""
         text-align: left;
     }
 
-    /* 6. 설비 타이틀 및 기타 스타일 유지 */
+    /* 7. 설비 타이틀 및 기타 스타일 유지 */
     .machine-title {
         background: #f8fafc; padding: 4px; text-align: center; font-size: 11px; font-weight: 700;
         border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1;
@@ -100,6 +107,7 @@ def get_now_kst():
     return (datetime.now(timezone(timedelta(hours=9)))).strftime('%Y-%m-%d KST %H:%M:%S')
 
 def load_data():
+    # machine_map 선언을 함수 밖으로 뺌 (전역변수 활용)
     m_values = master_sheet.get_all_values()
     master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(val).split(',') if m.strip()] 
                    for s, val in zip(list(machine_map.keys()), r[3:10])} for r in m_values[1:] if r and r[0]}
@@ -123,17 +131,27 @@ master_dict, curr_df = load_data()
 # --- 5. 상단 헤더 렌더링 (제목 + 버튼) ---
 if 'page' not in st.session_state: st.session_state.page = 'main'
 
-# 파란 배경 바와 제목 출력
-st.markdown('<div class="fixed-header"></div>', unsafe_allow_html=True)
-st.markdown('<p class="main-title-text">명인제약 생산 시점 관리</p>', unsafe_allow_html=True)
+# HTML로 상단 바와 제목/버튼 구조 잡기
+st.markdown(f"""
+    <div class="fixed-header">
+        <div class="header-content">
+            <p class="main-title-text">명인제약 생산 시점 관리</p>
+            <div id="btn-placeholder"></div> </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-# 버튼을 제목 우측에 강제 배치
-st.markdown('<div class="fixed-button-box">', unsafe_allow_html=True)
-btn_text = "현황판 돌아가기" if st.session_state.page == 'history' else "완료 이력 확인"
-if st.button(btn_text, key="top_history_btn"):
-    st.session_state.page = 'history' if st.session_state.page == 'main' else 'main'
-    st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
+# 버튼을 제목 우측에 확실히 배치하기 위해 컨테이너 활용
+with st.container():
+    # 제목 옆에 버튼을 배치하기 위한 빈 공간 확보 (가시성 확보용)
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        # 이 부분은 CSS로 상단에 고정된 바 위에 버튼을 올리는 로직입니다.
+        st.markdown('<div style="position: fixed; top: 32px; z-index: 999999; margin-left: 180px;">', unsafe_allow_html=True)
+        btn_text = "현황판 돌아가기" if st.session_state.page == 'history' else "완료 이력 확인"
+        if st.button(btn_text, key="top_history_btn"):
+            st.session_state.page = 'history' if st.session_state.page == 'main' else 'main'
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. 사이드바 구성 ---
 with st.sidebar:
