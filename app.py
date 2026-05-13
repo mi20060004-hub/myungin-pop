@@ -11,10 +11,9 @@ def get_gspread_client():
     return gspread.authorize(creds)
 
 gc = get_gspread_client()
+# 사용자님의 시트 ID
 SHEET_ID = "1ST-zbOoIoP5MvWkoTCFNDvi76yavH8pu2Ak7kudyzBM"
 sh = gc.open_by_key(SHEET_ID)
-
-# 탭 가져오기
 worksheet = sh.worksheet('현재생산중')
 
 # --- 2. 디자인 설정 ---
@@ -36,37 +35,40 @@ st.markdown("""
 
 st.title("🏭 명인제약 생산 시점 관리 시스템 (POP)")
 
-# --- 3. 데이터 로드 및 시각화 (사용자 시트 컬럼 반영) ---
-data = worksheet.get_all_records()
-df = pd.DataFrame(data)
+# --- 3. 데이터 로드 및 시각화 ---
+try:
+    data = worksheet.get_all_records()
+    df = pd.DataFrame(data)
+except Exception as e:
+    st.error(f"데이터를 읽어오는데 실패했습니다: {e}")
+    st.stop()
 
 if not df.empty:
-    # 컬럼명이 시트와 일치하는지 확인 (제조번호, 제품명, 공정, 상태 등)
     cols = st.columns(3) 
     for idx, row in df.iterrows():
-        # 상태에 따른 색상 지정
-        status_color = "#6c757d" # 기본 회색
-        if row['상태'] == '진행중': status_color = "#28a745" # 초록
-        elif row['상태'] == '대기': status_color = "#ffc107" # 노랑
+        # 상태에 따른 색상 (시트의 '상태' 열 기준)
+        status_color = "#6c757d" 
+        if row.get('상태') == '진행중': status_color = "#28a745"
+        elif row.get('상태') == '대기': status_color = "#ffc107"
 
         with cols[idx % 3]:
+            # 시트에 실제 존재하는 '공정', '제품명', '제조번호'만 표시
             st.markdown(f"""
                 <div class="process-card">
-                    <div style="display:flex; justify-content:between; align-items:center;">
-                        <h3 style="margin:0;">{row['공정']}</h3>
-                        <span class="status-badge" style="background-color: {status_color}; margin-left:10px;">
-                            {row['상태']}
+                    <div style="display:flex; justify-content: space-between; align-items:center;">
+                        <h3 style="margin:0;">{row.get('공정', '공정명 없음')}</h3>
+                        <span class="status-badge" style="background-color: {status_color};">
+                            {row.get('상태', '상태 미정')}
                         </span>
                     </div>
                     <hr style="margin:10px 0;">
-                    <p><b>제조번호:</b> {row['제조번호']}</p>
-                    <p><b>제품명:</b> {row['제품명']}</p>
-                    <p><b>현재시간:</b> {datetime.now().strftime('%H:%M:%S')}</p>
+                    <p><b>제조번호:</b> {row.get('제조번호', '-')}</p>
+                    <p><b>제품명:</b> {row.get('제품명', '-')}</p>
+                    <p style="font-size: 0.8em; color: gray;">조회시간: {datetime.now().strftime('%H:%M:%S')}</p>
                 </div>
                 """, unsafe_allow_config=True)
             
-            # 작업 버튼
-            if st.button(f"{row['공정']} ({row['제조번호']}) 작업 관리", key=f"btn_{idx}"):
-                st.info(f"'{row['공정']}' 공정의 세부 기록 기능을 준비 중입니다.")
+            if st.button(f"작업 관리 ({row.get('제조번호', idx)})", key=f"btn_{idx}"):
+                st.info(f"'{row.get('공정')}' 공정 기록 모듈을 실행합니다.")
 else:
-    st.info("현재 가동 중인 공정이 없습니다. 구글 시트 '현재생산중' 탭에 데이터를 입력해 주세요.")
+    st.info("현재 '현재생산중' 탭에 표시할 데이터가 없습니다.")
