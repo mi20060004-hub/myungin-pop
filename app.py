@@ -30,16 +30,25 @@ st.markdown("""
     background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%); 
 }
 
-.machine-title {background: #f1f5f9; text-align: center; font-size: 13px; font-weight: 700; border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1; min-height: 35px; display: flex; align-items: center; justify-content: center; color: #334155; }
+.machine-title {background: #f1f5f9; text-align: center; font-size: 11px; font-weight: 700; border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1; min-height: 35px; display: flex; align-items: center; justify-content: center; color: #334155; }
 .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 3px 0; border-radius: 3px; margin-bottom: 5px; }
 .bg-waiting { background-color: #3b82f6; }
 .bg-progress { background-color: #ef4444; }
 .bg-paused { background-color: #f59e0b; }
 
-.card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
-.card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
-.info-text-10px { font-size: 11px !important; font-weight: 800; color: #ef4444; margin: 1px 0; text-align: center; line-height: 1.2; }
-.lot-type-highlight { font-size: 11px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
+.card-text-10px { font-size: 10px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
+.card-text-l-10px { font-size: 10px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
+.info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
+
+/* 특수 로트 강조 스타일 추가 (빨간색, 아주 굵게) */
+.lot-type-highlight {
+    font-size: 10px !important;
+    color: #ef4444 !important;
+    font-weight: 800 !important;
+    text-align: center;
+    margin: 1px 0;
+    line-height: 1.2;
+}
 
 /* 버튼 크기 및 폰트 80% 축소 입체감 스타일 유지 */
 div.stButton > button {
@@ -213,12 +222,10 @@ if st.session_state.view == 'main':
                     with st.container(border=True):
                         st.markdown(f"<p class='card-text-10px'>{row['제품']}</p>", unsafe_allow_html=True)
                         st.markdown(f"<p class='card-text-l-10px'>{row['Lot']}</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p class='card-text-10px'>{row['제품']}</p>", unsafe_allow_html=True)
-        st.markdown(f"<p class='card-text-l-10px'>{row['Lot']}</p>", unsafe_allow_html=True)
-
-        # 로트 유형이 '일반로트' 또는 '일반'이 아닐 때만 굵은 빨간색으로 표시
-        if row['유형'] not in ['일반로트', '일반', '']:
-            st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
+                        
+                        # 로트 유형이 '일반로트' 또는 '일반'이 아닐 때만 굵은 빨간색으로 표시
+                        if row['유형'] not in ['일반로트', '일반', '']:
+                            st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                         
                         # 설비 블록 안에 [공정특이사항(비고) 내용]이 선명하게 노출되도록 텍스트 렌더링
                         if row['특이사항']:
