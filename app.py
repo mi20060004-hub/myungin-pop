@@ -72,10 +72,14 @@ def load_data():
     master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(r[col_map[s]]).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_values[1:] if r and r[0]}
     
     c_values = worksheet.get_all_values()
-    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'유형':r[7],'특이사항':r[8],'Row':i+2, '설비':r[9] if len(r)>9 else ""} for i,r in enumerate(c_values[1:]) if r and r[0]])
+    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'유형':r[7],'특이사항':r[8],'Row':i+2, '설비':r[9] if len(r)>9 else ""} for i,r in enumerate(c_values[1:]) if r and len(r) > 1])
     
     l_values = log_sheet.get_all_values()
-    log_df = pd.DataFrame([{'Lot': r[0], '제품': r[1]} for r in l_values[1:] if r and r[0]])
+    # [수정] 공정이력 시트 데이터가 없을 경우 대비
+    if len(l_values) > 1:
+        log_df = pd.DataFrame([{'Lot': r[0], '제품': r[1]} for r in l_values[1:] if r and len(r) > 1])
+    else:
+        log_df = pd.DataFrame(columns=['Lot', '제품'])
     
     return master_dict, curr_df, log_df
 
@@ -92,21 +96,25 @@ st.markdown('<div class="fixed-header"><p class="main-title-text">명인제약 �
 with st.sidebar:
     st.header("🏭 제조 투입")
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()))
-    lot_in = st.text_input("제조번호(Lot) 입력")
+    lot_in = st.text_input("제조번호(Lot) 입력").strip()
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"])
     note_in = st.text_area("공정 특이사항 입력", placeholder="특이사항을 입력하세요.")
     
-    # 중복 체크 로직
-    is_duplicate = ((curr_df['제품'] == sel_p) & (curr_df['Lot'] == lot_in)).any() or \
-                   ((log_df['제품'] == sel_p) & (log_df['Lot'] == lot_in)).any() or \
-                   any(p['제품'] == sel_p and p['Lot'] == lot_in for p in st.session_state.pending_lots)
+    # [중복 체크] 현재생산중, 공정이력, 투입대기열 모두 확인
+    is_duplicate = False
+    if lot_in:
+        in_curr = ((curr_df['제품'] == sel_p) & (curr_df['Lot'] == lot_in)).any()
+        in_log = ((log_df['제품'] == sel_p) & (log_df['Lot'] == lot_in)).any()
+        in_pending = any(p['제품'] == sel_p and p['Lot'] == lot_in for p in st.session_state.pending_lots)
+        if in_curr or in_log or in_pending:
+            is_duplicate = True
 
     f_stg = next((s for s in TARGET_STAGES if master_dict[sel_p][s]), TARGET_STAGES[0])
     f_machines = master_dict[sel_p][f_stg]
     
-    if is_duplicate:
-        st.error("⚠️ 이미 존재하는 제품명과 Lot 번호입니다.")
-    else:
+    if lot_in and is_duplicate:
+        st.error(f"⚠️ {sel_p} ({lot_in})은 이미 존재하거나 대기 중입니다.")
+    elif lot_in:
         if len(f_machines) > 1:
             with st.popover("➕ 투입 대기열 추가 (설비 선택)", use_container_width=True):
                 for m in f_machines:
@@ -115,11 +123,10 @@ with st.sidebar:
                         st.rerun()
         else:
             if st.button("➕ 투입 대기열 추가", use_container_width=True):
-                if lot_in:
-                    st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': f_machines[0] if f_machines else ""})
-                    st.rerun()
+                st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': f_machines[0] if f_machines else ""})
+                st.rerun()
             
-    # [복구] 투입 대기열 목록 표시
+    # 투입 대기열 목록 표시
     if st.session_state.pending_lots:
         st.write("---")
         st.subheader("📋 투입 대기 목록")
