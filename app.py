@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (모든 텍스트 8px 통일 및 스타일 유지) ---
+# --- 2. CSS 스타일 (텍스트 9px 적용) ---
 st.markdown("""
     <style>
     .fixed-header {
@@ -38,10 +38,10 @@ st.markdown("""
     .bg-progress { background-color: #ef4444; }
     .bg-paused { background-color: #f59e0b; }
 
-    /* [중요] 모든 블록 내 텍스트 8px로 통일 */
-    .card-text-8px { font-size: 8px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
-    .card-text-l-8px { font-size: 8px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
-    .info-text-8px { font-size: 8px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
+    /* [변경] 모든 블록 내 텍스트 9px로 통일 */
+    .card-text-9px { font-size: 9px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
+    .card-text-l-9px { font-size: 9px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
+    .info-text-9px { font-size: 9px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -101,10 +101,11 @@ st.markdown('<div class="fixed-header"><p class="main-title-text">명인제약 �
 # --- 7. 사이드바 ---
 with st.sidebar:
     st.header("🏭 제조 투입")
-    sel_p = st.selectbox("제품명 선택", list(master_dict.keys()))
-    lot_in = st.text_input("제조번호(Lot) 입력").strip()
-    lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"])
-    note_in = st.text_area("공정 특이사항 입력")
+    # [변경] 위젯 키값 설정을 통해 투입 후 초기화 가능하게 함
+    sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="sel_p_widget")
+    lot_in = st.text_input("제조번호(Lot) 입력", key="lot_in_widget").strip()
+    lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
+    note_in = st.text_area("공정 특이사항 입력", key="note_in_widget")
     
     is_duplicate = False
     if lot_in:
@@ -113,19 +114,30 @@ with st.sidebar:
     f_stg = next((s for s in TARGET_STAGES if master_dict[sel_p][s]), TARGET_STAGES[0])
     f_machines = master_dict[sel_p][f_stg]
     
+    # [변경] 버튼을 항상 노출시키고, 중복일 때만 경고 메시지 표시 및 버튼 동작 제한
     if lot_in and is_duplicate:
         st.error("⚠️ 중복 데이터")
-    elif lot_in:
+        st.button("➕ 대기열 추가 불가 (중복)", use_container_width=True, disabled=True)
+    else:
         if len(f_machines) > 1:
             with st.popover("➕ 대기열 추가 (설비 선택)", use_container_width=True):
                 for m in f_machines:
                     if st.button(m, key=f"init_{m}"):
                         st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': m})
+                        # [변경] 입력창 초기화
+                        st.session_state.lot_in_widget = ""
+                        st.session_state.note_in_widget = ""
                         st.rerun()
         else:
             if st.button("➕ 투입 대기열 추가", use_container_width=True):
-                st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': f_machines[0] if f_machines else ""})
-                st.rerun()
+                if lot_in:
+                    st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': f_machines[0] if f_machines else ""})
+                    # [변경] 입력창 초기화
+                    st.session_state.lot_in_widget = ""
+                    st.session_state.note_in_widget = ""
+                    st.rerun()
+                else:
+                    st.warning("제조번호를 입력해주세요.")
             
     if st.session_state.pending_lots:
         st.write("---")
@@ -156,14 +168,12 @@ for stage in TARGET_STAGES:
             m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())]
             for _, row in m_items.iterrows():
                 with st.container(border=True):
-                    # [변경] 제품명, 제조번호 8px
-                    st.markdown(f"<p class='card-text-8px'>{row['제품']}</p>", unsafe_allow_html=True)
-                    st.markdown(f"<p class='card-text-l-8px'>{row['Lot']}</p>", unsafe_allow_html=True)
-                    
-                    # [변경] 로트유형, 특이사항 8px + 라벨 제거하고 내용만 표시
-                    st.markdown(f"<p class='info-text-8px'>{row['유형']}</p>", unsafe_allow_html=True)
+                    # [변경] 9px 적용
+                    st.markdown(f"<p class='card-text-9px'>{row['제품']}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p class='card-text-l-9px'>{row['Lot']}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p class='info-text-9px'>{row['유형']}</p>", unsafe_allow_html=True)
                     if row['특이사항']:
-                        st.markdown(f"<p class='info-text-8px'>{row['특이사항']}</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p class='info-text-9px'>{row['특이사항']}</p>", unsafe_allow_html=True)
                     
                     status = row['상태']
                     cls = "bg-waiting" if status == '대기' else "bg-progress" if status == '진행중' else "bg-paused"
