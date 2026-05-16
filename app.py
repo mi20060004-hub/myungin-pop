@@ -30,14 +30,14 @@ st.markdown("""
     background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%); 
 }
 
-.machine-title {background: #f1f5f9; text-align: center; font-size: 16px; font-weight: 700; border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1; min-height: 35px; display: flex; align-items: center; justify-content: center; color: #334155; }
+.machine-title {background: #f1f5f9; text-align: center; font-size: 11px; font-weight: 700; border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1; min-height: 35px; display: flex; align-items: center; justify-content: center; color: #334155; }
 .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 3px 0; border-radius: 3px; margin-bottom: 5px; }
 .bg-waiting { background-color: #3b82f6; }
 .bg-progress { background-color: #ef4444; }
 .bg-paused { background-color: #f59e0b; }
 
-.card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
-.card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
+.card-text-10px { font-size: 10px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
+.card-text-l-10px { font-size: 10px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
 
 /* 특수 로트 강조 스타일 추가 (빨간색, 아주 굵게) */
