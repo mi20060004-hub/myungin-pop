@@ -120,8 +120,9 @@ def load_data():
                     'Row': i + 2
                 })
         all_df = pd.DataFrame(data_list)
-        curr_df = all_df[all_df['상태'] != '완료'].copy()
-        log_df = all_df[all_df['상태'] == '완료'].copy()
+        # 중요 변경: 상태가 '완료'이거나 '1팀종료'인 데이터는 현재 실시간 블록(현황판)에서 제외하여 정상적으로 다음 공정으로만 넘어가게 처리
+        curr_df = all_df[~all_df['상태'].isin(['완료', '1팀종료'])].copy()
+        log_df = all_df[all_df['상태'].isin(['완료', '1팀종료'])].copy()
         
     return master_dict, curr_df, log_df
 
