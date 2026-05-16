@@ -202,7 +202,7 @@ with st.sidebar:
     st.divider()
     st.write(f"**실시간 가동 총합:** {len(curr_df)}건")
     
-    # 사이드바 하단에 총합 뿐만 아니라 [각 공정별 제품 수량]도 누락 없이 표시 처리
+    # 사이드바 하단에 총합 뿐만 아니라 [각 공정별 제품 수량]도 표시 처리
     for stage in TARGET_STAGES:
         count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         st.write(f"- {stage}: {count}건")
@@ -227,7 +227,7 @@ if st.session_state.view == 'main':
                         if row['유형'] not in ['일반로트', '일반', '']:
                             st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                         
-                        # 설비 블록 안에 [공정특이사항(비고) 내용]이 선명하게 노출되도록 텍스트 렌더링
+                        # 설비 블록 안에 [공정특이사항(비고) 내용] 노출
                         if row['특이사항']:
                             st.markdown(f"<p class='info-text-10px' style='color:#b45309; font-weight:700;'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
                             
