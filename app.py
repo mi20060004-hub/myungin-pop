@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (10열 고정 레이아웃) ---
+# --- 2. CSS 스타일 ---
 st.markdown("""
     <style>
     .fixed-header {
@@ -47,11 +47,11 @@ worksheet = sh.worksheet('현재생산중')
 log_sheet = sh.worksheet('공정이력')
 master_sheet = sh.worksheet('제품마스터')
 
-# --- 4. 공정 및 설비 매핑 ---
+# --- 4. 공정 및 설비 매핑 (영문명 통일 완료) ---
 MACHINE_MAP = {
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
     "건조공정": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
-    "정립공정": ["Comil0112", "코밀0212", "코밀0312", "파워밀"],
+    "정립공정": ["Comil0112", "Comil0212", "Comil0312", "파워밀"], # 코밀 -> Comil로 수정
     "혼합공정": ["PM1000", "PM2000", "드럼혼합기"],
     "타정공정": ["킬리안", "63S-3", "41S", "63S-1", "PR1023", "MRC45", "45S", "63S-2", "31S", "PH300"],
     "캡슐공정": ["SF150N", "보쉬충전기", "PTK충전기", "SF35"],
@@ -72,14 +72,10 @@ def load_data():
     master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(r[col_map[s]]).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_values[1:] if r and r[0]}
     
     c_values = worksheet.get_all_values()
-    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'유형':r[7],'특이사항':r[8],'Row':i+2, '설비':r[9] if len(r)>9 else ""} for i,r in enumerate(c_values[1:]) if r and len(r) > 1])
+    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'유형':r[7],'특이사항':r[8],'Row':i+2, '설비':str(r[9]).strip() if len(r)>9 else ""} for i,r in enumerate(c_values[1:]) if r and len(r) > 1])
     
-    # [수정] 공정이력 시트 데이터 로드 시 KeyError 방지
     l_values = log_sheet.get_all_values()
-    if len(l_values) > 1:
-        log_df = pd.DataFrame([{'Lot': r[0], '제품': r[1]} for r in l_values[1:] if r and len(r) > 1])
-    else:
-        log_df = pd.DataFrame(columns=['Lot', '제품'])
+    log_df = pd.DataFrame([{'Lot': r[0], '제품': r[1]} for r in l_values[1:] if r and len(r) > 1]) if len(l_values) > 1 else pd.DataFrame(columns=['Lot', '제품'])
     
     return master_dict, curr_df, log_df
 
@@ -91,31 +87,26 @@ if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
 # --- 6. 헤더 ---
 st.markdown('<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 
-# --- 7. 사이드바 (투입 및 통계) ---
+# --- 7. 사이드바 ---
 with st.sidebar:
     st.header("🏭 제조 투입")
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()))
     lot_in = st.text_input("제조번호(Lot) 입력").strip()
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"])
-    note_in = st.text_area("공정 특이사항 입력", placeholder="특이사항을 입력하세요.")
+    note_in = st.text_area("공정 특이사항 입력")
     
-    # 중복 체크
     is_duplicate = False
     if lot_in:
-        in_curr = ((curr_df['제품'] == sel_p) & (curr_df['Lot'] == lot_in)).any()
-        in_log = ((log_df['제품'] == sel_p) & (log_df['Lot'] == lot_in)).any()
-        in_pending = any(p['제품'] == sel_p and p['Lot'] == lot_in for p in st.session_state.pending_lots)
-        if in_curr or in_log or in_pending:
-            is_duplicate = True
+        is_duplicate = ((curr_df['제품'] == sel_p) & (curr_df['Lot'] == lot_in)).any() or ((log_df['제품'] == sel_p) & (log_df['Lot'] == lot_in)).any() or any(p['제품'] == sel_p and p['Lot'] == lot_in for p in st.session_state.pending_lots)
 
     f_stg = next((s for s in TARGET_STAGES if master_dict[sel_p][s]), TARGET_STAGES[0])
     f_machines = master_dict[sel_p][f_stg]
     
     if lot_in and is_duplicate:
-        st.error(f"⚠️ {sel_p} ({lot_in})은 이미 존재하거나 대기 중입니다.")
+        st.error(f"⚠️ {sel_p} ({lot_in}) 중복")
     elif lot_in:
         if len(f_machines) > 1:
-            with st.popover("➕ 투입 대기열 추가 (설비 선택)", use_container_width=True):
+            with st.popover("➕ 대기열 추가 (설비 선택)", use_container_width=True):
                 for m in f_machines:
                     if st.button(m, key=f"init_{m}"):
                         st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': m})
@@ -127,22 +118,20 @@ with st.sidebar:
             
     if st.session_state.pending_lots:
         st.write("---")
-        st.subheader("📋 투입 대기 목록")
         for idx, p in enumerate(st.session_state.pending_lots):
-            st.info(f"{idx+1}. {p['제품']} (Lot: {p['Lot']})")
+            st.info(f"{idx+1}. {p['제품']} ({p['Lot']})")
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             for p in st.session_state.pending_lots:
                 f_stg_p = next((s for s in TARGET_STAGES if master_dict[p['제품']][s]), TARGET_STAGES[0])
                 worksheet.append_row([p['Lot'], p['제품'], f_stg_p, "대기", "", get_now_kst(), "0", p['유형'], p['비고'], p['설비']])
             st.session_state.pending_lots = []
             st.rerun()
-        if st.button("🗑️ 대기열 비우기", use_container_width=True):
+        if st.button("🗑️ 비우기", use_container_width=True):
             st.session_state.pending_lots = []
             st.rerun()
 
     st.divider()
-    st.subheader("📊 실시간 현황 통계")
-    st.write(f"**전체 공정 총합:** {len(curr_df)}건")
+    st.write(f"**전체 총합:** {len(curr_df)}건")
     for stage in TARGET_STAGES:
         st.write(f"- {stage}: {len(curr_df[curr_df['공정'] == stage])}건")
 
@@ -153,7 +142,8 @@ for stage in TARGET_STAGES:
     for idx, machine in enumerate(MACHINE_MAP[stage]):
         with cols[idx]:
             st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
-            m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine)]
+            # 설비명 비교 시 공백 제거하여 매칭 확률 높임
+            m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())]
             for _, row in m_items.iterrows():
                 with st.container(border=True):
                     st.markdown(f"<p style='font-size:11px; font-weight:800; margin:0;'>{row['제품']}</p>", unsafe_allow_html=True)
