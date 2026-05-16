@@ -105,6 +105,14 @@ master_dict, curr_df, log_df = load_data()
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
 if 'view' not in st.session_state: st.session_state.view = 'main'
 
+# 입력란 초기화를 위한 콜백 함수 (버튼 클릭 시 가장 먼저 실행됨)
+def handle_add_queue(p_name, lot, l_type, note, machine):
+    if lot:
+        st.session_state.pending_lots.append({'제품': p_name, 'Lot': lot, '유형': l_type, '비고': note, '설비': machine})
+        # 위젯 값을 비웁니다. 위젯이 이미 생성되어 있으므로 안전합니다.
+        st.session_state.lot_in_widget = ""
+        st.session_state.note_in_widget = ""
+
 # --- 6. 헤더 ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 st.markdown('<div style="position: fixed; top: 18px; right: 30px; z-index: 999999;">', unsafe_allow_html=True)
@@ -113,10 +121,9 @@ if st.button("완료된 공정 확인" if st.session_state.view == 'main' else "
     st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 7. 사이드바 (초기화 로직 수정) ---
+# --- 7. 사이드바 ---
 with st.sidebar:
     st.header("🏭 제조 투입")
-    # key값만 지정하여 세션과 자동 연결
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="sel_p_widget")
     lot_in = st.text_input("제조번호(Lot) 입력", key="lot_in_widget").strip()
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
@@ -137,19 +144,11 @@ with st.sidebar:
         if len(f_machines) > 1:
             with st.popover("➕ 대기열 추가 (설비 선택)", use_container_width=True):
                 for m in f_machines:
-                    if st.button(m, key=f"init_{m}"):
-                        st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': m})
-                        # 안전한 초기화: 세션 값을 직접 비우고 rerun
-                        st.session_state.lot_in_widget = ""
-                        st.session_state.note_in_widget = ""
-                        st.rerun()
+                    # on_click 콜백을 사용하여 안전하게 처리
+                    st.button(m, key=f"init_{m}", on_click=handle_add_queue, args=(sel_p, lot_in, lot_type, note_in, m))
         else:
-            if st.button("➕ 투입 대기열 추가", use_container_width=True):
-                if lot_in:
-                    st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': f_machines[0] if f_machines else ""})
-                    st.session_state.lot_in_widget = ""
-                    st.session_state.note_in_widget = ""
-                    st.rerun()
+            if lot_in:
+                st.button("➕ 투입 대기열 추가", use_container_width=True, on_click=handle_add_queue, args=(sel_p, lot_in, lot_type, note_in, f_machines[0] if f_machines else ""))
 
     if st.session_state.pending_lots:
         st.write("---")
@@ -193,7 +192,7 @@ if st.session_state.view == 'main':
                         elif row['상태'] == '진행중':
                             if st.button("완료", key=f"e_{row['Lot']}_{stage}_{machine}"):
                                 n_idx = TARGET_STAGES.index(stage) + 1
-                                # 다음 공정 검색
+                                # 다음 유효 공정 탐색
                                 next_stg = None
                                 for i in range(n_idx, len(TARGET_STAGES)):
                                     if master_dict[row['제품']][TARGET_STAGES[i]]:
@@ -204,14 +203,13 @@ if st.session_state.view == 'main':
                                     worksheet.update_cell(row['Row'], 8, get_now_kst())
                                 
                                 if next_stg:
-                                    # [수정] 다음 공정으로 확실히 이동
                                     next_m = master_dict[row['제품']][next_stg][0] if master_dict[row['제품']][next_stg] else ""
                                     worksheet.update_cell(row['Row'], 3, next_stg)
                                     worksheet.update_cell(row['Row'], 4, "대기")
                                     worksheet.update_cell(row['Row'], 11, next_m)
                                     st.rerun()
                                 else:
-                                    # 더 이상 공정이 없으면(외관선별 완료) 이력으로
+                                    # 최종 공정 완료
                                     start_t = row['최초시작'] if row['최초시작'] else get_now_kst()
                                     end_t = row['인쇄종료'] if row['인쇄종료'] else get_now_kst()
                                     log_sheet.append_row([row['Lot'], row['제품'], "완료", start_t, end_t, "-", row['유형'], row['특이사항']])
