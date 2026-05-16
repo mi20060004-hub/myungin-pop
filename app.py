@@ -29,7 +29,10 @@ try:
     history_df, history_worksheet = load_data("product_history")
     
     # 실시간 현황 필터링: '완료'되지 않은 공정만 추출
-    current_production = history_df[history_df['상태'] != '완료'].copy()
+    if not history_df.empty:
+        current_production = history_df[history_df['상태'] != '완료'].copy()
+    else:
+        current_production = pd.DataFrame()
 except Exception as e:
     st.error(f"데이터 로딩 오류: {e}")
     st.info("구글 시트의 탭 이름이 'product_master'와 'product_history'인지 확인하세요.")
@@ -40,22 +43,21 @@ with st.sidebar:
     st.header("➕ 신규 생산 등록")
     with st.form("add_form", clear_on_submit=True):
         new_lot = st.text_input("제조번호 (LOT)")
-        selected_product = st.selectbox("제품명", master_df['제품명'].unique())
+        selected_product = st.selectbox("제품명", master_df['제품명'].unique()) if not master_df.empty else st.selectbox("제품명", ["등록된 제품 없음"])
         lot_type = st.selectbox("로트유형", ["일반", "동시PV1", "기타"])
         remarks = st.text_area("비고")
         
         submit = st.form_submit_button("등록하기")
         
         if submit:
-            if new_lot and selected_product:
+            if new_lot and selected_product and selected_product != "등록된 제품 없음":
                 # 새로운 공정 시작 시 '과립공정'을 기본으로 '대기' 상태 생성
-                # 컬럼 순서: 제조번호, 제품명, 공정명, 상태, 시작시간, 종료시간, 소요시간, 로트유형, 비고
                 new_row = [new_lot, selected_product, "과립공정", "대기", "", "", "", lot_type, remarks]
                 history_worksheet.append_row(new_row)
                 st.success(f"LOT {new_lot} 등록 완료!")
                 st.rerun()
             else:
-                st.warning("제조번호를 입력해 주세요.")
+                st.warning("제조번호와 제품명을 올바르게 선택해 주세요.")
 
 # --- 4. 메인 화면: 실시간 공정 현황판 ---
 st.subheader("📊 실시간 생산 현황")
@@ -105,13 +107,7 @@ else:
 # --- 5. 하단: 전체 누적 이력 조회 ---
 st.divider()
 st.subheader("📋 전체 생산 이력 리포트")
-st.dataframe(history_df.sort_index(ascending=False), use_container_width=True)
-
-### 💡 마지막 체크리스트
-1. **구글 시트**: 아래 탭 2개만 남기고 나머지는 삭제하세요.
-   * `product_master`: 기존 제품 정보 유지
-   * `product_history`: 1행에 제가 드린 컬럼명 입력 (제조번호, 제품명, 공정명, 상태, 시작시간, 종료시간, 소요시간, 로트유형, 비고)
-2. **깃허브**: 위 코드를 복사해서 `app.py`에 붙여넣고 **Commit changes**를 누르세요.
-3. **스트림릿**: 앱을 새로고침하고 테스트 데이터를 넣어보세요!
-
-이제 모든 준비가 끝났습니다. 코드를 적용해 보시고 궁금한 점이 생기면 언제든 말씀해 주세요!_
+if not history_df.empty:
+    st.dataframe(history_df.sort_index(ascending=False), use_container_width=True)
+else:
+    st.write("누적된 생산 이력이 없습니다.")
