@@ -6,14 +6,12 @@ from google.oauth2.service_account import Credentials
 
 # --- 1. 구글 시트 연결 설정 ---
 def get_gspread_client():
-    # Streamlit Secrets에 저장된 서비스 계정 정보 사용
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     credentials = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
     return gspread.authorize(credentials)
 
 def load_data(sheet_name):
     client = get_gspread_client()
-    # Secrets에 저장된 구글 시트 URL 사용
     sh = client.open_by_url(st.secrets["gsheet_url"])
     worksheet = sh.worksheet(sheet_name)
     data = worksheet.get_all_records()
@@ -28,7 +26,6 @@ try:
     master_df, _ = load_data("product_master")
     history_df, history_worksheet = load_data("product_history")
     
-    # 실시간 현황 필터링: '완료'되지 않은 공정만 추출
     if not history_df.empty:
         current_production = history_df[history_df['상태'] != '완료'].copy()
     else:
@@ -51,7 +48,6 @@ with st.sidebar:
         
         if submit:
             if new_lot and selected_product and selected_product != "등록된 제품 없음":
-                # 새로운 공정 시작 시 '과립공정'을 기본으로 '대기' 상태 생성
                 new_row = [new_lot, selected_product, "과립공정", "대기", "", "", "", lot_type, remarks]
                 history_worksheet.append_row(new_row)
                 st.success(f"LOT {new_lot} 등록 완료!")
@@ -64,7 +60,6 @@ st.subheader("📊 실시간 생산 현황")
 
 if not current_production.empty:
     for index, row in current_production.iterrows():
-        # gspread 인덱스 계산 (Pandas index + 2)
         row_idx = index + 2
         
         with st.expander(f"📦 {row['제조번호']} - {row['제품명']} (현재: {row['공정명']})", expanded=True):
@@ -79,27 +74,24 @@ if not current_production.empty:
                 st.write(f"**비고:** {row['비고']}")
                 
             with c4:
-                # [시작] 버튼
                 if row['상태'] == "대기":
                     if st.button("▶️ 공정 시작", key=f"start_{index}"):
                         now = datetime.now().strftime('%Y-%m-%d %H:%M')
-                        history_worksheet.update_cell(row_idx, 4, "진행중") # 상태
-                        history_worksheet.update_cell(row_idx, 5, now)       # 시작시간
+                        history_worksheet.update_cell(row_idx, 4, "진행중")
+                        history_worksheet.update_cell(row_idx, 5, now)
                         st.rerun()
                 
-                # [완료] 버튼
                 elif row['상태'] == "진행중":
                     if st.button("✅ 공정 완료", key=f"end_{index}"):
                         now = datetime.now().strftime('%Y-%m-%d %H:%M')
                         
-                        # 소요시간 계산
                         start_dt = datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M')
                         end_dt = datetime.strptime(now, '%Y-%m-%d %H:%M')
                         duration = str(end_dt - start_dt)
                         
-                        history_worksheet.update_cell(row_idx, 4, "완료")   # 상태
-                        history_worksheet.update_cell(row_idx, 6, now)       # 종료시간
-                        history_worksheet.update_cell(row_idx, 7, duration)  # 소요시간
+                        history_worksheet.update_cell(row_idx, 4, "완료")
+                        history_worksheet.update_cell(row_idx, 6, now)
+                        history_worksheet.update_cell(row_idx, 7, duration)
                         st.rerun()
 else:
     st.info("현재 가동 중인 생산 라인이 없습니다. 사이드바에서 신규 등록을 해주세요.")
