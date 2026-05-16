@@ -268,7 +268,9 @@ if st.session_state.view == 'main':
                                             except:
                                                 duration = "-"
                                             
-                                            history_sheet.update_cell(int(row['Row']), 4, "완료")
+                                            # 다음 공정이 외관선별공정이라면 '1팀종료', 그 외에는 '완료'로 업데이트
+                                            current_status = "1팀종료" if next_stg == "외관선별공정" else "완료"
+                                            history_sheet.update_cell(int(row['Row']), 4, current_status)
                                             history_sheet.update_cell(int(row['Row']), 6, now_time)
                                             history_sheet.update_cell(int(row['Row']), 7, duration)
                                             
@@ -284,7 +286,9 @@ if st.session_state.view == 'main':
                                     except:
                                         duration = "-"
                                         
-                                    history_sheet.update_cell(int(row['Row']), 4, "완료")
+                                    # 다음 공정이 외관선별공정이라면 '1팀종료', 그 외에는 '완료'로 업데이트
+                                    current_status = "1팀종료" if next_stg == "외관선별공정" else "완료"
+                                    history_sheet.update_cell(int(row['Row']), 4, current_status)
                                     history_sheet.update_cell(int(row['Row']), 6, now_time)
                                     history_sheet.update_cell(int(row['Row']), 7, duration)
                                     
