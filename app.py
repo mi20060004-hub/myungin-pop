@@ -3,7 +3,6 @@ import pandas as pd
 from datetime import datetime, timedelta, timezone
 import gspread
 from google.oauth2.service_account import Credentials
-import time
 
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
@@ -52,33 +51,29 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. 인증 및 시트 연결 (캐싱 적용) ---
+# --- 3. 인증 및 데이터 로드 (캐싱 적용) ---
 @st.cache_resource
 def get_gspread_client():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
     return gspread.authorize(creds)
 
-# 데이터 로드 시 API 할당량 초과 에러 방지를 위한 캐싱 (10초 동안 유지)
 @st.cache_data(ttl=10)
 def fetch_all_data():
     try:
         gc = get_gspread_client()
-        SHEET_ID = "1yZGPeS_HSTo7xjXJym7yv2-kjx9m06Ob6d81tVGV7G8" 
-        sh = gc.open_by_key(SHEET_ID)
-        
+        sh = gc.open_by_key("1yZGPeS_HSTo7xjXJym7yv2-kjx9m06Ob6d81tVGV7G8")
         m_sheet = sh.worksheet('제품마스터')
         c_sheet = sh.worksheet('현재생산중')
         l_sheet = sh.worksheet('공정이력')
-        
         return m_sheet.get_all_values(), c_sheet.get_all_values(), l_sheet.get_all_values()
     except Exception as e:
         if "429" in str(e):
-            st.error("⚠️ 구글 API 사용량이 초과되었습니다. 1분만 기다려 주세요.")
+            st.error("⚠️ 구글 API 할당량 초과. 잠시 후 새로고침 해주세요.")
             st.stop()
         raise e
 
-# --- 4. 데이터 가공 ---
+# --- 4. 공정 및 설비 매핑 ---
 MACHINE_MAP = {
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
     "건조공정": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
@@ -98,21 +93,16 @@ def get_now_kst():
 
 def process_data():
     m_values, c_values, l_values = fetch_all_data()
-    
-    # 마스터 데이터 가공
     header = [h.strip() for h in m_values[0]]
     col_map = {stage: header.index(stage) if stage in header else -1 for stage in TARGET_STAGES}
     master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(r[col_map[s]]).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_values[1:] if r and r[0]}
     
-    # 현재생산 데이터 가공
     if len(c_values) <= 1:
         curr_df = pd.DataFrame(columns=['Lot', '제품', '공정', '상태', '최초시작', '인쇄종료', '유형', '특이사항', 'Row', '설비'])
     else:
         curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'최초시작':r[6] if len(r)>6 else "",'인쇄종료':r[7] if len(r)>7 else "",'유형':r[8] if len(r)>8 else "",'특이사항':r[9] if len(r)>9 else "",'Row':i+2, '설비':str(r[10]).strip() if len(r)>10 else ""} for i,r in enumerate(c_values[1:]) if r and len(r) > 1])
     
-    # 로그 데이터 가공
     log_df = pd.DataFrame([{'Lot': r[0], '제품': r[1]} for r in l_values[1:] if r and len(r) > 1]) if len(l_values) > 1 else pd.DataFrame(columns=['Lot', '제품'])
-    
     return master_dict, curr_df, log_df
 
 master_dict, curr_df, log_df = process_data()
@@ -135,7 +125,7 @@ if st.button("완료된 공정 확인" if st.session_state.view == 'main' else "
     st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 7. 사이드바 ---
+# --- 7. 사이드바 (설비 선택 로직 복구) ---
 with st.sidebar:
     st.header("🏭 제조 투입")
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="sel_p_widget")
@@ -154,20 +144,21 @@ with st.sidebar:
     
     if lot_in and is_duplicate:
         st.error("⚠️ 중복 데이터")
-    else:
+    elif lot_in:
         if len(f_machines) > 1:
+            # 설비가 여러 대인 경우 묻는 창(Popover) 표시
             with st.popover("➕ 대기열 추가 (설비 선택)", use_container_width=True):
                 for m in f_machines:
-                    st.button(m, key=f"init_{m}", on_click=handle_add_queue, args=(sel_p, lot_in, lot_type, note_in, m))
+                    st.button(m, key=f"sel_{m}_{lot_in}", on_click=handle_add_queue, args=(sel_p, lot_in, lot_type, note_in, m))
         else:
-            if lot_in:
-                st.button("➕ 투입 대기열 추가", use_container_width=True, on_click=handle_add_queue, args=(sel_p, lot_in, lot_type, note_in, f_machines[0] if f_machines else ""))
+            # 설비가 한 대인 경우 바로 추가 버튼
+            st.button("➕ 투입 대기열 추가", use_container_width=True, on_click=handle_add_queue, args=(sel_p, lot_in, lot_type, note_in, f_machines[0] if f_machines else ""))
 
     if st.session_state.pending_lots:
         st.write("---")
         st.subheader("📝 투입 대기 리스트")
         for idx, p in enumerate(st.session_state.pending_lots):
-            st.info(f"{idx+1}. {p['제품']} | {p['Lot']}")
+            st.info(f"{idx+1}. {p['제품']} | {p['Lot']} ({p['설비']})")
         
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             gc = get_gspread_client()
@@ -176,7 +167,7 @@ with st.sidebar:
                 f_stg_p = next((s for s in TARGET_STAGES if master_dict[p['제품']][s]), TARGET_STAGES[0])
                 ws.append_row([p['Lot'], p['제품'], f_stg_p, "대기", "", "", "", "", p['유형'], p['비고'], p['설비']])
             st.session_state.pending_lots = []
-            st.cache_data.clear() # 캐시 강제 비움
+            st.cache_data.clear()
             st.rerun()
 
     st.divider()
@@ -213,11 +204,7 @@ if st.session_state.view == 'main':
                         elif row['상태'] == '진행중':
                             if st.button("완료", key=f"e_{row['Lot']}_{stage}_{machine}"):
                                 n_idx = TARGET_STAGES.index(stage) + 1
-                                next_stg = None
-                                for i in range(n_idx, len(TARGET_STAGES)):
-                                    if master_dict[row['제품']][TARGET_STAGES[i]]:
-                                        next_stg = TARGET_STAGES[i]
-                                        break
+                                next_stg = next((TARGET_STAGES[i] for i in range(n_idx, len(TARGET_STAGES)) if master_dict[row['제품']][TARGET_STAGES[i]]), None)
                                 
                                 if stage == "인쇄공정": ws.update_cell(row['Row'], 8, get_now_kst())
                                 
