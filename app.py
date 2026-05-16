@@ -213,7 +213,12 @@ if st.session_state.view == 'main':
                     with st.container(border=True):
                         st.markdown(f"<p class='card-text-10px'>{row['제품']}</p>", unsafe_allow_html=True)
                         st.markdown(f"<p class='card-text-l-10px'>{row['Lot']}</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p class='info-text-10px'>{row['유형']}</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p class='card-text-10px'>{row['제품']}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p class='card-text-l-10px'>{row['Lot']}</p>", unsafe_allow_html=True)
+
+        # 로트 유형이 '일반로트' 또는 '일반'이 아닐 때만 굵은 빨간색으로 표시
+        if row['유형'] not in ['일반로트', '일반', '']:
+            st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                         
                         # 설비 블록 안에 [공정특이사항(비고) 내용]이 선명하게 노출되도록 텍스트 렌더링
                         if row['특이사항']:
