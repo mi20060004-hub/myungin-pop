@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta, timezone
 import gspread
 from google.oauth2.service_account import Credentials
+import time
 
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
@@ -51,20 +52,33 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. 인증 및 시트 연결 ---
+# --- 3. 인증 및 시트 연결 (캐싱 적용) ---
+@st.cache_resource
 def get_gspread_client():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
     return gspread.authorize(creds)
 
-gc = get_gspread_client()
-SHEET_ID = "1yZGPeS_HSTo7xjXJym7yv2-kjx9m06Ob6d81tVGV7G8" 
-sh = gc.open_by_key(SHEET_ID)
-worksheet = sh.worksheet('현재생산중')
-log_sheet = sh.worksheet('공정이력')
-master_sheet = sh.worksheet('제품마스터')
+# 데이터 로드 시 API 할당량 초과 에러 방지를 위한 캐싱 (10초 동안 유지)
+@st.cache_data(ttl=10)
+def fetch_all_data():
+    try:
+        gc = get_gspread_client()
+        SHEET_ID = "1yZGPeS_HSTo7xjXJym7yv2-kjx9m06Ob6d81tVGV7G8" 
+        sh = gc.open_by_key(SHEET_ID)
+        
+        m_sheet = sh.worksheet('제품마스터')
+        c_sheet = sh.worksheet('현재생산중')
+        l_sheet = sh.worksheet('공정이력')
+        
+        return m_sheet.get_all_values(), c_sheet.get_all_values(), l_sheet.get_all_values()
+    except Exception as e:
+        if "429" in str(e):
+            st.error("⚠️ 구글 API 사용량이 초과되었습니다. 1분만 기다려 주세요.")
+            st.stop()
+        raise e
 
-# --- 4. 공정 및 설비 매핑 ---
+# --- 4. 데이터 가공 ---
 MACHINE_MAP = {
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
     "건조공정": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
@@ -82,34 +96,34 @@ TARGET_STAGES = list(MACHINE_MAP.keys())
 def get_now_kst():
     return (datetime.now(timezone(timedelta(hours=9)))).strftime('%Y-%m-%d %H:%M:%S')
 
-def load_data():
-    m_values = master_sheet.get_all_values()
+def process_data():
+    m_values, c_values, l_values = fetch_all_data()
+    
+    # 마스터 데이터 가공
     header = [h.strip() for h in m_values[0]]
     col_map = {stage: header.index(stage) if stage in header else -1 for stage in TARGET_STAGES}
     master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(r[col_map[s]]).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_values[1:] if r and r[0]}
     
-    c_values = worksheet.get_all_values()
+    # 현재생산 데이터 가공
     if len(c_values) <= 1:
         curr_df = pd.DataFrame(columns=['Lot', '제품', '공정', '상태', '최초시작', '인쇄종료', '유형', '특이사항', 'Row', '설비'])
     else:
         curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'최초시작':r[6] if len(r)>6 else "",'인쇄종료':r[7] if len(r)>7 else "",'유형':r[8] if len(r)>8 else "",'특이사항':r[9] if len(r)>9 else "",'Row':i+2, '설비':str(r[10]).strip() if len(r)>10 else ""} for i,r in enumerate(c_values[1:]) if r and len(r) > 1])
     
-    l_values = log_sheet.get_all_values()
+    # 로그 데이터 가공
     log_df = pd.DataFrame([{'Lot': r[0], '제품': r[1]} for r in l_values[1:] if r and len(r) > 1]) if len(l_values) > 1 else pd.DataFrame(columns=['Lot', '제품'])
     
     return master_dict, curr_df, log_df
 
-master_dict, curr_df, log_df = load_data()
+master_dict, curr_df, log_df = process_data()
 
-# --- 5. 세션 상태 ---
+# --- 5. 세션 상태 및 콜백 ---
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
 if 'view' not in st.session_state: st.session_state.view = 'main'
 
-# 입력란 초기화를 위한 콜백 함수 (버튼 클릭 시 가장 먼저 실행됨)
 def handle_add_queue(p_name, lot, l_type, note, machine):
     if lot:
         st.session_state.pending_lots.append({'제품': p_name, 'Lot': lot, '유형': l_type, '비고': note, '설비': machine})
-        # 위젯 값을 비웁니다. 위젯이 이미 생성되어 있으므로 안전합니다.
         st.session_state.lot_in_widget = ""
         st.session_state.note_in_widget = ""
 
@@ -144,7 +158,6 @@ with st.sidebar:
         if len(f_machines) > 1:
             with st.popover("➕ 대기열 추가 (설비 선택)", use_container_width=True):
                 for m in f_machines:
-                    # on_click 콜백을 사용하여 안전하게 처리
                     st.button(m, key=f"init_{m}", on_click=handle_add_queue, args=(sel_p, lot_in, lot_type, note_in, m))
         else:
             if lot_in:
@@ -157,10 +170,13 @@ with st.sidebar:
             st.info(f"{idx+1}. {p['제품']} | {p['Lot']}")
         
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
+            gc = get_gspread_client()
+            ws = gc.open_by_key("1yZGPeS_HSTo7xjXJym7yv2-kjx9m06Ob6d81tVGV7G8").worksheet('현재생산중')
             for p in st.session_state.pending_lots:
                 f_stg_p = next((s for s in TARGET_STAGES if master_dict[p['제품']][s]), TARGET_STAGES[0])
-                worksheet.append_row([p['Lot'], p['제품'], f_stg_p, "대기", "", "", "", "", p['유형'], p['비고'], p['설비']])
+                ws.append_row([p['Lot'], p['제품'], f_stg_p, "대기", "", "", "", "", p['유형'], p['비고'], p['설비']])
             st.session_state.pending_lots = []
+            st.cache_data.clear() # 캐시 강제 비움
             st.rerun()
 
     st.divider()
@@ -171,6 +187,10 @@ with st.sidebar:
 
 # --- 8. 메인 화면 ---
 if st.session_state.view == 'main':
+    gc = get_gspread_client()
+    ws = gc.open_by_key("1yZGPeS_HSTo7xjXJym7yv2-kjx9m06Ob6d81tVGV7G8").worksheet('현재생산중')
+    ls = gc.open_by_key("1yZGPeS_HSTo7xjXJym7yv2-kjx9m06Ob6d81tVGV7G8").worksheet('공정이력')
+    
     for stage in TARGET_STAGES:
         st.markdown(f'<div class="stage-bar">▶ {stage}</div>', unsafe_allow_html=True)
         cols = st.columns(10)
@@ -186,37 +206,35 @@ if st.session_state.view == 'main':
                         
                         if row['상태'] == '대기':
                             if st.button("시작", key=f"s_{row['Lot']}_{stage}_{machine}"):
-                                worksheet.update_cell(row['Row'], 4, "진행중")
-                                if stage == "과립공정": worksheet.update_cell(row['Row'], 7, get_now_kst())
+                                ws.update_cell(row['Row'], 4, "진행중")
+                                if stage == "과립공정": ws.update_cell(row['Row'], 7, get_now_kst())
+                                st.cache_data.clear()
                                 st.rerun()
                         elif row['상태'] == '진행중':
                             if st.button("완료", key=f"e_{row['Lot']}_{stage}_{machine}"):
                                 n_idx = TARGET_STAGES.index(stage) + 1
-                                # 다음 유효 공정 탐색
                                 next_stg = None
                                 for i in range(n_idx, len(TARGET_STAGES)):
                                     if master_dict[row['제품']][TARGET_STAGES[i]]:
                                         next_stg = TARGET_STAGES[i]
                                         break
                                 
-                                if stage == "인쇄공정":
-                                    worksheet.update_cell(row['Row'], 8, get_now_kst())
+                                if stage == "인쇄공정": ws.update_cell(row['Row'], 8, get_now_kst())
                                 
                                 if next_stg:
                                     next_m = master_dict[row['제품']][next_stg][0] if master_dict[row['제품']][next_stg] else ""
-                                    worksheet.update_cell(row['Row'], 3, next_stg)
-                                    worksheet.update_cell(row['Row'], 4, "대기")
-                                    worksheet.update_cell(row['Row'], 11, next_m)
-                                    st.rerun()
+                                    ws.update_cell(row['Row'], 3, next_stg)
+                                    ws.update_cell(row['Row'], 4, "대기")
+                                    ws.update_cell(row['Row'], 11, next_m)
                                 else:
-                                    # 최종 공정 완료
                                     start_t = row['최초시작'] if row['최초시작'] else get_now_kst()
                                     end_t = row['인쇄종료'] if row['인쇄종료'] else get_now_kst()
-                                    log_sheet.append_row([row['Lot'], row['제품'], "완료", start_t, end_t, "-", row['유형'], row['특이사항']])
-                                    worksheet.delete_rows(row['Row'])
-                                    st.rerun()
+                                    ls.append_row([row['Lot'], row['제품'], "완료", start_t, end_t, "-", row['유형'], row['특이사항']])
+                                    ws.delete_rows(row['Row'])
+                                st.cache_data.clear()
+                                st.rerun()
 else:
     st.header("📋 완료된 공정 이력")
-    history_data = log_sheet.get_all_values()
-    if len(history_data) > 1:
-        st.dataframe(pd.DataFrame(history_data[1:], columns=history_data[0]), use_container_width=True)
+    _, _, l_values = fetch_all_data()
+    if len(l_values) > 1:
+        st.dataframe(pd.DataFrame(l_values[1:], columns=l_values[0]), use_container_width=True)
