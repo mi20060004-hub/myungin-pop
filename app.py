@@ -73,9 +73,13 @@ def load_data():
     
     c_values = worksheet.get_all_values()
     curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'유형':r[7],'특이사항':r[8],'Row':i+2, '설비':r[9] if len(r)>9 else ""} for i,r in enumerate(c_values[1:]) if r and r[0]])
-    return master_dict, curr_df
+    
+    l_values = log_sheet.get_all_values()
+    log_df = pd.DataFrame([{'Lot': r[0], '제품': r[1]} for r in l_values[1:] if r and r[0]])
+    
+    return master_dict, curr_df, log_df
 
-master_dict, curr_df = load_data()
+master_dict, curr_df, log_df = load_data()
 
 # --- 5. 세션 상태 ---
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
@@ -92,26 +96,36 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"])
     note_in = st.text_area("공정 특이사항 입력", placeholder="특이사항을 입력하세요.")
     
-    # 첫 공정 설비 선택 로직
+    # 중복 체크 로직
+    is_duplicate = ((curr_df['제품'] == sel_p) & (curr_df['Lot'] == lot_in)).any() or \
+                   ((log_df['제품'] == sel_p) & (log_df['Lot'] == lot_in)).any() or \
+                   any(p['제품'] == sel_p and p['Lot'] == lot_in for p in st.session_state.pending_lots)
+
     f_stg = next((s for s in TARGET_STAGES if master_dict[sel_p][s]), TARGET_STAGES[0])
     f_machines = master_dict[sel_p][f_stg]
     
-    if len(f_machines) > 1:
-        with st.popover("➕ 투입 대기열 추가 (설비 선택)", use_container_width=True):
-            st.write(f"첫 공정({f_stg}) 설비 선택")
-            for m in f_machines:
-                if st.button(m, key=f"init_{m}"):
-                    st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': m})
-                    st.rerun()
+    if is_duplicate:
+        st.error("⚠️ 이미 존재하는 제품명과 Lot 번호입니다.")
     else:
-        if st.button("➕ 투입 대기열 추가", use_container_width=True):
-            if lot_in:
-                m_default = f_machines[0] if f_machines else ""
-                st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': m_default})
-                st.rerun()
+        if len(f_machines) > 1:
+            with st.popover("➕ 투입 대기열 추가 (설비 선택)", use_container_width=True):
+                for m in f_machines:
+                    if st.button(m, key=f"init_{m}"):
+                        st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': m})
+                        st.rerun()
+        else:
+            if st.button("➕ 투입 대기열 추가", use_container_width=True):
+                if lot_in:
+                    st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': f_machines[0] if f_machines else ""})
+                    st.rerun()
             
+    # [복구] 투입 대기열 목록 표시
     if st.session_state.pending_lots:
         st.write("---")
+        st.subheader("📋 투입 대기 목록")
+        for idx, p in enumerate(st.session_state.pending_lots):
+            st.info(f"{idx+1}. {p['제품']} (Lot: {p['Lot']})")
+            
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             for p in st.session_state.pending_lots:
                 f_stg_p = next((s for s in TARGET_STAGES if master_dict[p['제품']][s]), TARGET_STAGES[0])
@@ -122,14 +136,11 @@ with st.sidebar:
             st.session_state.pending_lots = []
             st.rerun()
 
-    # [복구] 실시간 현황 통계
     st.divider()
     st.subheader("📊 실시간 현황 통계")
-    total_count = len(curr_df)
-    st.write(f"**전체 공정 총합:** {total_count}건")
+    st.write(f"**전체 공정 총합:** {len(curr_df)}건")
     for stage in TARGET_STAGES:
-        s_count = len(curr_df[curr_df['공정'] == stage])
-        st.write(f"- {stage}: {s_count}건")
+        st.write(f"- {stage}: {len(curr_df[curr_df['공정'] == stage])}건")
 
 # --- 8. 메인 현황판 ---
 if st.session_state.page == 'main':
@@ -153,15 +164,12 @@ if st.session_state.page == 'main':
                                 worksheet.update_cell(row['Row'], 5, get_now_kst())
                                 st.rerun()
                         else:
-                            # [변경] 완료 버튼 클릭 시 다음 공정 설비 선택 대응
                             n_idx = TARGET_STAGES.index(stage) + 1
                             next_stg = next((TARGET_STAGES[i] for i in range(n_idx, len(TARGET_STAGES)) if master_dict[row['제품']][TARGET_STAGES[i]]), None)
-                            
                             if next_stg:
                                 n_machines = master_dict[row['제품']][next_stg]
                                 if len(n_machines) > 1:
                                     with st.popover("완료", use_container_width=True):
-                                        st.write(f"다음 공정({next_stg}) 설비 선택")
                                         for nm in n_machines:
                                             if st.button(nm, key=f"nxt_{row['Lot']}_{nm}"):
                                                 worksheet.update_cell(row['Row'], 3, next_stg)
