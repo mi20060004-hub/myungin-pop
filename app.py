@@ -38,7 +38,7 @@ st.markdown("""
 
 .card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
-.info-text-10px { font-size: 11px !important; color: #ef4444; margin: 1px 0; text-align: center; line-height: 1.2; }
+.info-text-10px { font-size: 11px !important; font-weight: 800; color: #ef4444; margin: 1px 0; text-align: center; line-height: 1.2; }
 .lot-type-highlight { font-size: 11px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 
 /* 버튼 크기 및 폰트 80% 축소 입체감 스타일 유지 */
