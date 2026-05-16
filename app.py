@@ -120,7 +120,6 @@ def load_data():
                     'Row': i + 2
                 })
         all_df = pd.DataFrame(data_list)
-        # 중요 변경: 상태가 '완료'이거나 '1팀종료'인 데이터는 현재 실시간 블록(현황판)에서 제외하여 정상적으로 다음 공정으로만 넘어가게 처리
         curr_df = all_df[~all_df['상태'].isin(['완료', '1팀종료'])].copy()
         log_df = all_df[all_df['상태'].isin(['완료', '1팀종료'])].copy()
         
@@ -148,12 +147,21 @@ def handle_add_queue(p_name, lot, l_type, note, machine):
         st.session_state.reset_type = "일반로트"
         st.session_state.reset_note = ""
 
-# --- 5. 헤더 ---
+# --- 5. 헤더 및 네비게이션 버튼 우측 상단 나열 ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
-st.markdown('<div style="position: fixed; top: 18px; right: 30px; z-index: 999999;">', unsafe_allow_html=True)
-if st.button("완료된 공정 확인" if st.session_state.view == 'main' else "실시간 현황판", key="nav_btn"):
-    st.session_state.view = 'history' if st.session_state.view == 'main' else 'main'
+st.markdown('<div style="position: fixed; top: 18px; right: 30px; z-index: 999999; display: flex; gap: 10px;">', unsafe_allow_html=True)
+
+# 3개의 화면을 유기적으로 전환하는 상단 고정 버튼 시스템
+if st.button("실시간 현황판", key="btn_nav_main"):
+    st.session_state.view = 'main'
     st.rerun()
+if st.button("완료된 공정 확인", key="btn_nav_history"):
+    st.session_state.view = 'history'
+    st.rerun()
+if st.button("완료된 공정 확인(선별)", key="btn_nav_selection"):
+    st.session_state.view = 'selection'
+    st.rerun()
+
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. 사이드바 ---
@@ -302,9 +310,28 @@ if st.session_state.view == 'main':
                             if st.button("재시작", key=f"r_{row['Lot']}_{stage}_{machine}", use_container_width=True):
                                 history_sheet.update_cell(int(row['Row']), 4, "진행중")
                                 st.rerun()
-else:
-    st.header("📋 완료된 공정 이력 리포트")
+
+elif st.session_state.view == 'history':
+    st.header("📋 완료된 공정 이력 리포트 (1팀)")
     if not log_df.empty:
-        st.dataframe(log_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), use_container_width=True)
+        # 조건 반영: 상태가 정확히 '1팀종료'인 데이터만 필터링하여 출력
+        team1_df = log_df[log_df['상태'] == '1팀종료']
+        if not team1_df.empty:
+            st.dataframe(team1_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), use_container_width=True)
+        else:
+            st.info("현재 기록된 '1팀종료' 이력이 존재하지 않습니다.")
+    else:
+        st.info("기록된 완료 이력이 존재하지 않습니다.")
+
+elif st.session_state.view == 'selection':
+    # 신규 추가: 외관선별공정이 완전히 완료된 이력만 분리하여 조회하는 서브 전용 페이지
+    st.header("🔍 완료된 공정 이력 리포트 (선별)")
+    if not log_df.empty:
+        # 조건 반영: 공정명이 '외관선별공정'이면서 상태가 '완료'인 항목만 필터링
+        selection_df = log_df[(log_df['공정'] == '외관선별공정') & (log_df['상태'] == '완료')]
+        if not selection_df.empty:
+            st.dataframe(selection_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), use_container_width=True)
+        else:
+            st.info("현재 최종 완료된 '외관선별공정' 이력이 존재하지 않습니다.")
     else:
         st.info("기록된 완료 이력이 존재하지 않습니다.")
