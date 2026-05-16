@@ -30,7 +30,7 @@ st.markdown("""
     background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%); 
 }
 
-.machine-title {background: #f1f5f9; text-align: center; font-size: 11px; font-weight: 700; border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1; min-height: 35px; display: flex; align-items: center; justify-content: center; color: #334155; }
+.machine-title {background: #f1f5f9; text-align: center; font-size: 13px; font-weight: 700; border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1; min-height: 35px; display: flex; align-items: center; justify-content: center; color: #334155; }
 .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 3px 0; border-radius: 3px; margin-bottom: 5px; }
 .bg-waiting { background-color: #3b82f6; }
 .bg-progress { background-color: #ef4444; }
