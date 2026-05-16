@@ -4,228 +4,195 @@ from datetime import datetime, timedelta, timezone
 import gspread
 from google.oauth2.service_account import Credentials
 
-# --- 1. 페이지 설정 ---
+# --- 1. 페이지 설정 및 디자인 (디자인 가이드 반영) ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (66px 헤더 및 예전 10px 블록 스타일 엄격 유지) ---
 st.markdown("""
 <style>
-.fixed-header {position: fixed; top: 0; left: 0; right: 0; height: 66px; background-color: #1e3a8a; z-index: 999998; display: flex; align-items: center; padding: 0 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-.main-title-text {color: white !important; font-size: 28px !important; font-weight: 800; margin: 0; flex-grow: 1; }
-.main .block-container { padding-top: 100px !important; }
-.stage-bar {background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%); color: white; padding: 12px 20px; border-radius: 8px; font-size: 22px; font-weight: 700; margin-top: 30px; margin-bottom: 15px; }
-.machine-title {background: #f1f5f9; text-align: center; font-size: 11px; font-weight: 700; border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1; min-height: 35px; display: flex; align-items: center; justify-content: center; color: #334155; }
-.status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 3px 0; border-radius: 3px; margin-bottom: 5px; }
-.bg-waiting { background-color: #3b82f6; }
-.bg-progress { background-color: #ef4444; }
-.bg-paused { background-color: #f59e0b; }
-.card-text-10px { font-size: 10px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
-.card-text-l-10px { font-size: 10px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
-.info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
-div.stButton > button {padding: 2px 4px !important; font-size: 10px !important; min-height: 20px !important; line-height: 1.2 !important; }
+    /* 고정 헤더 디자인 */
+    .fixed-header {
+        position: fixed; top: 0; left: 0; right: 0; height: 66px; 
+        background-color: #1e3a8a; z-index: 999998; 
+        display: flex; align-items: center; padding: 0 30px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+    .main-title-text { color: white !important; font-size: 24px !important; font-weight: 800; margin: 0; }
+    
+    /* 메인 컨테이너 여백 */
+    .main .block-container { padding-top: 80px !important; }
+
+    /* 칸반 컬럼 디자인 */
+    .kanban-column {
+        background-color: #f8fafc;
+        border-radius: 10px;
+        padding: 15px;
+        border: 1px solid #e2e8f0;
+        min-height: 500px;
+    }
+    .kanban-header {
+        background-color: #1e40af;
+        color: white;
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 700;
+        margin-bottom: 15px;
+    }
+    
+    /* LOT 카드 디자인 */
+    .lot-card {
+        background-color: white;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        border-left: 5px solid #3b82f6;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .status-badge {
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: white;
+        font-weight: 700;
+    }
+    .bg-waiting { background-color: #64748b; }
+    .bg-progress { background-color: #ef4444; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. 인증 및 시트 연결 ---
+# --- 2. 구글 시트 연결 ---
 def get_gspread_client():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
     return gspread.authorize(creds)
 
-gc = get_gspread_client()
-SHEET_ID = "1yZGPeS_HSTo7xjXJym7yv2-kjx9m06Ob6d81tVGV7G8"
-sh = gc.open_by_key(SHEET_ID)
+try:
+    gc = get_gspread_client()
+    SHEET_ID = "1yZGPeS_HSTo7xjXJym7yv2-kjx9m06Ob6d81tVGV7G8"
+    sh = gc.open_by_key(SHEET_ID)
+    history_sheet = sh.worksheet('product_history')
+    master_sheet = sh.worksheet('product_master')
+except Exception as e:
+    st.error(f"구글 시트 연결 실패: {e}")
+    st.stop()
 
-# 단일 통합 이력 구조에 맞게 워크시트 매핑 수정
-history_sheet = sh.worksheet('product_history')  # 통합 생산 및 이력 기록 탭
-master_sheet = sh.worksheet('product_master')   # 제품 마스터 정보 탭
-
-# --- 4. 공정 및 설비 매핑 ---
-MACHINE_MAP = {
-    "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
-    "건조공정": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
-    "정립공정": ["Comil0112", "Comil0212", "Comil0312", "파워밀"],
-    "혼합공정": ["PM1000", "PM2000", "드럼혼합기"],
-    "타정공정": ["킬리안", "63S-3", "41S", "63S-1", "PR1023", "MRC45", "45S", "63S-2", "31S", "PH300"],
-    "캡슐공정": ["SF150N", "보쉬충전기", "PTK충전기", "SF35"],
-    "질량선별공정": ["CWI150"],
-    "코팅공정": ["SFC150FH", "SFC170FH", "SFC170FSH", "SFC130FSH", "V150", "SFC80", "수동코팅기"],
-    "인쇄공정": ["정제인쇄기"],
-    "외관선별공정": ["비즈윌구형", "비즈윌신형", "엔클로니구형", "엔클로니신형", "수동선별기", "캡슐외관선별기"]
-}
-TARGET_STAGES = list(MACHINE_MAP.keys())
-
+# --- 3. 데이터 로드 및 처리 ---
 def get_now_kst():
     return (datetime.now(timezone(timedelta(hours=9)))).strftime('%Y-%m-%d %H:%M')
 
+@st.cache_data(ttl=5) # 5초마다 캐시 갱신
 def load_data():
-    # 마스터 정보 로드
     m_values = master_sheet.get_all_values()
-    header = [h.strip() for h in m_values[0]]
-    col_map = {stage: header.index(stage) if stage in header else -1 for stage in TARGET_STAGES}
-    master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(r[col_map[s]]).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_values[1:] if r and r[0]}
+    master_list = [r[0] for r in m_values[1:] if r]
     
-    # 통합 history 시트에서 데이터 로드
     h_values = history_sheet.get_all_values()
-    
-    if len(h_values) <= 1:
-        all_df = pd.DataFrame(columns=['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비', 'Row'])
-        curr_df = pd.DataFrame(columns=['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비', 'Row'])
-        log_df = pd.DataFrame(columns=['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비'])
-    else:
-        # 1행 헤더 규격: 제조번호, 제품명, 공정명, 상태, 시작시간, 종료시간, 소요시간, 로트유형, 비고, 설비 (마지막에 설비가 기록되도록 유연하게 연동)
-        data_list = []
+    if len(h_values) > 1:
+        data = []
         for i, r in enumerate(h_values[1:]):
-            if r and len(r) >= 4:
-                data_list.append({
-                    'Lot': str(r[0]).strip(),
-                    '제품': str(r[1]).strip(),
-                    '공정': str(r[2]).strip(),
-                    '상태': str(r[3]).strip(),
-                    '시작시간': r[4] if len(r) > 4 else "",
-                    '종료시간': r[5] if len(r) > 5 else "",
-                    '소요시간': r[6] if len(r) > 6 else "",
-                    '유형': r[7] if len(r) > 7 else "",
-                    '특이사항': r[8] if len(r) > 8 else "",
-                    '설비': str(r[9]).strip() if len(r) > 9 else "",
-                    'Row': i + 2
-                })
-        all_df = pd.DataFrame(data_list)
-        # 실시간 진행판 데이터 (상태가 완료가 아닌 것)
-        curr_df = all_df[all_df['상태'] != '완료'].copy()
-        # 완료 기록 조회 데이터
-        log_df = all_df[all_df['상태'] == '완료'].copy()
-        
-    return master_dict, curr_df, log_df
-
-master_dict, curr_df, log_df = load_data()
-
-# --- 5. 세션 상태 및 콜백 설정 ---
-if 'pending_lots' not in st.session_state:
-    st.session_state.pending_lots = []
-if 'view' not in st.session_state:
-    st.session_state.view = 'main'
-
-def handle_add_queue(p_name, lot, l_type, note, machine):
-    if lot:
-        st.session_state.pending_lots.append({'제품': p_name, 'Lot': lot, '유형': l_type, '비고': note, '설비': machine})
-        st.session_state.lot_in_widget = ""
-        st.session_state.note_in_widget = ""
-
-# --- 6. 헤더 ---
-st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
-st.markdown('<div style="position: fixed; top: 18px; right: 30px; z-index: 999999;">', unsafe_allow_html=True)
-if st.button("완료된 공정 확인" if st.session_state.view == 'main' else "실시간 현황판", key="nav_btn"):
-    st.session_state.view = 'history' if st.session_state.view == 'main' else 'main'
-    st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- 7. 사이드바 ---
-with st.sidebar:
-    st.header("🏭 제조 투입")
-    sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="sel_p_widget")
-    lot_in = st.text_input("제조번호(Lot) 입력", key="lot_in_widget").strip()
-    lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
-    note_in = st.text_area("공정 특이사항 입력", key="note_in_widget")
-    
-    is_duplicate = False
-    if lot_in:
-        is_duplicate = (not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['공정'] == "과립공정")).any()) or \
-                       any(p['Lot'] == lot_in for p in st.session_state.pending_lots)
-                       
-    f_stg = next((s for s in TARGET_STAGES if master_dict[sel_p][s]), TARGET_STAGES[0])
-    f_machines = master_dict[sel_p][f_stg]
-    
-    if lot_in and is_duplicate:
-        st.error("⚠️ 중복 데이터 (동일 LOT 공정 진행 중)")
-    elif lot_in:
-        if len(f_machines) > 1:
-            with st.popover("➕ 대기열 추가 (설비 선택)", use_container_width=True):
-                for m in f_machines:
-                    st.button(m, key=f"init_{m}_{lot_in}", on_click=handle_add_queue, args=(sel_p, lot_in, lot_type, note_in, m))
-        else:
-            st.button("➕ 투입 대기열 추가", use_container_width=True, on_click=handle_add_queue, args=(sel_p, lot_in, lot_type, note_in, f_machines[0] if f_machines else ""))
-
-    if st.session_state.pending_lots:
-        st.write("---")
-        st.subheader("📝 투입 대기 리스트")
-        for idx, p in enumerate(st.session_state.pending_lots):
-            st.info(f"{idx+1}. {p['제품']} | {p['Lot']} ({p['설비']})")
-        if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
-            for p in st.session_state.pending_lots:
-                f_stg_p = next((s for s in TARGET_STAGES if master_dict[p['제품']][s]), TARGET_STAGES[0])
-                # 구조에 맞게 순서대로 삽입: 제조번호, 제품명, 공정명, 상태, 시작, 종료, 소요, 유형, 비고, 설비
-                history_sheet.append_row([p['Lot'], p['제품'], f_stg_p, "대기", "", "", "", p['유형'], p['비고'], p['설비']])
-            st.session_state.pending_lots = []
-            st.rerun()
-            
-    st.divider()
-    st.write(f"**실시간 가동 총합:** {len(curr_df)}건")
-    for stage in TARGET_STAGES:
-        count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
-        st.write(f"- {stage}: {count}건")
-
-# --- 8. 메인 화면 (설비 격자형 대시보드 뷰) ---
-if st.session_state.view == 'main':
-    for stage in TARGET_STAGES:
-        st.markdown(f'<div class="stage-bar">▶ {stage}</div>', unsafe_allow_html=True)
-        cols = st.columns(10)
-        
-        for idx, machine in enumerate(MACHINE_MAP[stage]):
-            with cols[idx]:
-                st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
-                m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())] if not curr_df.empty else pd.DataFrame()
-                
-                for _, row in m_items.iterrows():
-                    with st.container(border=True):
-                        st.markdown(f"<p class='card-text-10px'>{row['제품']}</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p class='card-text-l-10px'>{row['Lot']}</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p class='info-text-10px'>{row['유형']}</p>", unsafe_allow_html=True)
-                        if row['특이사항']:
-                            st.markdown(f"<p class='info-text-10px'>{row['특이사항']}</p>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
-                        
-                        # 제어 버튼 로직 정의
-                        if row['상태'] == '대기':
-                            if st.button("시작", key=f"s_{row['Lot']}_{stage}_{machine}"):
-                                now_time = get_now_kst()
-                                history_sheet.update_cell(int(row['Row']), 4, "진행중") # 상태 컬럼 (4열)
-                                history_sheet.update_cell(int(row['Row']), 5, now_time)  # 시작시간 컬럼 (5열)
-                                st.rerun()
-                                
-                        elif row['상태'] == '진행중':
-                            if st.button("완료", key=f"e_{row['Lot']}_{stage}_{machine}"):
-                                now_time = get_now_kst()
-                                
-                                # 소요시간 실시간 계산
-                                try:
-                                    start_dt = datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M')
-                                    end_dt = datetime.strptime(now_time, '%Y-%m-%d %H:%M')
-                                    duration = str(end_dt - start_dt)
-                                except:
-                                    duration = "-"
-                                    
-                                # 1. 현재 공정 마감 처리
-                                history_sheet.update_cell(int(row['Row']), 4, "완료")
-                                history_sheet.update_cell(int(row['Row']), 6, now_time)  # 종료시간 (6열)
-                                history_sheet.update_cell(int(row['Row']), 7, duration)  # 소요시간 (7열)
-                                
-                                # 2. 다음 공정 탐색 및 자동 대기열 이관
-                                n_idx = TARGET_STAGES.index(stage) + 1
-                                next_stg = None
-                                for i in range(n_idx, len(TARGET_STAGES)):
-                                    if master_dict[row['제품']][TARGET_STAGES[i]]:
-                                        next_stg = TARGET_STAGES[i]
-                                        break
-                                        
-                                if next_stg:
-                                    next_m = master_dict[row['제품']][next_stg][0] if master_dict[row['제품']][next_stg] else ""
-                                    # 다음 공정을 '대기' 상태의 신규 행으로 누적 삽입
-                                    history_sheet.append_row([row['Lot'], row['제품'], next_stg, "대기", "", "", "", row['유형'], row['특이사항'], next_m])
-                                st.rerun()
-else:
-    st.header("📋 완료된 공정 이력 리포트")
-    if not log_df.empty:
-        st.dataframe(log_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), use_container_width=True)
+            data.append({
+                'Lot': r[0], '제품': r[1], '공정': r[2], '상태': r[3],
+                '시작': r[4], '종료': r[5], '소요': r[6], '유형': r[7], '비고': r[8], 'Row': i + 2
+            })
+        df = pd.DataFrame(data)
     else:
-        st.info("기록된 완료 이력이 존재하지 않습니다.")
+        df = pd.DataFrame(columns=['Lot', '제품', '공정', '상태', '시작', '종료', '소요', '유형', '비고', 'Row'])
+    return master_list, df
+
+master_products, history_df = load_data()
+
+# --- 4. 사이드바 (구상도 Source 1 반영) ---
+with st.sidebar:
+    st.markdown("### 📋 제조 투입")
+    with st.form("input_form", clear_on_submit=True):
+        sel_p = st.selectbox("제품명 선택", master_products)
+        lot_in = st.text_input("제조번호 입력")
+        lot_type = st.selectbox("로트 유형 선택", ["일반", "동시PV1", "동시PV2", "동시PV3"])
+        note_in = st.text_area("공정 특이사항 입력")
+        add_queue = st.form_submit_button("➕ 투입 대기열에 포함")
+        
+    if 'queue' not in st.session_state: st.session_state.queue = []
+    
+    if add_queue and lot_in:
+        st.session_state.queue.append({'Lot': lot_in, '제품': sel_p, '유형': lot_type, '비고': note_in})
+        st.rerun()
+
+    if st.session_state.queue:
+        st.divider()
+        st.write("**투입 대기열**")
+        for q in st.session_state.queue:
+            st.caption(f"{q['Lot']} | {q['제품']}")
+        
+        c1, c2 = st.columns(2)
+        if c1.button("전체 삭제", use_container_width=True):
+            st.session_state.queue = []
+            st.rerun()
+        if c2.button("전체 투입", type="primary", use_container_width=True):
+            for q in st.session_state.queue:
+                # 초기 공정(과립공정) 대기 상태로 투입
+                history_sheet.append_row([q['Lot'], q['제품'], "과립공정", "대기", "", "", "", q['유형'], q['비고']])
+            st.session_state.queue = []
+            st.success("투입 완료!")
+            st.rerun()
+
+    st.divider()
+    st.markdown("### 📊 공정 현황")
+    active_df = history_df[history_df['상태'] != '완료']
+    st.write(f"실시간 공정 수량: **{len(active_df)}건**")
+    
+    STAGES = ["과립공정", "건조공정", "정립공정", "혼합공정", "타정공정", "캡슐공정", "질량선별공정", "인쇄공정", "외관선별공정"]
+    for s in STAGES:
+        cnt = len(active_df[active_df['공정'] == s])
+        st.write(f"- {s}: {cnt}건")
+
+# --- 5. 메인 화면 (칸반보드 레이아웃) ---
+st.markdown('<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
+
+# 9개 공정 컬럼 생성
+cols = st.columns(len(STAGES))
+
+for i, stage in enumerate(STAGES):
+    with cols[i]:
+        # 컬럼 헤더
+        st.markdown(f"""<div class="kanban-header">{stage}</div>""", unsafe_allow_html=True)
+        
+        # 해당 공정 데이터 추출
+        items = active_df[active_df['공정'] == stage]
+        
+        if items.empty:
+            st.markdown("<p style='text-align:center; color:#cbd5e1; font-size:12px;'>건수 없음</p>", unsafe_allow_html=True)
+        else:
+            for _, row in items.iterrows():
+                # 카드 표시
+                with st.container():
+                    st.markdown(f"""
+                    <div class="lot-card">
+                        <p style="font-size:14px; font-weight:800; margin:0;">{row['Lot']}</p>
+                        <p style="font-size:12px; color:#475569; margin:2px 0;">{row['제품']}</p>
+                        <p style="font-size:11px; color:#94a3b8; margin-bottom:8px;">{row['유형']}</p>
+                        <span class="status-badge {'bg-progress' if row['상태']=='진행중' else 'bg-waiting'}">{row['상태']}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # 버튼 로직
+                    if row['상태'] == "대기":
+                        if st.button("시작", key=f"btn_s_{row['Row']}"):
+                            history_sheet.update_cell(row['Row'], 4, "진행중")
+                            history_sheet.update_cell(row['Row'], 5, get_now_kst())
+                            st.rerun()
+                    elif row['상태'] == "진행중":
+                        if st.button("완료", key=f"btn_e_{row['Row']}"):
+                            now = get_now_kst()
+                            # 1. 현재 공정 완료 처리
+                            history_sheet.update_cell(row['Row'], 4, "완료")
+                            history_sheet.update_cell(row['Row'], 6, now)
+                            
+                            # 2. 다음 공정으로 자동 이관
+                            current_idx = STAGES.index(stage)
+                            if current_idx < len(STAGES) - 1:
+                                next_stage = STAGES[current_idx + 1]
+                                history_sheet.append_row([row['Lot'], row['제품'], next_stage, "대기", "", "", "", row['유형'], row['비고']])
+                            st.rerun()
+
+# --- 6. 하단 전체 이력 ---
+with st.expander("📝 전체 생산 이력 리포트 보기"):
+    st.dataframe(history_df.sort_index(ascending=False), use_container_width=True)
