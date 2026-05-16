@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (헤더 높이 66px 및 설비/블록 레이아웃 복구) ---
+# --- 2. CSS 스타일 (66px 헤더 및 10px 블록 스타일 엄격 유지) ---
 st.markdown("""
     <style>
     .fixed-header {
@@ -22,21 +22,18 @@ st.markdown("""
     }
     .main .block-container { padding-top: 100px !important; }
     
-    /* 공정 가로바 스타일 */
     .stage-bar {
         background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
         color: white; padding: 12px 20px; border-radius: 8px;
         font-size: 22px; font-weight: 700; margin-top: 30px; margin-bottom: 15px;
     }
     
-    /* 설비 박스 스타일 */
     .machine-title {
         background: #f1f5f9; text-align: center; font-size: 11px; font-weight: 700;
         border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1; min-height: 35px;
         display: flex; align-items: center; justify-content: center; color: #334155;
     }
     
-    /* 제품 블록 내 요소 및 버튼 스타일 (10px 적용) */
     .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 3px 0; border-radius: 3px; margin-bottom: 5px; }
     .bg-waiting { background-color: #3b82f6; } 
     .bg-progress { background-color: #ef4444; }
@@ -68,7 +65,7 @@ worksheet = sh.worksheet('현재생산중')
 log_sheet = sh.worksheet('공정이력')
 master_sheet = sh.worksheet('제품마스터')
 
-# --- 4. 10개 공정 및 설비 매핑 ---
+# --- 4. 공정 및 설비 매핑 ---
 MACHINE_MAP = {
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
     "건조공정": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
@@ -109,7 +106,6 @@ master_dict, curr_df, log_df = load_data()
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
 if 'view' not in st.session_state: st.session_state.view = 'main'
 
-# 대기열 추가 및 입력 폼 안전 초기화 콜백
 def handle_add_queue(p_name, lot, l_type, note, machine):
     if lot:
         st.session_state.pending_lots.append({'제품': p_name, 'Lot': lot, '유형': l_type, '비고': note, '설비': machine})
@@ -124,7 +120,7 @@ if st.button("완료된 공정 확인" if st.session_state.view == 'main' else "
     st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 7. 사이드바 (순서: 제품명, 제조번호, 로트유형, 비고 순 및 일괄투입/통계) ---
+# --- 7. 사이드바 ---
 with st.sidebar:
     st.header("🏭 제조 투입")
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="sel_p_widget")
@@ -151,7 +147,6 @@ with st.sidebar:
         else:
             st.button("➕ 투입 대기열 추가", use_container_width=True, on_click=handle_add_queue, args=(sel_p, lot_in, lot_type, note_in, f_machines[0] if f_machines else ""))
 
-    # 다중 로트 대기열 리스트 표시 및 일괄 확정
     if st.session_state.pending_lots:
         st.write("---")
         st.subheader("📝 투입 대기 리스트")
@@ -165,25 +160,23 @@ with st.sidebar:
             st.session_state.pending_lots = []
             st.rerun()
 
-    # 전체 로트 수 및 공정별 로트 수 통계 리포트
     st.divider()
     st.write(f"**전체 로트 총합:** {len(curr_df)}건")
     for stage in TARGET_STAGES:
         count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         st.write(f"- {stage}: {count}건")
 
-# --- 8. 메인 화면 (가로바 형태 공정 + 설비 박스 나열) ---
+# --- 8. 메인 화면 ---
 if st.session_state.view == 'main':
     for stage in TARGET_STAGES:
         st.markdown(f'<div class="stage-bar">▶ {stage}</div>', unsafe_allow_html=True)
-        cols = st.columns(10) # 10열 고정 레이아웃
+        cols = st.columns(10)
         for idx, machine in enumerate(MACHINE_MAP[stage]):
             with cols[idx]:
                 st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
                 m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())] if not curr_df.empty else pd.DataFrame()
                 for _, row in m_items.iterrows():
                     with st.container(border=True):
-                        # 내용 라벨 없이 텍스트 크기 10px로 표현
                         st.markdown(f"<p class='card-text-10px'>{row['제품']}</p>", unsafe_allow_html=True)
                         st.markdown(f"<p class='card-text-l-10px'>{row['Lot']}</p>", unsafe_allow_html=True)
                         st.markdown(f"<p class='info-text-10px'>{row['유형']}</p>", unsafe_allow_html=True)
@@ -216,7 +209,6 @@ if st.session_state.view == 'main':
                                     worksheet.update_cell(row['Row'], 11, next_m)
                                     st.rerun()
                                 else:
-                                    # 최종 외관선별 완료 시 이력 이동
                                     start_t = row['최초시작'] if row['최초시작'] else get_now_kst()
                                     end_t = row['인쇄종료'] if row['인쇄종료'] else get_now_kst()
                                     log_sheet.append_row([row['Lot'], row['제품'], "완료", start_t, end_t, "-", row['유형'], row['특이사항']])
