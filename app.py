@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta, timezone
 import gspread
 from google.oauth2.service_account import Credentials
+import time
 
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
@@ -31,6 +32,8 @@ st.markdown("""
     .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 3px 0; border-radius: 3px; margin-bottom: 5px; }
     .bg-waiting { background-color: #3b82f6; } 
     .bg-progress { background-color: #ef4444; }
+    .bg-paused { background-color: #f59e0b; }
+    .info-text { font-size: 10px; color: #475569; margin: 2px 0; line-height: 1.2; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -47,11 +50,11 @@ worksheet = sh.worksheet('현재생산중')
 log_sheet = sh.worksheet('공정이력')
 master_sheet = sh.worksheet('제품마스터')
 
-# --- 4. 공정 및 설비 매핑 (영문명 통일 완료) ---
+# --- 4. 공정 및 설비 매핑 ---
 MACHINE_MAP = {
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
     "건조공정": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
-    "정립공정": ["Comil0112", "Comil0212", "Comil0312", "파워밀"], # 코밀 -> Comil로 수정
+    "정립공정": ["Comil0112", "Comil0212", "Comil0312", "파워밀"],
     "혼합공정": ["PM1000", "PM2000", "드럼혼합기"],
     "타정공정": ["킬리안", "63S-3", "41S", "63S-1", "PR1023", "MRC45", "45S", "63S-2", "31S", "PH300"],
     "캡슐공정": ["SF150N", "보쉬충전기", "PTK충전기", "SF35"],
@@ -72,7 +75,8 @@ def load_data():
     master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(r[col_map[s]]).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_values[1:] if r and r[0]}
     
     c_values = worksheet.get_all_values()
-    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'유형':r[7],'특이사항':r[8],'Row':i+2, '설비':str(r[9]).strip() if len(r)>9 else ""} for i,r in enumerate(c_values[1:]) if r and len(r) > 1])
+    # 컬럼 구조: Lot(0), 제품(1), 공정(2), 상태(3), 시작시간(4), 종료시간(5), 누적시간(6), 유형(7), 특이사항(8), 설비(9)
+    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'시작':r[4],'유형':r[7],'특이사항':r[8],'Row':i+2, '설비':str(r[9]).strip() if len(r)>9 else ""} for i,r in enumerate(c_values[1:]) if r and len(r) > 1])
     
     l_values = log_sheet.get_all_values()
     log_df = pd.DataFrame([{'Lot': r[0], '제품': r[1]} for r in l_values[1:] if r and len(r) > 1]) if len(l_values) > 1 else pd.DataFrame(columns=['Lot', '제품'])
@@ -123,7 +127,7 @@ with st.sidebar:
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             for p in st.session_state.pending_lots:
                 f_stg_p = next((s for s in TARGET_STAGES if master_dict[p['제품']][s]), TARGET_STAGES[0])
-                worksheet.append_row([p['Lot'], p['제품'], f_stg_p, "대기", "", get_now_kst(), "0", p['유형'], p['비고'], p['설비']])
+                worksheet.append_row([p['Lot'], p['제품'], f_stg_p, "대기", "", "", "0", p['유형'], p['비고'], p['설비']])
             st.session_state.pending_lots = []
             st.rerun()
         if st.button("🗑️ 비우기", use_container_width=True):
@@ -132,53 +136,78 @@ with st.sidebar:
 
     st.divider()
     st.write(f"**전체 총합:** {len(curr_df)}건")
-    for stage in TARGET_STAGES:
-        st.write(f"- {stage}: {len(curr_df[curr_df['공정'] == stage])}건")
 
-# --- 8. 메인 현황판 (10열 고정) ---
+# --- 8. 메인 현황판 ---
 for stage in TARGET_STAGES:
     st.markdown(f'<div class="stage-bar">▶ {stage}</div>', unsafe_allow_html=True)
     cols = st.columns(10)
     for idx, machine in enumerate(MACHINE_MAP[stage]):
         with cols[idx]:
             st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
-            # 설비명 비교 시 공백 제거하여 매칭 확률 높임
             m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())]
             for _, row in m_items.iterrows():
                 with st.container(border=True):
                     st.markdown(f"<p style='font-size:11px; font-weight:800; margin:0;'>{row['제품']}</p>", unsafe_allow_html=True)
                     st.markdown(f"<p style='font-size:10px; color:#1e40af;'>{row['Lot']}</p>", unsafe_allow_html=True)
-                    cls = "bg-waiting" if row['상태'] == '대기' else "bg-progress"
-                    st.markdown(f"<div class='status-bar {cls}'>{row['상태']}</div>", unsafe_allow_html=True)
                     
-                    if row['상태'] == '대기':
+                    # 로트 유형 및 특이사항 표시
+                    st.markdown(f"<p class='info-text'><b>유형:</b> {row['유형']}</p>", unsafe_allow_html=True)
+                    if row['특이사항']:
+                        st.markdown(f"<p class='info-text'><b>특이사항:</b> {row['특이사항']}</p>", unsafe_allow_html=True)
+                    
+                    status = row['상태']
+                    if status == '대기':
+                        cls = "bg-waiting"
+                    elif status == '진행중':
+                        cls = "bg-progress"
+                    else: # 일시정지
+                        cls = "bg-paused"
+                        
+                    st.markdown(f"<div class='status-bar {cls}'>{status}</div>", unsafe_allow_html=True)
+                    
+                    # 버튼 로직
+                    if status == '대기':
                         if st.button("시작", key=f"s_{row['Lot']}_{stage}_{machine}"):
                             worksheet.update_cell(row['Row'], 4, "진행중")
-                            worksheet.update_cell(row['Row'], 5, get_now_kst())
+                            worksheet.update_cell(row['Row'], 5, get_now_kst()) # 시작시간 기록
                             st.rerun()
-                    else:
-                        n_idx = TARGET_STAGES.index(stage) + 1
-                        next_stg = next((TARGET_STAGES[i] for i in range(n_idx, len(TARGET_STAGES)) if master_dict[row['제품']][TARGET_STAGES[i]]), None)
-                        if next_stg:
-                            n_machines = master_dict[row['제품']][next_stg]
-                            if len(n_machines) > 1:
-                                with st.popover("완료", use_container_width=True):
-                                    for nm in n_machines:
-                                        if st.button(nm, key=f"nxt_{row['Lot']}_{nm}"):
-                                            worksheet.update_cell(row['Row'], 3, next_stg)
-                                            worksheet.update_cell(row['Row'], 4, "대기")
-                                            worksheet.update_cell(row['Row'], 5, "")
-                                            worksheet.update_cell(row['Row'], 10, nm)
-                                            st.rerun()
-                            else:
-                                if st.button("완료", key=f"e_{row['Lot']}_{stage}_{machine}"):
-                                    worksheet.update_cell(row['Row'], 3, next_stg)
-                                    worksheet.update_cell(row['Row'], 4, "대기")
-                                    worksheet.update_cell(row['Row'], 5, "")
-                                    worksheet.update_cell(row['Row'], 10, n_machines[0] if n_machines else "")
-                                    st.rerun()
-                        else:
-                            if st.button("완료", key=f"fin_{row['Lot']}_{stage}"):
-                                log_sheet.append_row([row['Lot'], row['제품'], "생산완료", "", get_now_kst()])
-                                worksheet.delete_rows(row['Row'])
+                    
+                    elif status == '진행중':
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("대기", key=f"p_{row['Lot']}_{stage}_{machine}"):
+                                # 현재까지 진행된 시간을 누적시간에 합산 로직 필요 (여기서는 상태만 변경)
+                                worksheet.update_cell(row['Row'], 4, "일시정지")
                                 st.rerun()
+                        with col2:
+                            # 완료 로직 (기존 유지)
+                            n_idx = TARGET_STAGES.index(stage) + 1
+                            next_stg = next((TARGET_STAGES[i] for i in range(n_idx, len(TARGET_STAGES)) if master_dict[row['제품']][TARGET_STAGES[i]]), None)
+                            if next_stg:
+                                n_machines = master_dict[row['제품']][next_stg]
+                                if len(n_machines) > 1:
+                                    with st.popover("완료", use_container_width=True):
+                                        for nm in n_machines:
+                                            if st.button(nm, key=f"nxt_{row['Lot']}_{nm}"):
+                                                worksheet.update_cell(row['Row'], 3, next_stg)
+                                                worksheet.update_cell(row['Row'], 4, "대기")
+                                                worksheet.update_cell(row['Row'], 5, "")
+                                                worksheet.update_cell(row['Row'], 10, nm)
+                                                st.rerun()
+                                else:
+                                    if st.button("완료", key=f"e_{row['Lot']}_{stage}_{machine}"):
+                                        worksheet.update_cell(row['Row'], 3, next_stg)
+                                        worksheet.update_cell(row['Row'], 4, "대기")
+                                        worksheet.update_cell(row['Row'], 5, "")
+                                        worksheet.update_cell(row['Row'], 10, n_machines[0] if n_machines else "")
+                                        st.rerun()
+                            else:
+                                if st.button("완료", key=f"fin_{row['Lot']}_{stage}"):
+                                    log_sheet.append_row([row['Lot'], row['제품'], "생산완료", "", get_now_kst()])
+                                    worksheet.delete_rows(row['Row'])
+                                    st.rerun()
+                    
+                    elif status == '일시정지':
+                        if st.button("다시시작", key=f"re_{row['Lot']}_{stage}_{machine}"):
+                            worksheet.update_cell(row['Row'], 4, "진행중")
+                            st.rerun()
