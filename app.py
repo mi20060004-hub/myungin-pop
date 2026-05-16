@@ -61,9 +61,11 @@ def get_gspread_client():
 gc = get_gspread_client()
 SHEET_ID = "1yZGPeS_HSTo7xjXJym7yv2-kjx9m06Ob6d81tVGV7G8" 
 sh = gc.open_by_key(SHEET_ID)
-worksheet = sh.worksheet('현재생산중')
-log_sheet = sh.worksheet('공정이력')
-master_sheet = sh.worksheet('제품마스터')
+
+# [변경] 변경된 구글 스프레드시트 영어 탭 이름 반영
+worksheet = sh.worksheet('product_active')   # 실시간 생산 진행 탭
+log_sheet = sh.worksheet('product_history')  # 공정 완료 이력 탭
+master_sheet = sh.worksheet('product_master') # 제품 마스터 정보 탭
 
 # --- 4. 공정 및 설비 매핑 ---
 MACHINE_MAP = {
