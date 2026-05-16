@@ -15,7 +15,7 @@ st.markdown("""
         background-color: #1e3a8a; z-index: 999998;
         display: flex; align-items: center; justify-content: center;
     }
-    .main-title-text { color: white !important; font-size: 40px !important; font-weight: 900; }
+    .main-title-text { color: white !important; font-size: 40px !important; font-weight: 900; margin: 0; }
     .main .block-container { padding-top: 130px !important; }
     .stage-bar {
         background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
@@ -38,27 +38,29 @@ sh = gc.open_by_key(SHEET_ID)
 worksheet = sh.worksheet('현재생산중')
 master_sheet = sh.worksheet('제품마스터')
 
-# --- 4. 데이터 로드 (확장된 10개 공정 반영) ---
-# 사용자님이 시트에 적으신 공정명과 정확히 일치해야 합니다.
+# --- 4. 데이터 로드 로직 ---
 TARGET_STAGES = ["과립공정", "건조공정", "정립공정", "혼합공정", "타정공정", "캡슐공정", "질량선별공정", "코팅공정", "인쇄공정", "외관선별공정"]
 
 def load_data():
+    # 1. 제품마스터 읽기
     m_values = master_sheet.get_all_values()
     if not m_values: return {}, pd.DataFrame()
     
     header = [h.strip() for h in m_values[0]]
-    # 공정명이 포함된 열 번호를 자동으로 찾습니다.
+    # 제품명이 A열(0번 인덱스)에 있는지 확인
     col_map = {stage: header.index(stage) if stage in header else -1 for stage in TARGET_STAGES}
 
     master_dict = {}
     for r in m_values[1:]:
-        if not r or not r[1]: continue # '제품명'은 2번째 열(index 1)에 있음
-        p_name = r[1].strip()
+        if not r or not r[0]: continue  # A열(제품명)이 비어있으면 건너뜀
+        p_name = str(r[0]).strip()     # A열에서 제품명을 가져옴
         master_dict[p_name] = {}
         for stage in TARGET_STAGES:
             idx = col_map[stage]
+            # 해당 공정 열에서 설비 리스트 추출
             master_dict[p_name][stage] = [m.strip() for m in str(r[idx]).split(',') if m.strip()] if idx != -1 and len(r) > idx else []
 
+    # 2. 현재생산중 읽기
     c_values = worksheet.get_all_values()
     curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3]} for r in c_values[1:] if r and r[0]])
     return master_dict, curr_df
@@ -70,11 +72,12 @@ st.markdown('<div class="fixed-header"><p class="main-title-text">명인제약 �
 
 with st.sidebar:
     st.header("🏭 제조 투입")
-    # master_dict의 키(제품명)를 드롭다운에 표시합니다.
+    # A열에서 읽어온 '가펜틴캡슐300mg' 등의 이름이 드롭다운에 표시됩니다.
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()) if master_dict else ["데이터 로드 실패"])
     lot_in = st.text_input("제조번호(Lot) 입력")
     if st.button("🚀 투입 확정"):
-        st.success(f"{sel_p} 투입 완료!")
+        st.success(f"{sel_p} (Lot: {lot_in}) 투입 정보가 시트에 반영됩니다.")
 
 for stage in TARGET_STAGES:
     st.markdown(f'<div class="stage-bar">▶ {stage}</div>', unsafe_allow_html=True)
+    st.write(f"{stage}에 배치된 설비가 여기에 표시됩니다.")
