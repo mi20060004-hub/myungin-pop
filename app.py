@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (텍스트 10px 및 버튼 크기 조정) ---
+# --- 2. CSS 스타일 (텍스트 10px 및 버튼 크기 축소) ---
 st.markdown("""
     <style>
     .fixed-header {
@@ -38,12 +38,11 @@ st.markdown("""
     .bg-progress { background-color: #ef4444; }
     .bg-paused { background-color: #f59e0b; }
 
-    /* [변경] 모든 블록 내 텍스트 10px로 통일 */
     .card-text-10px { font-size: 10px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
     .card-text-l-10px { font-size: 10px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
     .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
 
-    /* [변경] 버튼 크기 축소 스타일 */
+    /* 버튼 크기 축소 */
     div.stButton > button {
         padding: 2px 4px !important;
         font-size: 10px !important;
@@ -100,8 +99,13 @@ def load_data():
 
 master_dict, curr_df, log_df = load_data()
 
-# --- 5. 세션 상태 ---
+# --- 5. 세션 상태 및 초기화 함수 ---
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
+
+# [변경] 에러 방지를 위해 입력값을 안전하게 초기화하는 함수
+def reset_inputs():
+    st.session_state["lot_in_widget"] = ""
+    st.session_state["note_in_widget"] = ""
 
 # --- 6. 헤더 ---
 st.markdown('<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
@@ -130,15 +134,13 @@ with st.sidebar:
                 for m in f_machines:
                     if st.button(m, key=f"init_{m}"):
                         st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': m})
-                        st.session_state.lot_in_widget = ""
-                        st.session_state.note_in_widget = ""
+                        reset_inputs() # 안전하게 초기화
                         st.rerun()
         else:
             if st.button("➕ 투입 대기열 추가", use_container_width=True):
                 if lot_in:
                     st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': f_machines[0] if f_machines else ""})
-                    st.session_state.lot_in_widget = ""
-                    st.session_state.note_in_widget = ""
+                    reset_inputs() # 안전하게 초기화
                     st.rerun()
                 else:
                     st.warning("제조번호를 입력해주세요.")
@@ -172,7 +174,6 @@ for stage in TARGET_STAGES:
             m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())]
             for _, row in m_items.iterrows():
                 with st.container(border=True):
-                    # [변경] 10px 적용
                     st.markdown(f"<p class='card-text-10px'>{row['제품']}</p>", unsafe_allow_html=True)
                     st.markdown(f"<p class='card-text-l-10px'>{row['Lot']}</p>", unsafe_allow_html=True)
                     st.markdown(f"<p class='info-text-10px'>{row['유형']}</p>", unsafe_allow_html=True)
