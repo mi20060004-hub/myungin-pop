@@ -3,12 +3,11 @@ import pandas as pd
 from datetime import datetime, timedelta, timezone
 import gspread
 from google.oauth2.service_account import Credentials
-import time
 
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 ---
+# --- 2. CSS 스타일 (모든 텍스트 8px 통일 및 스타일 유지) ---
 st.markdown("""
     <style>
     .fixed-header {
@@ -17,23 +16,32 @@ st.markdown("""
         display: flex; align-items: center; justify-content: center;
         box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
-    .main-title-text { color: white !important; font-size: 42px !important; font-weight: 900; margin: 0; }
+    .main-title-text {
+        color: white !important; font-size: 42px !important; font-weight: 900; margin: 0;
+    }
     .main .block-container { padding-top: 130px !important; }
+    
     .stage-bar {
         background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
         color: white; padding: 12px 20px; border-radius: 8px;
         font-size: 22px; font-weight: 700; margin-top: 30px; margin-bottom: 15px;
     }
+    
     .machine-title {
         background: #f1f5f9; text-align: center; font-size: 11px; font-weight: 700;
         border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1; min-height: 35px;
         display: flex; align-items: center; justify-content: center; color: #334155;
     }
+    
     .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 3px 0; border-radius: 3px; margin-bottom: 5px; }
     .bg-waiting { background-color: #3b82f6; } 
     .bg-progress { background-color: #ef4444; }
     .bg-paused { background-color: #f59e0b; }
-    .info-text { font-size: 10px; color: #475569; margin: 2px 0; line-height: 1.2; }
+
+    /* [중요] 모든 블록 내 텍스트 8px로 통일 */
+    .card-text-8px { font-size: 8px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
+    .card-text-l-8px { font-size: 8px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
+    .info-text-8px { font-size: 8px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -75,8 +83,7 @@ def load_data():
     master_dict = {str(r[0]).strip(): {s: [m.strip() for m in str(r[col_map[s]]).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_values[1:] if r and r[0]}
     
     c_values = worksheet.get_all_values()
-    # 컬럼 구조: Lot(0), 제품(1), 공정(2), 상태(3), 시작시간(4), 종료시간(5), 누적시간(6), 유형(7), 특이사항(8), 설비(9)
-    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'시작':r[4],'유형':r[7],'특이사항':r[8],'Row':i+2, '설비':str(r[9]).strip() if len(r)>9 else ""} for i,r in enumerate(c_values[1:]) if r and len(r) > 1])
+    curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'유형':r[7],'특이사항':r[8],'Row':i+2, '설비':str(r[9]).strip() if len(r)>9 else ""} for i,r in enumerate(c_values[1:]) if r and len(r) > 1])
     
     l_values = log_sheet.get_all_values()
     log_df = pd.DataFrame([{'Lot': r[0], '제품': r[1]} for r in l_values[1:] if r and len(r) > 1]) if len(l_values) > 1 else pd.DataFrame(columns=['Lot', '제품'])
@@ -107,7 +114,7 @@ with st.sidebar:
     f_machines = master_dict[sel_p][f_stg]
     
     if lot_in and is_duplicate:
-        st.error(f"⚠️ {sel_p} ({lot_in}) 중복")
+        st.error("⚠️ 중복 데이터")
     elif lot_in:
         if len(f_machines) > 1:
             with st.popover("➕ 대기열 추가 (설비 선택)", use_container_width=True):
@@ -136,8 +143,10 @@ with st.sidebar:
 
     st.divider()
     st.write(f"**전체 총합:** {len(curr_df)}건")
+    for stage in TARGET_STAGES:
+        st.write(f"- {stage}: {len(curr_df[curr_df['공정'] == stage])}건")
 
-# --- 8. 메인 현황판 ---
+# --- 8. 메인 현황판 (10열 고정) ---
 for stage in TARGET_STAGES:
     st.markdown(f'<div class="stage-bar">▶ {stage}</div>', unsafe_allow_html=True)
     cols = st.columns(10)
@@ -147,40 +156,31 @@ for stage in TARGET_STAGES:
             m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())]
             for _, row in m_items.iterrows():
                 with st.container(border=True):
-                    st.markdown(f"<p style='font-size:11px; font-weight:800; margin:0;'>{row['제품']}</p>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='font-size:10px; color:#1e40af;'>{row['Lot']}</p>", unsafe_allow_html=True)
+                    # [변경] 제품명, 제조번호 8px
+                    st.markdown(f"<p class='card-text-8px'>{row['제품']}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p class='card-text-l-8px'>{row['Lot']}</p>", unsafe_allow_html=True)
                     
-                    # 로트 유형 및 특이사항 표시
-                    st.markdown(f"<p class='info-text'><b>유형:</b> {row['유형']}</p>", unsafe_allow_html=True)
+                    # [변경] 로트유형, 특이사항 8px + 라벨 제거하고 내용만 표시
+                    st.markdown(f"<p class='info-text-8px'>{row['유형']}</p>", unsafe_allow_html=True)
                     if row['특이사항']:
-                        st.markdown(f"<p class='info-text'><b>특이사항:</b> {row['특이사항']}</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p class='info-text-8px'>{row['특이사항']}</p>", unsafe_allow_html=True)
                     
                     status = row['상태']
-                    if status == '대기':
-                        cls = "bg-waiting"
-                    elif status == '진행중':
-                        cls = "bg-progress"
-                    else: # 일시정지
-                        cls = "bg-paused"
-                        
+                    cls = "bg-waiting" if status == '대기' else "bg-progress" if status == '진행중' else "bg-paused"
                     st.markdown(f"<div class='status-bar {cls}'>{status}</div>", unsafe_allow_html=True)
                     
-                    # 버튼 로직
                     if status == '대기':
                         if st.button("시작", key=f"s_{row['Lot']}_{stage}_{machine}"):
                             worksheet.update_cell(row['Row'], 4, "진행중")
-                            worksheet.update_cell(row['Row'], 5, get_now_kst()) # 시작시간 기록
+                            worksheet.update_cell(row['Row'], 5, get_now_kst())
                             st.rerun()
-                    
                     elif status == '진행중':
                         col1, col2 = st.columns(2)
                         with col1:
                             if st.button("대기", key=f"p_{row['Lot']}_{stage}_{machine}"):
-                                # 현재까지 진행된 시간을 누적시간에 합산 로직 필요 (여기서는 상태만 변경)
                                 worksheet.update_cell(row['Row'], 4, "일시정지")
                                 st.rerun()
                         with col2:
-                            # 완료 로직 (기존 유지)
                             n_idx = TARGET_STAGES.index(stage) + 1
                             next_stg = next((TARGET_STAGES[i] for i in range(n_idx, len(TARGET_STAGES)) if master_dict[row['제품']][TARGET_STAGES[i]]), None)
                             if next_stg:
@@ -206,7 +206,6 @@ for stage in TARGET_STAGES:
                                     log_sheet.append_row([row['Lot'], row['제품'], "생산완료", "", get_now_kst()])
                                     worksheet.delete_rows(row['Row'])
                                     st.rerun()
-                    
                     elif status == '일시정지':
                         if st.button("다시시작", key=f"re_{row['Lot']}_{stage}_{machine}"):
                             worksheet.update_cell(row['Row'], 4, "진행중")
