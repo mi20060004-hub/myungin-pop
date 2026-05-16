@@ -101,12 +101,12 @@ def load_data():
 
 master_dict, curr_df, log_df = load_data()
 
-# --- 5. 세션 상태 초기화 ---
+# --- 5. 세션 상태 관리 ---
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
 if 'view' not in st.session_state: st.session_state.view = 'main'
 
-# 초기화 함수
-def clear_inputs():
+# 입력란 초기화 함수
+def clear_input_widgets():
     st.session_state.lot_in_widget = ""
     st.session_state.note_in_widget = ""
     st.session_state.sel_p_widget = list(master_dict.keys())[0] if master_dict else ""
@@ -120,10 +120,9 @@ if st.button("완료된 공정 확인" if st.session_state.view == 'main' else "
     st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 7. 사이드바 (기능 수정) ---
+# --- 7. 사이드바 ---
 with st.sidebar:
     st.header("🏭 제조 투입")
-    # 위젯 세션 키 연결
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="sel_p_widget")
     lot_in = st.text_input("제조번호(Lot) 입력", key="lot_in_widget").strip()
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
@@ -146,21 +145,20 @@ with st.sidebar:
                 for m in f_machines:
                     if st.button(m, key=f"init_{m}"):
                         st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': m})
-                        clear_inputs() # 초기화 실행
+                        clear_input_widgets() # 입력란 초기화
                         st.rerun()
         else:
-            if st.button("➕ 투입 대기열 추가", use_container_width=True):
+            if st.button("➕ 투입 대기열 추가", key="add_queue_btn", use_container_width=True):
                 if lot_in:
                     st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': f_machines[0] if f_machines else ""})
-                    clear_inputs() # 초기화 실행
+                    clear_input_widgets() # 입력란 초기화
                     st.rerun()
 
-    # [수정] 대기열 리스트 시각화 및 투입 버튼
     if st.session_state.pending_lots:
         st.write("---")
-        st.subheader("📝 현재 투입 대기 리스트")
+        st.subheader("📝 투입 대기 리스트")
         for idx, p in enumerate(st.session_state.pending_lots):
-            st.info(f"{idx+1}. {p['제품']} | {p['Lot']} ({p['설비']})")
+            st.info(f"{idx+1}. {p['제품']} | {p['Lot']}")
         
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             for p in st.session_state.pending_lots:
@@ -170,12 +168,12 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
-    st.write(f"**실시간 현황 총합:** {len(curr_df)}건")
+    st.write(f"**현황 총합:** {len(curr_df)}건")
     for stage in TARGET_STAGES:
         count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         st.write(f"- {stage}: {count}건")
 
-# --- 8. 메인 화면 (기존 로직 엄격 유지) ---
+# --- 8. 메인 화면 ---
 if st.session_state.view == 'main':
     for stage in TARGET_STAGES:
         st.markdown(f'<div class="stage-bar">▶ {stage}</div>', unsafe_allow_html=True)
@@ -188,8 +186,7 @@ if st.session_state.view == 'main':
                     with st.container(border=True):
                         st.markdown(f"<p class='card-text-10px'>{row['제품']}</p>", unsafe_allow_html=True)
                         st.markdown(f"<p class='card-text-l-10px'>{row['Lot']}</p>", unsafe_allow_html=True)
-                        status_color = 'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'
-                        st.markdown(f"<div class='status-bar {status_color}'>{row['상태']}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
                         
                         if row['상태'] == '대기':
                             if st.button("시작", key=f"s_{row['Lot']}_{stage}_{machine}"):
@@ -199,20 +196,29 @@ if st.session_state.view == 'main':
                         elif row['상태'] == '진행중':
                             if st.button("완료", key=f"e_{row['Lot']}_{stage}_{machine}"):
                                 n_idx = TARGET_STAGES.index(stage) + 1
+                                # 다음 유효 공정 찾기
                                 next_stg = next((TARGET_STAGES[i] for i in range(n_idx, len(TARGET_STAGES)) if master_dict[row['제품']][TARGET_STAGES[i]]), None)
-                                if stage == "인쇄공정": worksheet.update_cell(row['Row'], 8, get_now_kst())
+                                
+                                # 인쇄공정 완료 시 시간 기록
+                                if stage == "인쇄공정":
+                                    worksheet.update_cell(row['Row'], 8, get_now_kst())
+                                
                                 if next_stg:
+                                    # [수정된 로직] 다음 설비 자동 매핑 후 업데이트
+                                    next_machines = master_dict[row['제품']][next_stg]
                                     worksheet.update_cell(row['Row'], 3, next_stg)
                                     worksheet.update_cell(row['Row'], 4, "대기")
+                                    worksheet.update_cell(row['Row'], 11, next_machines[0] if next_machines else "")
                                     st.rerun()
                                 else:
+                                    # 최종 외관선별 완료 -> 이력 기록 및 삭제
                                     start_t = row['최초시작'] if row['최초시작'] else get_now_kst()
                                     end_t = row['인쇄종료'] if row['인쇄종료'] else get_now_kst()
                                     log_sheet.append_row([row['Lot'], row['제품'], "생산완료", start_t, end_t, "-", row['유형'], row['특이사항']])
                                     worksheet.delete_rows(row['Row'])
                                     st.rerun()
 else:
-    st.header("📋 완료된 공정 리스트")
+    st.header("📋 완료된 공정 이력")
     history_data = log_sheet.get_all_values()
     if len(history_data) > 1:
         st.dataframe(pd.DataFrame(history_data[1:], columns=history_data[0]), use_container_width=True)
