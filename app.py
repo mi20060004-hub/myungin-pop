@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 ---
+# --- 2. CSS 스타일 (10열 고정 레이아웃) ---
 st.markdown("""
     <style>
     .fixed-header {
@@ -74,8 +74,8 @@ def load_data():
     c_values = worksheet.get_all_values()
     curr_df = pd.DataFrame([{'Lot':r[0],'제품':r[1],'공정':r[2],'상태':r[3],'유형':r[7],'특이사항':r[8],'Row':i+2, '설비':r[9] if len(r)>9 else ""} for i,r in enumerate(c_values[1:]) if r and len(r) > 1])
     
+    # [수정] 공정이력 시트 데이터 로드 시 KeyError 방지
     l_values = log_sheet.get_all_values()
-    # [수정] 공정이력 시트 데이터가 없을 경우 대비
     if len(l_values) > 1:
         log_df = pd.DataFrame([{'Lot': r[0], '제품': r[1]} for r in l_values[1:] if r and len(r) > 1])
     else:
@@ -87,12 +87,11 @@ master_dict, curr_df, log_df = load_data()
 
 # --- 5. 세션 상태 ---
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
-if 'page' not in st.session_state: st.session_state.page = 'main'
 
 # --- 6. 헤더 ---
 st.markdown('<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 
-# --- 7. 사이드바 ---
+# --- 7. 사이드바 (투입 및 통계) ---
 with st.sidebar:
     st.header("🏭 제조 투입")
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()))
@@ -100,7 +99,7 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"])
     note_in = st.text_area("공정 특이사항 입력", placeholder="특이사항을 입력하세요.")
     
-    # [중복 체크] 현재생산중, 공정이력, 투입대기열 모두 확인
+    # 중복 체크
     is_duplicate = False
     if lot_in:
         in_curr = ((curr_df['제품'] == sel_p) & (curr_df['Lot'] == lot_in)).any()
@@ -126,13 +125,11 @@ with st.sidebar:
                 st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '비고': note_in, '설비': f_machines[0] if f_machines else ""})
                 st.rerun()
             
-    # 투입 대기열 목록 표시
     if st.session_state.pending_lots:
         st.write("---")
         st.subheader("📋 투입 대기 목록")
         for idx, p in enumerate(st.session_state.pending_lots):
             st.info(f"{idx+1}. {p['제품']} (Lot: {p['Lot']})")
-            
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             for p in st.session_state.pending_lots:
                 f_stg_p = next((s for s in TARGET_STAGES if master_dict[p['제품']][s]), TARGET_STAGES[0])
@@ -149,50 +146,49 @@ with st.sidebar:
     for stage in TARGET_STAGES:
         st.write(f"- {stage}: {len(curr_df[curr_df['공정'] == stage])}건")
 
-# --- 8. 메인 현황판 ---
-if st.session_state.page == 'main':
-    for stage in TARGET_STAGES:
-        st.markdown(f'<div class="stage-bar">▶ {stage}</div>', unsafe_allow_html=True)
-        cols = st.columns(10)
-        for idx, machine in enumerate(MACHINE_MAP[stage]):
-            with cols[idx]:
-                st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
-                m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine)]
-                for _, row in m_items.iterrows():
-                    with st.container(border=True):
-                        st.markdown(f"<p style='font-size:11px; font-weight:800; margin:0;'>{row['제품']}</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p style='font-size:10px; color:#1e40af;'>{row['Lot']}</p>", unsafe_allow_html=True)
-                        cls = "bg-waiting" if row['상태'] == '대기' else "bg-progress"
-                        st.markdown(f"<div class='status-bar {cls}'>{row['상태']}</div>", unsafe_allow_html=True)
-                        
-                        if row['상태'] == '대기':
-                            if st.button("시작", key=f"s_{row['Lot']}_{stage}_{machine}"):
-                                worksheet.update_cell(row['Row'], 4, "진행중")
-                                worksheet.update_cell(row['Row'], 5, get_now_kst())
-                                st.rerun()
-                        else:
-                            n_idx = TARGET_STAGES.index(stage) + 1
-                            next_stg = next((TARGET_STAGES[i] for i in range(n_idx, len(TARGET_STAGES)) if master_dict[row['제품']][TARGET_STAGES[i]]), None)
-                            if next_stg:
-                                n_machines = master_dict[row['제품']][next_stg]
-                                if len(n_machines) > 1:
-                                    with st.popover("완료", use_container_width=True):
-                                        for nm in n_machines:
-                                            if st.button(nm, key=f"nxt_{row['Lot']}_{nm}"):
-                                                worksheet.update_cell(row['Row'], 3, next_stg)
-                                                worksheet.update_cell(row['Row'], 4, "대기")
-                                                worksheet.update_cell(row['Row'], 5, "")
-                                                worksheet.update_cell(row['Row'], 10, nm)
-                                                st.rerun()
-                                else:
-                                    if st.button("완료", key=f"e_{row['Lot']}_{stage}_{machine}"):
-                                        worksheet.update_cell(row['Row'], 3, next_stg)
-                                        worksheet.update_cell(row['Row'], 4, "대기")
-                                        worksheet.update_cell(row['Row'], 5, "")
-                                        worksheet.update_cell(row['Row'], 10, n_machines[0] if n_machines else "")
-                                        st.rerun()
+# --- 8. 메인 현황판 (10열 고정) ---
+for stage in TARGET_STAGES:
+    st.markdown(f'<div class="stage-bar">▶ {stage}</div>', unsafe_allow_html=True)
+    cols = st.columns(10)
+    for idx, machine in enumerate(MACHINE_MAP[stage]):
+        with cols[idx]:
+            st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
+            m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine)]
+            for _, row in m_items.iterrows():
+                with st.container(border=True):
+                    st.markdown(f"<p style='font-size:11px; font-weight:800; margin:0;'>{row['제품']}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='font-size:10px; color:#1e40af;'>{row['Lot']}</p>", unsafe_allow_html=True)
+                    cls = "bg-waiting" if row['상태'] == '대기' else "bg-progress"
+                    st.markdown(f"<div class='status-bar {cls}'>{row['상태']}</div>", unsafe_allow_html=True)
+                    
+                    if row['상태'] == '대기':
+                        if st.button("시작", key=f"s_{row['Lot']}_{stage}_{machine}"):
+                            worksheet.update_cell(row['Row'], 4, "진행중")
+                            worksheet.update_cell(row['Row'], 5, get_now_kst())
+                            st.rerun()
+                    else:
+                        n_idx = TARGET_STAGES.index(stage) + 1
+                        next_stg = next((TARGET_STAGES[i] for i in range(n_idx, len(TARGET_STAGES)) if master_dict[row['제품']][TARGET_STAGES[i]]), None)
+                        if next_stg:
+                            n_machines = master_dict[row['제품']][next_stg]
+                            if len(n_machines) > 1:
+                                with st.popover("완료", use_container_width=True):
+                                    for nm in n_machines:
+                                        if st.button(nm, key=f"nxt_{row['Lot']}_{nm}"):
+                                            worksheet.update_cell(row['Row'], 3, next_stg)
+                                            worksheet.update_cell(row['Row'], 4, "대기")
+                                            worksheet.update_cell(row['Row'], 5, "")
+                                            worksheet.update_cell(row['Row'], 10, nm)
+                                            st.rerun()
                             else:
-                                if st.button("완료", key=f"fin_{row['Lot']}_{stage}"):
-                                    log_sheet.append_row([row['Lot'], row['제품'], "생산완료", "", get_now_kst()])
-                                    worksheet.delete_rows(row['Row'])
+                                if st.button("완료", key=f"e_{row['Lot']}_{stage}_{machine}"):
+                                    worksheet.update_cell(row['Row'], 3, next_stg)
+                                    worksheet.update_cell(row['Row'], 4, "대기")
+                                    worksheet.update_cell(row['Row'], 5, "")
+                                    worksheet.update_cell(row['Row'], 10, n_machines[0] if n_machines else "")
                                     st.rerun()
+                        else:
+                            if st.button("완료", key=f"fin_{row['Lot']}_{stage}"):
+                                log_sheet.append_row([row['Lot'], row['제품'], "생산완료", "", get_now_kst()])
+                                worksheet.delete_rows(row['Row'])
+                                st.rerun()
