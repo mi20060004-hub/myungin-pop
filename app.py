@@ -168,7 +168,7 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
-    is_duplicate = lot_in and ((not curr_df.empty Club and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p)).any()) or any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots))
+    is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p)).any()) or any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots))
     f_stg = next((s for s in TARGET_STAGES if master_dict[sel_p][s]), TARGET_STAGES[0])
     f_machines = master_dict[sel_p][f_stg]
     
@@ -259,7 +259,6 @@ if st.session_state.view == 'main':
                         elif row['상태'] == '지연':
                             if st.button("재시작", key=f"r_{row['Row']}"): supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute(); st.rerun()
 else:
-    # 요청하신 버튼 문구와 상단 헤더 제목 100% 매칭
     title_map = {"history": "완료된 공정 확인", "selection": "완료된 공정 확인(선별)", "all_history": "모든 공정 이력 확인"}
     st.header(f"📋 {title_map[st.session_state.view]}")
     
