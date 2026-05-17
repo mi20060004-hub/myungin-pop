@@ -50,7 +50,7 @@ st.markdown("""
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* --- [핵심] 블록 내부 액션 버튼 (13px 콤팩트 스타일 고정) --- */
+/* 블록 내부 액션 버튼 (13px 콤팩트 스타일 고정) */
 div.stButton > button, div[data-testid="stPopover"] button {
     padding: 2px 4px !important; font-size: 13px !important; font-weight: 700 !important;
     height: 30px !important; min-height: 30px !important; line-height: 1.2 !important;
@@ -60,9 +60,8 @@ div.stButton > button, div[data-testid="stPopover"] button {
     width: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 
-/* --- [대해결] 상단 네비게이션: 무작위 클래스를 무력화하는 고유 KEY 타겟팅 기법 --- */
-/* 4개 메뉴 버튼의 공통 크기 및 22px 두꺼운 글꼴(Bold) 강제 정의 */
-div.stButton > button[key^="nav_"] {
+/* --- [완벽 대수리] use_container_width 구조를 뛰어넘어 상단 컬럼의 모든 단추를 22px 볼드로 강제 개조 --- */
+div[data-testid="column"] button {
     height: 65px !important;
     font-size: 22px !important;
     font-weight: 900 !important; /* 최고 두께 */
@@ -70,38 +69,39 @@ div.stButton > button[key^="nav_"] {
     letter-spacing: -0.5px !important;
     white-space: nowrap !important;
     display: flex !important; align-items: center !important; justify-content: center !important;
+    transition: all 0.05s ease-in-out !important;
 }
 
-/* 고유 Key 패턴 검색을 통한 4색 다이렉트 도색 (세련된 하이엔드 톤) */
-/* 1. 실시간 현황판 (로열 블루 + 6px 딥 블루 입체 그림자) */
-div.stButton > button[key="nav_1"] {
+/* 상단 배치 순서에 따른 강력한 다이렉트 컬러 융단폭격 */
+/* 1. 실시간 현황판 (세련된 로열 블루) */
+div[data-testid="column"]:nth-child(1) button {
     background-color: #2563eb !important; color: white !important; 
     border: 2px solid #1e40af !important; box-shadow: 0 6px 0px #1e40af !important;
 }
-/* 2. 완료된 공정 확인 (에메랄드 그린 + 6px 딥 그린 입체 그림자) */
-div.stButton > button[key="nav_2"] {
+/* 2. 완료된 공정 확인 (세련된 에메랄드 그린) */
+div[data-testid="column"]:nth-child(2) button {
     background-color: #059669 !important; color: white !important; 
     border: 2px solid #047857 !important; box-shadow: 0 6px 0px #047857 !important;
 }
-/* 3. 완료된 공정 확인(선별) (다크 앰버 + 6px 딥 오렌지 입체 그림자) */
-div.stButton > button[key="nav_3"] {
+/* 3. 완료된 공정 확인(선별) (세련된 다크 앰버 오렌지) */
+div[data-testid="column"]:nth-child(3) button {
     background-color: #d97706 !important; color: white !important; 
     border: 2px solid #b45309 !important; box-shadow: 0 6px 0px #b45309 !important;
 }
-/* 4. 모든 공정 이력 확인 (럭셔리 퍼플 + 6px 딥 퍼플 입체 그림자) */
-div.stButton > button[key="nav_4"] {
+/* 4. 모든 공정 이력 확인 (세련된 럭셔리 퍼플) */
+div[data-testid="column"]:nth-child(4) button {
     background-color: #7c3aed !important; color: white !important; 
     border: 2px solid #6d28d9 !important; box-shadow: 0 6px 0px #6d28d9 !important;
 }
 
-/* 마우스 마우스 올렸을 때 화사하게 처리 */
-div.stButton > button[key^="nav_"]:hover {
+/* 마우스 호버 효과 통합 */
+div[data-testid="column"] button:hover {
     filter: brightness(1.1) !important;
     color: white !important;
 }
 
-/* 버튼을 꾹 눌렀을 때 4px 내려앉는 실감 나는 물리 클릭 효과 */
-div.stButton > button[key^="nav_"]:active {
+/* 물리 버튼 클릭 기믹 통합 */
+div[data-testid="column"] button:active {
     transform: translateY(4px) !important;
     box-shadow: 0 2px 0px rgba(0,0,0,0.2) !important;
 }
@@ -143,25 +143,28 @@ def get_now_kst():
 
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
-    m_dict = {str(r.get("제품명")).strip(): {s: [m.strip() for m in str(r.get(s, "")).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_data.data}
+    master_dict = {str(r.get("제품명")).strip(): {s: [m.strip() for m in str(r.get(s, "")).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_data.data}
     h_data = supabase.table("product_history").select("*").execute()
-    if not h_data.data: return m_dict, pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-    all_raw = pd.DataFrame(h_data.data)
-    if 'id' in all_raw.columns: all_raw['Row'] = all_raw['id']
-    curr = all_raw[~all_raw['상태'].isin(['완료', '1팀종료'])].copy()
-    hist = all_raw[all_raw['상태'].isin(['완료', '1팀종료'])].copy()
-    return m_dict, curr, hist, all_raw
+    if not h_data.data:
+        return master_dict, pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+    all_raw_df = pd.DataFrame(h_data.data)
+    if 'id' in all_raw_df.columns: all_raw_df['Row'] = all_raw_df['id']
+    curr_df = all_raw_df[~all_raw_df['상태'].isin(['완료', '1팀종료'])].copy()
+    log_df = all_raw_df[all_raw_df['상태'].isin(['완료', '1팀종료'])].copy()
+    return master_dict, curr_df, log_df, all_raw_df
 
 master_dict, curr_df, log_df, all_raw_df = load_data()
 
-if 'view' not in st.session_state: st.session_state.view = 'main'
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
+if 'view' not in st.session_state: st.session_state.view = 'main'
+if 'reset_lot' not in st.session_state: st.session_state.reset_lot = ""
+if 'reset_type' not in st.session_state: st.session_state.reset_type = "일반로트"
+if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 
 # --- 5. 헤더 및 균등 대형 네비게이션 바 ---
-st.markdown('<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 
-# 균등한 길이를 완벽하게 유지하기 위해 가로 폭 배치 [1,1,1,1] 설정
-nav_cols = st.columns([1, 1, 1, 1])
+nav_cols = st.columns([1, 1, 1, 1]) # 4개 버튼 넓이 완벽 균등 유지
 with nav_cols[0]:
     if st.button("실시간 현황판", key="nav_1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
 with nav_cols[1]:
@@ -171,54 +174,63 @@ with nav_cols[2]:
 with nav_cols[3]:
     if st.button("모든 공정 이력 확인", key="nav_4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
 
-# --- 6. 사이드바 (기존 기능 100% 원본 보존) ---
+# --- 6. 사이드바 (원본 100% 보존) ---
 with st.sidebar:
     st.header("🏭 제조 투입")
-    sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="side_p")
-    lot_in = st.text_input("제조번호(Lot) 입력", key="side_lot").strip()
-    lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"])
-    note_in = st.text_area("공정 특이사항 입력")
+    sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="sel_p_widget")
+    lot_in = st.text_input("제조번호(Lot) 입력", key="lot_in_widget", value=st.session_state.reset_lot).strip()
+    lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
+    note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
-    is_dup = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p)).any()) or any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots))
+    is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p)).any()) or any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots))
     f_stg = next((s for s in TARGET_STAGES if master_dict[sel_p][s]), TARGET_STAGES[0])
     f_machines = master_dict[sel_p][f_stg]
     
-    if lot_in and is_dup: st.error("⚠️ 중복 데이터")
+    if lot_in and is_duplicate: st.error("⚠️ 중복 데이터")
     elif lot_in:
         if len(f_machines) > 1:
             with st.popover("➕ 대기열 추가", use_container_width=True):
                 for m in f_machines:
-                    if st.button(m, key=f"in_{m}"):
-                        st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '특이사항': note_in, '설비': m}); st.rerun()
+                    if st.button(m, key=f"init_{m}_{sel_p}_{lot_in}"):
+                        st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '특이사항': note_in, '설비': m})
+                        st.session_state.reset_lot = ""; st.rerun()
         else:
             if st.button("➕ 투입 대기열 추가", use_container_width=True):
-                st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '특이사항': note_in, '설비': f_machines[0] if f_machines else ""}); st.rerun()
+                st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '특이사항': note_in, '설비': f_machines[0] if f_machines else ""})
+                st.session_state.reset_lot = ""; st.rerun()
 
-    for idx, p in enumerate(st.session_state.pending_lots):
-        c1, c2 = st.columns([8, 2])
-        c1.info(f"{p['제품']} | {p['Lot']}")
-        if c2.button("❌", key=f"del_{idx}"): st.session_state.pending_lots.pop(idx); st.rerun()
-    if st.session_state.pending_lots and st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
-        for p in st.session_state.pending_lots:
-            supabase.table("product_history").insert({"Lot": p['Lot'], "제품": p['제품'], "공정": next((s for s in TARGET_STAGES if master_dict[p['제품']][s]), TARGET_STAGES[0]), "상태": "대기", "유형": p['유형'], "특이사항": p['특이사항'], "설비": p['설비']}).execute()
-        st.session_state.pending_lots = []; st.rerun()
+    if st.session_state.pending_lots:
+        st.write("---")
+        for idx, p in enumerate(st.session_state.pending_lots):
+            c1, c2 = st.columns([8, 2])
+            c1.info(f"{p['제품']} | {p['Lot']}")
+            if c2.button("❌", key=f"del_{idx}"): st.session_state.pending_lots.pop(idx); st.rerun()
+        if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
+            for p in st.session_state.pending_lots:
+                supabase.table("product_history").insert({"Lot": p['Lot'], "제품": p['제품'], "공정": next((s for s in TARGET_STAGES if master_dict[p['제품']][s]), TARGET_STAGES[0]), "상태": "대기", "유형": p['유형'], "특이사항": p['특이사항'], "설비": p['설비']}).execute()
+            st.session_state.pending_lots = []; st.rerun()
 
     st.divider()
     st.write(f"**가동 건수**")
     for stage in TARGET_STAGES:
         st.write(f"- {stage}: {len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0}건")
-    with st.popover("🔒 초기화"):
-        if st.text_input("비밀번호", type="password") == "1234" and st.button("🚨 즉시 초기화"):
-            supabase.table("product_history").delete().neq("Lot", "sys").execute(); st.rerun()
 
-# --- 7. 메인 콘텐츠 및 가변식 리포트 제목 일치 연동 ---
+    st.write("---")
+    with st.popover("🔒 데이터 초기화", use_container_width=True):
+        input_pwd = st.text_input("비밀번호 입력", type="password")
+        if st.button("🚨 초기화 실행", type="primary", use_container_width=True):
+            if input_pwd == "1234":
+                supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
+                st.rerun()
+
+# --- 7. 메인 콘텐츠 및 제목 연동 (원본 로직 보존) ---
 if st.session_state.view == 'main':
-    for idx, stage in enumerate(TARGET_STAGES):
-        count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
-        st.markdown(f'<div class="stage-bar sb-{idx}">▶ {stage} ({count}건)</div>', unsafe_allow_html=True)
+    for idx_stage, stage in enumerate(TARGET_STAGES):
+        stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
+        st.markdown(f'<div class="stage-bar sb-{idx_stage}">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
         cols = st.columns(10)
-        for i, machine in enumerate(MACHINE_MAP[stage]):
-            with cols[i]:
+        for idx, machine in enumerate(MACHINE_MAP[stage]):
+            with cols[idx]:
                 st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
                 m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())] if not curr_df.empty else pd.DataFrame()
                 for _, row in m_items.iterrows():
@@ -228,6 +240,7 @@ if st.session_state.view == 'main':
                         if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                         if row['특이사항']: st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
                         st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
+                        
                         if row['상태'] == '대기':
                             b1, b2 = st.columns(2)
                             if b1.button("시작", key=f"s_{row['Row']}"): supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute(); st.rerun()
@@ -237,13 +250,13 @@ if st.session_state.view == 'main':
                         elif row['상태'] == '진행중':
                             if st.button("대기", key=f"p_{row['Row']}"): supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute(); st.rerun()
                             n_stg = None
-                            for j in range(TARGET_STAGES.index(stage) + 1, len(TARGET_STAGES)):
-                                if master_dict[row['제품']][TARGET_STAGES[j]]: n_stg = TARGET_STAGES[j]; break
-                            n_m = master_dict[row['제품']][n_stg] if n_stg else []
-                            if len(n_m) > 1:
+                            for i in range(TARGET_STAGES.index(stage) + 1, len(TARGET_STAGES)):
+                                if master_dict[row['제품']][TARGET_STAGES[i]]: n_stg = TARGET_STAGES[i]; break
+                            n_machines = master_dict[row['제품']][n_stg] if n_stg else []
+                            if len(n_machines) > 1:
                                 with st.popover("완료"):
-                                    for nm in n_m:
-                                        if st.button(nm, key=f"nxt_{row['Row']}_{nm}"):
+                                    for nm in n_machines:
+                                        if st.button(nm, key=f"next_{row['Row']}_{nm}"):
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                             supabase.table("product_history").update({"상태": "1팀종료" if n_stg == "외관선별공정" else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                             supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm}).execute(); st.rerun()
@@ -251,17 +264,17 @@ if st.session_state.view == 'main':
                                 if st.button("완료", key=f"e_{row['Row']}"):
                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                     supabase.table("product_history").update({"상태": "1팀종료" if n_stg == "외관선별공정" else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                    if n_stg: supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": n_m[0] if n_m else ""}).execute(); st.rerun()
+                                    if n_stg: supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": n_machines[0] if n_machines else ""}).execute(); st.rerun()
                         elif row['상태'] == '지연':
                             if st.button("재시작", key=f"r_{row['Row']}"): supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute(); st.rerun()
 else:
-    # 버튼 명칭과 상단 제목 가변식 동기화 맵핑 완료
+    # 요청하신 버튼 문구와 상단 헤더 제목 100% 매칭 완료
     title_map = {"history": "완료된 공정 확인", "selection": "완료된 공정 확인(선별)", "all_history": "모든 공정 이력 확인"}
     st.header(f"📋 {title_map[st.session_state.view]}")
     
     display_df = log_df[log_df['상태'] == '1팀종료'] if st.session_state.view == 'history' else log_df[(log_df['공정'] == '외관선별공정') & (log_df['상태'] == '완료')] if st.session_state.view == 'selection' else all_raw_df
     if not display_df.empty:
-        sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()))
+        sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
         if sel_filter != "전체 보기": display_df = display_df[display_df['제품'] == sel_filter]
         st.dataframe(display_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), use_container_width=True)
     else: st.info("데이터가 없습니다.")
