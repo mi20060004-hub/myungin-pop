@@ -50,7 +50,7 @@ st.markdown("""
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* --- [완벽 해결] 블록 내부 일반 액션 버튼 스타일 (시작, 대기, 완료, 변경) --- */
+/* 블록 내부 일반 액션 버튼 스타일 (시작, 대기, 완료, 변경) */
 div.stButton > button, div[data-testid="stPopover"] button {
     padding: 4px 6px !important; 
     font-size: 13px !important; 
@@ -74,12 +74,12 @@ div.stButton > button:active, div[data-testid="stPopover"] button:active {
     box-shadow: 0 1px 0px #1e3a8a !important;
 }
 
-/* --- [대해결] 상단 네비게이션용 4색 대형 균등 버튼 전용 강제 주입 코드 --- */
+/* 상단 네비게이션용 4색 대형 균등 버튼 전용 강제 주입 코드 */
 .nav-box { width: 100%; padding: 0; margin-bottom: 25px; }
 div[data-testid="stHorizontalBlock"] .stButton button {
     height: 65px !important;
     font-size: 22px !important;
-    font-weight: 900 !important; /* 최고 두께 보장 */
+    font-weight: 900 !important; 
     border-radius: 10px !important;
     letter-spacing: -0.5px !important;
     white-space: nowrap !important;
@@ -160,15 +160,15 @@ if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 # --- 5. 헤더 및 균등 대형 네비게이션 바 ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 
-nav_cols = st.columns([1, 1, 1, 1]) # 4개 버튼 넓이 완벽 균등 유지
+nav_cols = st.columns([1, 1, 1, 1]) 
 with nav_cols[0]:
     if st.button("실시간 현황판", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
 with nav_cols[1]:
-    if st.button("완료된 공정 확인", key="n2", use_container_width=True): st.session_state.view = 'history'; st.rerun()
+    if st.button("완료된 공정 확인", key="nav_2", use_container_width=True): st.session_state.view = 'history'; st.rerun()
 with nav_cols[2]:
-    if st.button("완료된 공정 확인(선별)", key="n3", use_container_width=True): st.session_state.view = 'selection'; st.rerun()
+    if st.button("완료된 공정 확인(선별)", key="nav_3", use_container_width=True): st.session_state.view = 'selection'; st.rerun()
 with nav_cols[3]:
-    if st.button("모든 공정 이력 확인", key="n4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
+    if st.button("모든 공정 이력 확인", key="nav_4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
 
 # --- 6. 사이드바 (원본 100% 보존) ---
 with st.sidebar:
@@ -243,7 +243,9 @@ if st.session_state.view == 'main':
                                 supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
                                 st.rerun()
                             with b2.popover("변경", use_container_width=True):
-                                for nm in master_dict.get(row['제품'], {}).get(stage, []):
+                                # master_dict 구조 안정성 강화
+                                valid_machines = master_dict.get(row['제품'], {}).get(stage, [])
+                                for nm in valid_machines:
                                     if nm != row['설비'] and st.button(nm, key=f"ch_act_{row['Row']}_{nm}", use_container_width=True): 
                                         supabase.table("product_history").update({"설비": nm}).eq("id", row['Row']).execute()
                                         st.rerun()
@@ -252,12 +254,15 @@ if st.session_state.view == 'main':
                                 supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                 st.rerun()
                             
-                            # --- [추적 오류 및 유실 방지 패치] 비어있는 중간 공정이 있어도 무조건 끝까지 스캔 ---
+                            # --- [핵심 버그 수정] 어떤 공정에서 완료를 누르든 master_dict를 뒤져 다음 유효 공정을 100% 찾아냄 ---
                             n_stg = None
-                            for i in range(TARGET_STAGES.index(stage) + 1, len(TARGET_STAGES)):
-                                if master_dict.get(row['제품'], {}).get(TARGET_STAGES[i]): 
-                                    n_stg = TARGET_STAGES[i]
-                                    break
+                            current_index = TARGET_STAGES.index(stage)
+                            for i in range(current_index + 1, len(TARGET_STAGES)):
+                                check_stage = TARGET_STAGES[i]
+                                if row['제품'] in master_dict and check_stage in master_dict[row['제품']]:
+                                    if master_dict[row['제품']][check_stage]: # 설비 리스트가 비어있지 않다면
+                                        n_stg = check_stage
+                                        break
                                     
                             n_machines = master_dict.get(row['제품'], {}).get(n_stg, []) if n_stg else []
                             if len(n_machines) > 1:
