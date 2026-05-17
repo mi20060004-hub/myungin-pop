@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 ---
+# --- 2. CSS 스타일 (스트림릿 버튼 방어벽 완벽 분쇄형 16px 압축) ---
 st.markdown("""
 <style>
 /* 헤더 설정 */
@@ -51,7 +51,7 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 /* 버튼 간격 조정 (세로 배치용 미세 갭 설정) */
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 2px !important; }
 
-/* --- [정밀 조율] 오직 실시간현황판 블록 내부의 순정 버튼 높이만 절반(16px)으로 축소 --- */
+/* --- [완벽 압멸] 스트림릿 고유의 단추 여백 방어벽을 원천 철거하고 높이를 16px로 강제 고정 --- */
 .main div[data-testid="stVerticalBlock"] div.stButton > button,
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button {
     padding: 0px 4px !important; 
@@ -59,7 +59,20 @@ div[data-testid="stVerticalBlock"] > div { margin-bottom: 2px !important; }
     font-weight: 700 !important;
     height: 16px !important; 
     min-height: 16px !important; 
-    line-height: 1.0 !important;
+    max-height: 16px !important;
+    line-height: 14px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+}
+
+/* 팝업(변경/완료)을 감싸는 컨테이너 높이까지 원천 제한하여 빈 공간 완전 박멸 */
+.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child {
+    height: 16px !important;
+    min-height: 16px !important;
+    display: inline-flex !important;
+    width: 100% !important;
 }
 </style>
 """, unsafe_allow_html=True)
