@@ -260,6 +260,26 @@ with st.sidebar:
         count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         st.write(f"- {stage}: {count}건")
 
+    # --- [신규 추가] 사이드바 맨 아래 보안 비밀번호 기반 데이터베이스 초기화 팝업 제어 ---
+    st.write("---")
+    with st.popover("🔒 데이터베이스 초기화", use_container_width=True):
+        st.warning("⚠️ 주의: 확정 시 진행 중 및 완료된 모든 이력이 영구 삭제됩니다.")
+        input_pwd = st.text_input("관리자 비밀번호 입력", type="password", key="db_clear_pwd_field")
+        
+        if st.button("🚨 전체 데이터 즉시 초기화", type="primary", use_container_width=True):
+            # 관리자 전용 인증 비밀번호 설정 (1234를 원하는 다른 번호로 수정 가능합니다)
+            if input_pwd == "1234":
+                try:
+                    # product_history 테이블의 모든 데이터를 조건 없이 원격 삭제 트리거
+                    supabase.table("product_history").delete().neq("Lot", "system_reserved_clear_dummy_lot_9982").execute()
+                    st.success("🎉 모든 공정 이력이 깨끗하게 초기화되었습니다!")
+                    st.session_state.pending_lots = [] # 대기열 세션도 함께 비우기
+                    st.rerun()
+                except Exception as clear_err:
+                    st.error(f"초기화 실패: {clear_err}")
+            else:
+                st.error("❌ 비밀번호가 올바르지 않습니다. 초기화가 차단되었습니다.")
+
 # --- 7. 메인 화면 ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
@@ -272,7 +292,6 @@ if st.session_state.view == 'main':
             with cols[idx]:
                 st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
                 
-                # [오타 완벽 교정] '설bi'를 진짜 컬럼명인 '설비'로 완벽하게 수정했습니다.
                 m_items = pd.DataFrame()
                 if not curr_df.empty and '설비' in curr_df.columns:
                     m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())]
