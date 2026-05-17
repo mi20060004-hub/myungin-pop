@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (공정바 높이 유지, 모든 공정바 색상을 블루 계열로 통일) ---
+# --- 2. CSS 스타일 (공정바 높이 유지, 모든 공정바 색상을 블루 계열로 통일, 글자 크기 및 버튼 스타일 전면 보완) ---
 st.markdown("""
 <style>
 .fixed-header {position: fixed; top: 0; left: 0; right: 0; height: 66px; background-color: #1e3a8a; z-index: 999998; display: flex; align-items: center; padding: 0 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
@@ -30,7 +30,22 @@ st.markdown("""
     background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%); 
 }
 
-.machine-title {background: #f1f5f9; text-align: center; font-size: 11px; font-weight: 700; border-radius: 4px; margin-bottom: 8px; border: 1px solid #cbd5e1; min-height: 35px; display: flex; align-items: center; justify-content: center; color: #334155; }
+/* 각 공정의 설비 글자 크기를 16px로 대폭 확대 및 시인성 강화 */
+.machine-title {
+    background: #f1f5f9; 
+    text-align: center; 
+    font-size: 16px !important; 
+    font-weight: 800; 
+    border-radius: 6px; 
+    margin-bottom: 8px; 
+    border: 2px solid #cbd5e1; 
+    min-height: 40px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    color: #1e293b; 
+}
+
 .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 3px 0; border-radius: 3px; margin-bottom: 5px; }
 .bg-waiting { background-color: #3b82f6; }
 .bg-progress { background-color: #ef4444; }
@@ -50,27 +65,36 @@ st.markdown("""
     line-height: 1.2;
 }
 
-/* 버튼 크기 및 폰트 80% 축소 입체감 스타일 유지 */
-div.stButton > button {
-    padding: 1.5px 3.2px !important; 
-    font-size: 8px !important; 
-    min-height: 16px !important; 
+/* 모든 버튼 내 글자 크기를 15px로 확대하고 확실한 입체적 진짜 버튼 모양으로 디자인 보완 */
+div.stButton > button, div.stPopover > button {
+    padding: 4px 10px !important; 
+    font-size: 15px !important; 
+    font-weight: 700 !important;
+    min-height: 32px !important; 
     line-height: 1.2 !important;
-    border: 1px solid #94a3b8 !important;
-    box-shadow: 0 2px 0px rgba(0,0,0,0.15) !important;
-    border-radius: 4px !important;
-    transition: all 0.1s ease;
+    background-color: #ffffff !important;
+    color: #1e3a8a !important;
+    border: 2px solid #1e3a8a !important;
+    box-shadow: 0 4px 0px #1e3a8a !important; /* 하단 섀도우로 꾹 눌리는 입체감 제공 */
+    border-radius: 6px !important;
+    transition: all 0.05s ease-in-out;
+    width: 100% !important; /* 완료 버튼과 시작/대기 버튼 크기 균등 통일 */
 }
-div.stButton > button:active {
-    transform: translateY(1px);
-    box-shadow: 0 0px 0px rgba(0,0,0,0) !important;
+
+/* 버튼 마우스 오버 및 클릭 시 실제 입체 장치처럼 눌리는 동적 효과 구현 */
+div.stButton > button:hover, div.stPopover > button:hover {
+    background-color: #f8fafc !important;
+}
+div.stButton > button:active, div.stPopover > button:active {
+    transform: translateY(3px) !important;
+    box-shadow: 0 1px 0px #1e3a8a !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # --- 3. 인증 및 시트 연결 ---
 def get_gspread_client():
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    scopes = ["https://www.googleapis.com/auth/sheets"]
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
     return gspread.authorize(creds)
 
@@ -147,22 +171,23 @@ def handle_add_queue(p_name, lot, l_type, note, machine):
         st.session_state.reset_type = "일반로트"
         st.session_state.reset_note = ""
 
-# --- 5. 헤더 및 네비게이션 버튼 우측 상단 나열 ---
+# --- 5. 헤더 및 네비게이션 버튼 (세로 배치를 철저히 깨고 가로 정렬로 웅장하게 배치) ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
-st.markdown('<div style="position: fixed; top: 18px; right: 30px; z-index: 999999; display: flex; gap: 10px;">', unsafe_allow_html=True)
 
-# 3개의 화면을 유기적으로 전환하는 상단 고정 버튼 시스템
-if st.button("실시간 현황판", key="btn_nav_main"):
-    st.session_state.view = 'main'
-    st.rerun()
-if st.button("완료된 공정 확인", key="btn_nav_history"):
-    st.session_state.view = 'history'
-    st.rerun()
-if st.button("완료된 공정 확인(선별)", key="btn_nav_selection"):
-    st.session_state.view = 'selection'
-    st.rerun()
-
-st.markdown('</div>', unsafe_allow_html=True)
+# 메인 화면 영역 상단에 3개의 버튼을 나란히 가로 분할 정렬하기 위해 레이아웃 구성
+nav_cols = st.columns([1.5, 1.8, 2.2, 5]) # 버튼 크기에 맞게 가로 칸 정렬 및 우측 여백 확보
+with nav_cols[0]:
+    if st.button("실시간 현황판", key="btn_nav_main"):
+        st.session_state.view = 'main'
+        st.rerun()
+with nav_cols[1]:
+    if st.button("완료된 공정 확인", key="btn_nav_history"):
+        st.session_state.view = 'history'
+        st.rerun()
+with nav_cols[2]:
+    if st.button("완료된 공정 확인(선별)", key="btn_nav_selection"):
+        st.session_state.view = 'selection'
+        st.rerun()
 
 # --- 6. 사이드바 ---
 with st.sidebar:
@@ -264,6 +289,7 @@ if st.session_state.view == 'main':
                             
                             next_machines = master_dict[row['제품']][next_stg] if next_stg else []
                             
+                            # '완료' 기능이 드롭다운 형태가 아닌 가로 크기가 100% 동일한 완전한 버튼으로 렌더링되도록 통일
                             if len(next_machines) > 1:
                                 with st.popover("완료", use_container_width=True):
                                     st.caption("다음 공정 설비 선택")
@@ -314,7 +340,6 @@ if st.session_state.view == 'main':
 elif st.session_state.view == 'history':
     st.header("📋 완료된 공정 이력 리포트 (1팀)")
     if not log_df.empty:
-        # 조건 반영: 상태가 정확히 '1팀종료'인 데이터만 필터링하여 출력
         team1_df = log_df[log_df['상태'] == '1팀종료']
         if not team1_df.empty:
             st.dataframe(team1_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), use_container_width=True)
@@ -324,10 +349,8 @@ elif st.session_state.view == 'history':
         st.info("기록된 완료 이력이 존재하지 않습니다.")
 
 elif st.session_state.view == 'selection':
-    # 신규 추가: 외관선별공정이 완전히 완료된 이력만 분리하여 조회하는 서브 전용 페이지
     st.header("🔍 완료된 공정 이력 리포트 (선별)")
     if not log_df.empty:
-        # 조건 반영: 공정명이 '외관선별공정'이면서 상태가 '완료'인 항목만 필터링
         selection_df = log_df[(log_df['공정'] == '외관선별공정') & (log_df['상태'] == '완료')]
         if not selection_df.empty:
             st.dataframe(selection_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), use_container_width=True)
