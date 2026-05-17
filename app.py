@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (로고 배치 및 글자 크기 15px 통일 유지) ---
+# --- 2. CSS 스타일 (글자 크기 15px 및 입체 버튼 디자인 100% 유지) ---
 st.markdown("""
 <style>
 .fixed-header {
@@ -21,11 +21,6 @@ st.markdown("""
     align-items: center; 
     padding: 0 30px; 
     box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
-}
-.header-logo {
-    height: 38px; /* 헤더 밸런스에 맞춰 로고 높이 최적화 */
-    margin-right: 20px;
-    object-fit: contain;
 }
 .main-title-text {
     color: white !important; 
@@ -71,7 +66,7 @@ st.markdown("""
 .bg-progress { background-color: #ef4444; }
 .bg-paused { background-color: #f59e0b; }
 
-/* 제품명, 제조번호, 로트유형 글자 크기 15px 통일 */
+/* 제품명, 제조번호, 로트유형 글자 크기 15px 통일 상태 유지 */
 .card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
@@ -175,12 +170,9 @@ def handle_add_queue(p_name, lot, l_type, note, machine):
         st.session_state.reset_type = "일반로트"
         st.session_state.reset_note = ""
 
-# --- 5. 헤더 부분 (명인제약 공식 웹 서버 로고 주소 다이렉트 연결) ---
-OFFICIAL_LOGO_URL = "https://www.myunginjeak.co.kr/images/common/logo.png"
-
+# --- 5. 헤더 부분 (로고 제외형 원본 복구) ---
 st.markdown(f"""
 <div class="fixed-header">
-    <img src="{OFFICIAL_LOGO_URL}" class="header-logo">
     <p class="main-title-text">명인제약 생산 시점 관리</p>
 </div>
 """, unsafe_allow_html=True)
