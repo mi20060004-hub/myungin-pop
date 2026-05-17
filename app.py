@@ -50,7 +50,7 @@ st.markdown("""
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* --- 블록 내부 모든 조작 버튼 스타일 강제 주입 --- */
+/* 블록 내부 모든 조작 버튼 스타일 강제 주입 */
 .main div.stButton > button, 
 .main div[data-testid="stPopover"] button,
 div[data-testid="stVerticalBlock"] div.stButton > button {
@@ -142,7 +142,6 @@ def get_now_kst():
 
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
-    # --- 제품명과 공정명 양끝의 숨은 공백을 원천 제거(strip)하여 메모리에 탑재 ---
     master_dict = {str(r.get("제품명")).strip(): {s.strip(): [m.strip() for m in str(r.get(s, "")).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_data.data}
     h_data = supabase.table("product_history").select("*").execute()
     if not h_data.data:
@@ -273,7 +272,7 @@ if st.session_state.view == 'main':
                                     supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                     st.rerun()
                                 
-                                # --- [공백 버그 완벽 수리] strip 처리된 깨끗한 텍스트로 교차 검증 및 추적 ---
+                                # --- [정밀 교정 완료] 공백이 모두 청소된 마스터 본문으로 완벽 추적 연산 ---
                                 n_stg = None
                                 prod_name = str(row['제품']).strip()
                                 current_index = TARGET_STAGES.index(stage)
@@ -285,7 +284,6 @@ if st.session_state.view == 'main':
                                         for m_key in master_dict[prod_name].keys():
                                             m_key_clean = m_key.strip()
                                             if check_stage in m_key_clean or m_key_clean in check_stage:
-                                                # 설비 리스트가 실제로 존재하는 진짜 공정만 타겟으로 지정
                                                 if master_dict[prod_name][m_key] and len(master_dict[prod_name][m_key]) > 0:
                                                     matched_key = m_key
                                                     break
@@ -318,10 +316,10 @@ if st.session_state.view == 'main':
                                             next_m = n_machines[0].strip() if n_machines else ""
                                             supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": next_m}).execute()
                                         st.rerun()
-                        elif row['상태'] == '지연':
-                            if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
-                                supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
-                                        st.rerun()
+                            elif row['상태'] == '지연':
+                                if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
+                                    supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
+                                    st.rerun()
             else:
                 with cols[idx]:
                     st.write("") 
