@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (최신 스트림릿 버전 완벽 대응 메뉴바 및 내부 버튼 커스텀) ---
+# --- 2. CSS 스타일 (최신 스트림릿 버전 완벽 대응 메뉴바 및 내부 모든 버튼 커스텀) ---
 st.markdown("""
 <style>
 /* 헤더 설정 */
@@ -50,8 +50,11 @@ st.markdown("""
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* --- [완벽 해결] 블록 내부 일반 액션 버튼 스타일 강제 주입 --- */
-div.stButton > button, div[data-testid="stPopover"] button {
+/* --- [대수리 완료] 블록 내부의 모든 액션 버튼 스타일 강제 주입 --- */
+/* 스트림릿의 모든 일반 버튼 및 팝업 내부 버튼에 13px 입체 스타일 동시 강제 주입 */
+.main div.stButton > button, 
+.main div[data-testid="stPopover"] button,
+div[data-testid="stVerticalBlock"] div.stButton > button {
     padding: 4px 6px !important; 
     font-size: 13px !important; 
     font-weight: 700 !important;
@@ -63,18 +66,21 @@ div.stButton > button, div[data-testid="stPopover"] button {
     border: 2px solid #1e3a8a !important; 
     box-shadow: 0 4px 0px #1e3a8a !important; 
     border-radius: 6px !important; 
-    transition: all 0.05s ease-in-out;
+    transition: all 0.05s ease-in-out !important;
     width: 100% !important; 
     display: flex !important; 
     align-items: center !important; 
     justify-content: center !important;
 }
-div.stButton > button:active, div[data-testid="stPopover"] button:active {
+
+/* 블록 내부 버튼 클릭 시 반응 모션 */
+.main div.stButton > button:active, 
+.main div[data-testid="stPopover"] button:active {
     transform: translateY(3px) !important;
     box-shadow: 0 1px 0px #1e3a8a !important;
 }
 
-/* 상단 네비게이션용 4색 대형 균등 버튼 전용 강제 주입 코드 */
+/* --- 상단 네비게이션용 4색 대형 균등 버튼 전용 강제 주입 코드 --- */
 div[data-testid="stHorizontalBlock"] .stButton button {
     height: 65px !important;
     font-size: 22px !important;
