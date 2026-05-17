@@ -179,8 +179,8 @@ with st.sidebar:
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
     is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p)).any()) or any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots))
-    f_stg = next((s for s in TARGET_STAGES if master_dict[sel_p][s]), TARGET_STAGES[0])
-    f_machines = master_dict[sel_p][f_stg]
+    f_stg = next((s for s in TARGET_STAGES if master_dict.get(sel_p, {}).get(s)), TARGET_STAGES[0])
+    f_machines = master_dict.get(sel_p, {}).get(f_stg, [])
     
     if lot_in and is_duplicate: st.error("⚠️ 중복 데이터")
     elif lot_in:
@@ -203,7 +203,8 @@ with st.sidebar:
             if c2.button("❌", key=f"del_{idx}"): st.session_state.pending_lots.pop(idx); st.rerun()
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             for p in st.session_state.pending_lots:
-                supabase.table("product_history").insert({"Lot": p['Lot'], "제품": p['제품'], "공정": next((s for s in TARGET_STAGES if master_dict[p['제품']][s]), TARGET_STAGES[0]), "상태": "대기", "유형": p['유형'], "특이사항": p['특이사항'], "설비": p['설비']}).execute()
+                first_stg = next((s for s in TARGET_STAGES if master_dict.get(p['제품'], {}).get(s)), TARGET_STAGES[0])
+                supabase.table("product_history").insert({"Lot": p['Lot'], "제품": p['제품'], "공정": first_stg, "상태": "대기", "유형": p['유형'], "특이사항": p['특이사항'], "설비": p['설비']}).execute()
             st.session_state.pending_lots = []; st.rerun()
 
     st.divider()
@@ -243,8 +244,7 @@ if st.session_state.view == 'main':
                                 supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
                                 st.rerun()
                             with b2.popover("변경", use_container_width=True):
-                                # master_dict 구조 안정성 강화
-                                valid_machines = master_dict.get(row['제품'], {}).get(stage, [])
+                                valid_machines = master_dict.get(str(row['제품']).strip(), {}).get(stage, [])
                                 for nm in valid_machines:
                                     if nm != row['설비'] and st.button(nm, key=f"ch_act_{row['Row']}_{nm}", use_container_width=True): 
                                         supabase.table("product_history").update({"설비": nm}).eq("id", row['Row']).execute()
@@ -254,17 +254,20 @@ if st.session_state.view == 'main':
                                 supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                 st.rerun()
                             
-                            # --- [핵심 버그 수정] 어떤 공정에서 완료를 누르든 master_dict를 뒤져 다음 유효 공정을 100% 찾아냄 ---
+                            # --- [추적 완전 해결 패치] 딕셔너리 안전 참조로 다음 유효 공정을 무조건 완벽 추적 ---
                             n_stg = None
+                            prod_name = str(row['제품']).strip()
                             current_index = TARGET_STAGES.index(stage)
+                            
                             for i in range(current_index + 1, len(TARGET_STAGES)):
                                 check_stage = TARGET_STAGES[i]
-                                if row['제품'] in master_dict and check_stage in master_dict[row['제품']]:
-                                    if master_dict[row['제품']][check_stage]: # 설비 리스트가 비어있지 않다면
+                                if prod_name in master_dict and check_stage in master_dict[prod_name]:
+                                    if master_dict[prod_name][check_stage]: 
                                         n_stg = check_stage
                                         break
                                     
-                            n_machines = master_dict.get(row['제품'], {}).get(n_stg, []) if n_stg else []
+                            n_machines = master_dict.get(prod_name, {}).get(n_stg, []) if n_stg else []
+                            
                             if len(n_machines) > 1:
                                 with st.popover("완료", use_container_width=True):
                                     for nm in n_machines:
