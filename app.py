@@ -6,11 +6,33 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (사용자 지정 폰트 크기 및 입체 버튼 스타일 100% 유지) ---
+# --- 2. CSS 스타일 (로고 배치 및 글자 크기 15px 통일 유지) ---
 st.markdown("""
 <style>
-.fixed-header {position: fixed; top: 0; left: 0; right: 0; height: 66px; background-color: #1e3a8a; z-index: 999998; display: flex; align-items: center; padding: 0 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-.main-title-text {color: white !important; font-size: 28px !important; font-weight: 800; margin: 0; flex-grow: 1; }
+.fixed-header {
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    right: 0; 
+    height: 66px; 
+    background-color: #1e3a8a; 
+    z-index: 999998; 
+    display: flex; 
+    align-items: center; 
+    padding: 0 30px; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
+}
+.header-logo {
+    height: 45px; 
+    margin-right: 20px;
+}
+.main-title-text {
+    color: white !important; 
+    font-size: 28px !important; 
+    font-weight: 800; 
+    margin: 0; 
+    flex-grow: 1; 
+}
 .main .block-container { padding-top: 100px !important; }
 
 .stage-bar {
@@ -48,7 +70,7 @@ st.markdown("""
 .bg-progress { background-color: #ef4444; }
 .bg-paused { background-color: #f59e0b; }
 
-/* [수정 완료] 제품명, 제조번호, 로트유형의 글자 크기를 모두 15px로 상향 통일 */
+/* 제품명, 제조번호, 로트유형 글자 크기 15px 통일 */
 .card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
@@ -152,8 +174,17 @@ def handle_add_queue(p_name, lot, l_type, note, machine):
         st.session_state.reset_type = "일반로트"
         st.session_state.reset_note = ""
 
-# --- 5. 헤더 및 네비게이션 버튼 가로 정렬 ---
-st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
+# --- 5. 헤더 부분 (로고 + 제목 결합) ---
+# GitHub에 업로드한 로고의 직접 링크 주소
+RAW_LOGO_URL = "https://raw.githubusercontent.com/mi20060004-hub/myungin-pop/main/logo.png"
+
+st.markdown(f"""
+<div class="fixed-header">
+    <img src="{RAW_LOGO_URL}" class="header-logo">
+    <p class="main-title-text">명인제약 생산 시점 관리</p>
+</div>
+""", unsafe_allow_html=True)
+
 nav_cols = st.columns([1.5, 1.8, 2.2, 5])
 with nav_cols[0]:
     if st.button("실시간 현황판", key="btn_nav_main"):
