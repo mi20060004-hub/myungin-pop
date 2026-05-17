@@ -174,7 +174,6 @@ with st.sidebar:
 
     st.divider()
     
-    # --- [개선 1] 각 공정별 합산 값을 구하여 제목 옆 괄호 안에 전체 공정 제품 수량 노출 ---
     total_active_count = len(curr_df) if not curr_df.empty else 0
     st.write(f"**가동 건수 (총 {total_active_count}건)**")
     for stage in TARGET_STAGES:
@@ -276,22 +275,24 @@ else:
     display_df = log_df[log_df['상태'] == '1팀종료'] if st.session_state.view == 'history' else log_df[(log_df['공정'] == '외관선별공정') & (log_df['상태'] == '완료')] if st.session_state.view == 'selection' else all_raw_df
     
     if not display_df.empty:
-        # --- [개선 2] 모든 공정 이력 확인 탭일 때만 '현재 실시간 현황판에 있는 로트 필터' 옵션 제공 ---
         if st.session_state.view == 'all_history':
             filter_cols = st.columns([6, 4])
             with filter_cols[0]:
                 sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
             with filter_cols[1]:
-                st.write("") # 세로 정렬 맞춤용 빈 공간
+                st.write("") 
                 only_live = st.toggle("⚡ 현재 실시간 현황판에 있는 로트만 보기", value=False)
             
             if sel_filter != "전체 보기": 
                 display_df = display_df[display_df['제품'] == sel_filter]
                 
             if only_live and not curr_df.empty:
-                # 실시간 현황판(curr_df)에 존재하는 Lot 목록만 추출하여 이력 테이블 필터링
-                live_lots = curr_df['Lot'].unique().tolist()
-                display_df = display_df[display_df['Lot'].isin(live_lots)]
+                # --- [정밀 튜닝] Lot 번호 단독 비교에서 -> (제품명 + Lot 번호) 복합 결합 비교 체계로 대폭 개편 ---
+                # 실시간 구동 중인 고유한 '제품명_Lot' 마킹 조합 리스트를 생성
+                live_combos = (curr_df['제품'].str.strip() + "_" + curr_df['Lot'].str.strip()).unique().tolist()
+                
+                # 전체 이력 테이블에서도 동일하게 조합 문자열을 가공하여 매칭 여부 판정
+                display_df = display_df[(display_df['제품'].str.strip() + "_" + display_df['Lot'].str.strip()).isin(live_combos)]
         else:
             sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
             if sel_filter != "전체 보기": 
