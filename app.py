@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (세련된 대형 균등 메뉴 버튼 및 핵심 규칙 통합) ---
+# --- 2. CSS 스타일 (균등 길이 + 22px 대형 4색 입체 메뉴 원천 고정) ---
 st.markdown("""
 <style>
 /* 헤더 설정 */
@@ -50,7 +50,7 @@ st.markdown("""
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* --- [완벽 해결] 블록 내부 액션 버튼 (13px 콤팩트 스타일) --- */
+/* --- [핵심] 블록 내부 액션 버튼 (13px 콤팩트 스타일 고정) --- */
 div.stButton > button, div[data-testid="stPopover"] button {
     padding: 2px 4px !important; font-size: 13px !important; font-weight: 700 !important;
     height: 30px !important; min-height: 30px !important; line-height: 1.2 !important;
@@ -60,42 +60,48 @@ div.stButton > button, div[data-testid="stPopover"] button {
     width: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 
-/* --- [신규 추가] 상단 네비게이션: 균등 길이 + 22px 두꺼운 글자 + 세련된 색상 --- */
-/* 상단 버튼들만 골라내기 위해 column 구조 타겟팅 */
-div[data-testid="column"] .stButton button {
+/* --- [대해결] 상단 네비게이션: 무작위 클래스를 무력화하는 고유 KEY 타겟팅 기법 --- */
+/* 4개 메뉴 버튼의 공통 크기 및 22px 두꺼운 글꼴(Bold) 강제 정의 */
+div.stButton > button[key^="nav_"] {
     height: 65px !important;
     font-size: 22px !important;
-    font-weight: 900 !important; /* 아주 두껍게 */
+    font-weight: 900 !important; /* 최고 두께 */
     border-radius: 10px !important;
     letter-spacing: -0.5px !important;
-    box-shadow: 0 6px 0px rgba(0,0,0,0.2) !important;
+    white-space: nowrap !important;
+    display: flex !important; align-items: center !important; justify-content: center !important;
 }
 
-/* 버튼별 고유 색상 (촌스럽지 않은 세련된 톤) */
-/* 1. 실시간 현황판 (세련된 로열 블루) */
-div[data-testid="column"]:nth-child(1) .stButton button {
-    background-color: #2563eb !important; color: white !important; border: 2px solid #1e40af !important;
+/* 고유 Key 패턴 검색을 통한 4색 다이렉트 도색 (세련된 하이엔드 톤) */
+/* 1. 실시간 현황판 (로열 블루 + 6px 딥 블루 입체 그림자) */
+div.stButton > button[key="nav_1"] {
+    background-color: #2563eb !important; color: white !important; 
+    border: 2px solid #1e40af !important; box-shadow: 0 6px 0px #1e40af !important;
 }
-/* 2. 완료된 공정 확인 (에메랄드 그린) */
-div[data-testid="column"]:nth-child(2) .stButton button {
-    background-color: #059669 !important; color: white !important; border: 2px solid #047857 !important;
+/* 2. 완료된 공정 확인 (에메랄드 그린 + 6px 딥 그린 입체 그림자) */
+div.stButton > button[key="nav_2"] {
+    background-color: #059669 !important; color: white !important; 
+    border: 2px solid #047857 !important; box-shadow: 0 6px 0px #047857 !important;
 }
-/* 3. 완료된 공정 확인(선별) (다크 앰버) */
-div[data-testid="column"]:nth-child(3) .stButton button {
-    background-color: #d97706 !important; color: white !important; border: 2px solid #b45309 !important;
+/* 3. 완료된 공정 확인(선별) (다크 앰버 + 6px 딥 오렌지 입체 그림자) */
+div.stButton > button[key="nav_3"] {
+    background-color: #d97706 !important; color: white !important; 
+    border: 2px solid #b45309 !important; box-shadow: 0 6px 0px #b45309 !important;
 }
-/* 4. 모든 공정 이력 확인 (럭셔리 퍼플) */
-div[data-testid="column"]:nth-child(4) .stButton button {
-    background-color: #7c3aed !important; color: white !important; border: 2px solid #6d28d9 !important;
+/* 4. 모든 공정 이력 확인 (럭셔리 퍼플 + 6px 딥 퍼플 입체 그림자) */
+div.stButton > button[key="nav_4"] {
+    background-color: #7c3aed !important; color: white !important; 
+    border: 2px solid #6d28d9 !important; box-shadow: 0 6px 0px #6d28d9 !important;
 }
 
-/* 호버 시 살짝 밝게 */
-div[data-testid="column"] .stButton button:hover {
-    filter: brightness(1.1);
+/* 마우스 마우스 올렸을 때 화사하게 처리 */
+div.stButton > button[key^="nav_"]:hover {
+    filter: brightness(1.1) !important;
+    color: white !important;
 }
 
-/* 눌렀을 때 반응 */
-div[data-testid="column"] .stButton button:active {
+/* 버튼을 꾹 눌렀을 때 4px 내려앉는 실감 나는 물리 클릭 효과 */
+div.stButton > button[key^="nav_"]:active {
     transform: translateY(4px) !important;
     box-shadow: 0 2px 0px rgba(0,0,0,0.2) !important;
 }
@@ -154,7 +160,7 @@ if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
 # --- 5. 헤더 및 균등 대형 네비게이션 바 ---
 st.markdown('<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 
-# 균등한 길이를 위해 동일한 비율 [1,1,1,1] 컬럼 생성
+# 균등한 길이를 완벽하게 유지하기 위해 가로 폭 배치 [1,1,1,1] 설정
 nav_cols = st.columns([1, 1, 1, 1])
 with nav_cols[0]:
     if st.button("실시간 현황판", key="nav_1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
@@ -165,7 +171,7 @@ with nav_cols[2]:
 with nav_cols[3]:
     if st.button("모든 공정 이력 확인", key="nav_4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
 
-# --- 6. 사이드바 (기존 기능 100% 보존) ---
+# --- 6. 사이드바 (기존 기능 100% 원본 보존) ---
 with st.sidebar:
     st.header("🏭 제조 투입")
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="side_p")
@@ -205,9 +211,8 @@ with st.sidebar:
         if st.text_input("비밀번호", type="password") == "1234" and st.button("🚨 즉시 초기화"):
             supabase.table("product_history").delete().neq("Lot", "sys").execute(); st.rerun()
 
-# --- 7. 메인 콘텐츠 (제목 연동 수정) ---
+# --- 7. 메인 콘텐츠 및 가변식 리포트 제목 일치 연동 ---
 if st.session_state.view == 'main':
-    # 메인 페이지 제목은 상단 바와 중복되므로 깔끔하게 공정 바부터 시작 (필요시 추가 가능)
     for idx, stage in enumerate(TARGET_STAGES):
         count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         st.markdown(f'<div class="stage-bar sb-{idx}">▶ {stage} ({count}건)</div>', unsafe_allow_html=True)
@@ -250,7 +255,7 @@ if st.session_state.view == 'main':
                         elif row['상태'] == '지연':
                             if st.button("재시작", key=f"r_{row['Row']}"): supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute(); st.rerun()
 else:
-    # [수정] 버튼 문구와 제목을 완벽히 일치시킴
+    # 버튼 명칭과 상단 제목 가변식 동기화 맵핑 완료
     title_map = {"history": "완료된 공정 확인", "selection": "완료된 공정 확인(선별)", "all_history": "모든 공정 이력 확인"}
     st.header(f"📋 {title_map[st.session_state.view]}")
     
