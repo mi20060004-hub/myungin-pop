@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (균등 길이 + 22px 대형 4색 입체 메뉴 원천 고정) ---
+# --- 2. CSS 스타일 (최신 stColumn 규격 반영: 균등 길이 + 22px 대형 4색 입체 메뉴 원천 고정) ---
 st.markdown("""
 <style>
 /* 헤더 설정 */
@@ -60,11 +60,11 @@ div.stButton > button, div[data-testid="stPopover"] button {
     width: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 
-/* --- [완벽 대수리] use_container_width 구조를 뛰어넘어 상단 컬럼의 모든 단추를 22px 볼드로 강제 개조 --- */
-div[data-testid="column"] button {
+/* --- [완벽 교정] 최신 stColumn 껍질 내부의 모든 네비게이션 단추 서식 강제 장악 --- */
+div[data-testid="stColumn"] button {
     height: 65px !important;
     font-size: 22px !important;
-    font-weight: 900 !important; /* 최고 두께 */
+    font-weight: 900 !important; /* 최고 두께 보장 */
     border-radius: 10px !important;
     letter-spacing: -0.5px !important;
     white-space: nowrap !important;
@@ -72,36 +72,36 @@ div[data-testid="column"] button {
     transition: all 0.05s ease-in-out !important;
 }
 
-/* 상단 배치 순서에 따른 강력한 다이렉트 컬러 융단폭격 */
+/* 최신 가로 정렬 레이어 기준 4색 다이렉트 컬러 매핑 */
 /* 1. 실시간 현황판 (세련된 로열 블루) */
-div[data-testid="column"]:nth-child(1) button {
+div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(1) button {
     background-color: #2563eb !important; color: white !important; 
     border: 2px solid #1e40af !important; box-shadow: 0 6px 0px #1e40af !important;
 }
 /* 2. 완료된 공정 확인 (세련된 에메랄드 그린) */
-div[data-testid="column"]:nth-child(2) button {
+div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(2) button {
     background-color: #059669 !important; color: white !important; 
     border: 2px solid #047857 !important; box-shadow: 0 6px 0px #047857 !important;
 }
 /* 3. 완료된 공정 확인(선별) (세련된 다크 앰버 오렌지) */
-div[data-testid="column"]:nth-child(3) button {
+div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(3) button {
     background-color: #d97706 !important; color: white !important; 
     border: 2px solid #b45309 !important; box-shadow: 0 6px 0px #b45309 !important;
 }
 /* 4. 모든 공정 이력 확인 (세련된 럭셔리 퍼플) */
-div[data-testid="column"]:nth-child(4) button {
+div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(4) button {
     background-color: #7c3aed !important; color: white !important; 
     border: 2px solid #6d28d9 !important; box-shadow: 0 6px 0px #6d28d9 !important;
 }
 
-/* 마우스 호버 효과 통합 */
-div[data-testid="column"] button:hover {
+/* 호버 시 선명도 강화 */
+div[data-testid="stColumn"] button:hover {
     filter: brightness(1.1) !important;
     color: white !important;
 }
 
-/* 물리 버튼 클릭 기믹 통합 */
-div[data-testid="column"] button:active {
+/* 입체감 있는 물리 버튼 클릭 효과 */
+div[data-testid="stColumn"] button:active {
     transform: translateY(4px) !important;
     box-shadow: 0 2px 0px rgba(0,0,0,0.2) !important;
 }
@@ -223,7 +223,7 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-# --- 7. 메인 콘텐츠 및 제목 연동 (원본 로직 보존) ---
+# --- 7. 메인 콘텐츠 및 제목 연동 (원본 로직 완벽 보존) ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
@@ -268,7 +268,7 @@ if st.session_state.view == 'main':
                         elif row['상태'] == '지연':
                             if st.button("재시작", key=f"r_{row['Row']}"): supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute(); st.rerun()
 else:
-    # 요청하신 버튼 문구와 상단 헤더 제목 100% 매칭 완료
+    # 요청하신 버튼 문구와 상단 헤더 제목 100% 매칭
     title_map = {"history": "완료된 공정 확인", "selection": "완료된 공정 확인(선별)", "all_history": "모든 공정 이력 확인"}
     st.header(f"📋 {title_map[st.session_state.view]}")
     
