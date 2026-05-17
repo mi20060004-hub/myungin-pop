@@ -50,10 +50,11 @@ st.markdown("""
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* 블록 내부의 모든 액션 버튼 스타일 강제 주입 */
+/* --- 블록 내부 모든 조작 버튼 스타일 강제 주입 --- */
 .main div.stButton > button, 
 .main div[data-testid="stPopover"] button,
-div[data-testid="stVerticalBlock"] div.stButton > button {
+div[data-testid="stVerticalBlock"] div.stButton > button,
+button[id^="stSidebar"] {
     padding: 4px 6px !important; 
     font-size: 13px !important; 
     font-weight: 700 !important;
@@ -227,13 +228,12 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-# --- 7. 메인 콘텐츠 및 제목 연동 (인덱스 에러 원천 차단 렌더링 엔진) ---
+# --- 7. 메인 콘텐츠 및 제목 연동 ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         st.markdown(f'<div class="stage-bar sb-{idx_stage}">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
         
-        # --- [대수리] 설비 개수 세지 않고, 상단 주입된 리스트 순서대로 10칸 무조건 매칭 배치 ---
         cols = st.columns(10)
         stage_machines = MACHINE_MAP[stage]
         
@@ -243,7 +243,6 @@ if st.session_state.view == 'main':
                 with cols[idx]:
                     st.markdown(f"<div class='machine-title'>{m_clean}</div>", unsafe_allow_html=True)
                     
-                    # 수파베이스 DB에서 해당 공정 및 설비명이 '포함'되는 데이터를 완벽 매칭
                     m_items = pd.DataFrame()
                     if not curr_df.empty:
                         m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'].str.strip().str.upper() == m_clean.upper())]
@@ -273,7 +272,7 @@ if st.session_state.view == 'main':
                                     supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                     st.rerun()
                                 
-                                # --- 다음 유효 공정 역추적 로직 개선 ---
+                                # --- [알고리즘 대수리] 공정 이름 매칭 및 '설비 리스트 존재 여부'까지 2중 교차 검증 검사 수행 ---
                                 n_stg = None
                                 prod_name = str(row['제품']).strip()
                                 current_index = TARGET_STAGES.index(stage)
@@ -284,10 +283,12 @@ if st.session_state.view == 'main':
                                     if prod_name in master_dict:
                                         for m_key in master_dict[prod_name].keys():
                                             if check_stage in m_key or m_key in check_stage:
-                                                matched_key = m_key
-                                                break
-                                                
-                                    if matched_key and master_dict[prod_name][matched_key]: 
+                                                # 단순히 키만 보는게 아니라, 실제 설비 리스트 텍스트가 들어있는지 철저히 판별
+                                                if master_dict[prod_name][m_key] and len(master_dict[prod_name][m_key]) > 0:
+                                                    matched_key = m_key
+                                                    break
+                                                    
+                                    if matched_key: 
                                         n_stg = check_stage
                                         break
                                         
@@ -295,7 +296,7 @@ if st.session_state.view == 'main':
                                 if n_stg and prod_name in master_dict:
                                     for m_key in master_dict[prod_name].keys():
                                         if n_stg in m_key or m_key in n_stg:
-                                            n_machines = [m.strip() for m in master_dict[prod_name][m_key]]
+                                            n_machines = [m.strip() for m in master_dict[prod_name][m_key] if m.strip()]
                                             break
                                 
                                 if len(n_machines) > 1:
@@ -315,13 +316,13 @@ if st.session_state.view == 'main':
                                             next_m = n_machines[0].strip() if n_machines else ""
                                             supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": next_m}).execute()
                                         st.rerun()
-                            elif row['상태'] == '지연':
-                                if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
-                                    supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
-                                    st.rerun()
+                        elif row['상태'] == '지연':
+                            if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
+                                supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
+                                st.rerun()
             else:
                 with cols[idx]:
-                    st.write("") # 빈 공간 정렬 유지
+                    st.write("") 
 else:
     title_map = {"history": "완료된 공정 확인", "selection": "완료된 공정 확인(선별)", "all_history": "모든 공정 이력 확인"}
     st.header(f"📋 {title_map[st.session_state.view]}")
