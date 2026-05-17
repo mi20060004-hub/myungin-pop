@@ -6,13 +6,27 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (사용자 지정 폰트 크기 및 입체 버튼 스타일 100% 유지) ---
+# --- 2. CSS 스타일 (상단 통합 헤더 및 입체 버튼 디자인 완벽 유지) ---
 st.markdown("""
 <style>
-.fixed-header {position: fixed; top: 0; left: 0; right: 0; height: 66px; background-color: #1e3a8a; z-index: 999998; display: flex; align-items: center; padding: 0 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-.main-title-text {color: white !important; font-size: 28px !important; font-weight: 800; margin: 0; flex-grow: 1; }
-.main .block-container { padding-top: 100px !important; }
+/* 상단 고정 파란색 바 */
+.fixed-header {
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    right: 0; 
+    height: 70px; 
+    background-color: #1e3a8a; 
+    z-index: 999998; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
 
+/* 메인 본문 탑 마진 확보 (헤더에 안 가려지게 조절) */
+.main .block-container { 
+    padding-top: 95px !important; 
+}
+
+/* 대공정 바 디자인 */
 .stage-bar {
     color: white; 
     padding: 8px 13px; 
@@ -27,7 +41,7 @@ st.markdown("""
     background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%); 
 }
 
-/* 설비 글자 크기 16px 유지 */
+/* 설비 타이틀 (16px) */
 .machine-title {
     background: #f1f5f9; 
     text-align: center; 
@@ -61,12 +75,12 @@ st.markdown("""
     line-height: 1.2;
 }
 
-/* 버튼 글자 크기 15px 및 입체 섀도우 유지 */
+/* 버튼 글자 크기 15px 및 입체 섀도우 100% 유지 */
 div.stButton > button, div.stPopover > button {
     padding: 4px 10px !important; 
     font-size: 15px !important; 
     font-weight: 700 !important;
-    min-height: 32px !important; 
+    min-height: 34px !important; 
     line-height: 1.2 !important;
     background-color: #ffffff !important;
     color: #1e3a8a !important;
@@ -84,6 +98,9 @@ div.stButton > button:active, div.stPopover > button:active {
     transform: translateY(3px) !important;
     box-shadow: 0 1px 0px #1e3a8a !important;
 }
+
+/* 스트림릿 기본 불필요 상단 여백 제거 */
+[data-testid="stHeader"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -159,22 +176,32 @@ def handle_add_queue(p_name, lot, l_type, note, machine):
         st.session_state.reset_type = "일반로트"
         st.session_state.reset_note = ""
 
-# --- 5. 헤더 및 네비게이션 버튼 가로 정렬 ---
-st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
+# --- 5. [완성] 고정 헤더 배경 배치 및 그 내부에 대시보드 버튼 가로 정렬 ---
+st.markdown('<div class="fixed-header"></div>', unsafe_allow_html=True)
 
-nav_cols = st.columns([1.5, 1.8, 2.2, 5])
-with nav_cols[0]:
-    if st.button("실시간 현황판", key="btn_nav_main"):
-        st.session_state.view = 'main'
-        st.rerun()
-with nav_cols[1]:
-    if st.button("완료된 공정 확인", key="btn_nav_history"):
-        st.session_state.view = 'history'
-        st.rerun()
-with nav_cols[2]:
-    if st.button("완료된 공정 확인(선별)", key="btn_nav_selection"):
-        st.session_state.view = 'selection'
-        st.rerun()
+# 헤더용 레이아웃 스크립트 컨테이너
+header_floating_zone = st.container()
+with header_floating_zone:
+    st.markdown('<div style="position: fixed; top: 15px; left: 30px; right: 30px; z-index: 999999; display: flex; align-items: center; justify-content: space-between;">', unsafe_allow_html=True)
+    
+    # 좌우 구조 분할을 위한 대형 컬럼
+    h_cols = st.columns([4.2, 1.5, 1.8, 2.3, 2.2])
+    with h_cols[0]:
+        st.markdown('<p style="color: white !important; font-size: 28px !important; font-weight: 800; margin: 0; line-height: 1.2; white-space: nowrap;">🏭 명인제약 생산 시점 관리</p>', unsafe_allow_html=True)
+    with h_cols[1]:
+        if st.button("💻 실시간 현황판", key="btn_nav_main"):
+            st.session_state.view = 'main'
+            st.rerun()
+    with h_cols[2]:
+        if st.button("📋 완료된 공정 확인", key="btn_nav_history"):
+            st.session_state.view = 'history'
+            st.rerun()
+    with h_cols[3]:
+        if st.button("🔍 완료된 공정 확인(선별)", key="btn_nav_selection"):
+            st.session_state.view = 'selection'
+            st.rerun()
+            
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 6. 사이드바 ---
 with st.sidebar:
@@ -214,13 +241,11 @@ with st.sidebar:
         st.write("---")
         st.subheader("📝 투입 대기 리스트")
         
-        # 개별 대기 품목 나열 및 삭제 기능
         for idx, p in enumerate(st.session_state.pending_lots):
             del_cols = st.columns([8, 2])
             with del_cols[0]:
                 st.info(f"{idx+1}. {p['제품']} | {p['Lot']} ({p['설비']})")
             with del_cols[1]:
-                # 품목별 고유 키를 주어 개별 취소(삭제) 처리
                 if st.button("❌", key=f"del_item_{idx}_{p['Lot']}_{p['제품']}"):
                     st.session_state.pending_lots.pop(idx)
                     st.rerun()
