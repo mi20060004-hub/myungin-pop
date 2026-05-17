@@ -6,18 +6,12 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (글자 크기, 입체 버튼 및 여백 최적화) ---
+# --- 2. CSS 스타일 (사용자 지정 폰트 크기 및 입체 버튼 스타일 100% 유지) ---
 st.markdown("""
 <style>
-/* 최상단 메인 타이틀 텍스트 스타일 (크기 28px 유지) */
-.main-title-text {
-    color: #1e3a8a !important; 
-    font-size: 28px !important; 
-    font-weight: 800; 
-    margin: 0; 
-    line-height: 1.2;
-    white-space: nowrap;
-}
+.fixed-header {position: fixed; top: 0; left: 0; right: 0; height: 66px; background-color: #1e3a8a; z-index: 999998; display: flex; align-items: center; padding: 0 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+.main-title-text {color: white !important; font-size: 28px !important; font-weight: 800; margin: 0; flex-grow: 1; }
+.main .block-container { padding-top: 100px !important; }
 
 .stage-bar {
     color: white; 
@@ -67,12 +61,12 @@ st.markdown("""
     line-height: 1.2;
 }
 
-/* 버튼 글자 크기 15px 및 입체 섀도우 완벽 유지 */
+/* 버튼 글자 크기 15px 및 입체 섀도우 유지 */
 div.stButton > button, div.stPopover > button {
     padding: 4px 10px !important; 
     font-size: 15px !important; 
     font-weight: 700 !important;
-    min-height: 34px !important; 
+    min-height: 32px !important; 
     line-height: 1.2 !important;
     background-color: #ffffff !important;
     color: #1e3a8a !important;
@@ -90,9 +84,6 @@ div.stButton > button:active, div.stPopover > button:active {
     transform: translateY(3px) !important;
     box-shadow: 0 1px 0px #1e3a8a !important;
 }
-
-/* 스트림릿 기본 상단 바 여백 최적화 */
-.main .block-container { padding-top: 25px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -168,27 +159,22 @@ def handle_add_queue(p_name, lot, l_type, note, machine):
         st.session_state.reset_type = "일반로트"
         st.session_state.reset_note = ""
 
-# --- 5. [수정 완료] 메인 화면 최상단 제목 및 가로 네비게이션 배치 (안정성 100%) ---
-header_container = st.container()
-with header_container:
-    h_cols = st.columns([4.0, 1.6, 1.8, 2.2, 0.4])
-    with h_cols[0]:
-        st.markdown('<p class="main-title-text" style="margin-top: 3px;">🏭 명인제약 생산 시점 관리</p>', unsafe_allow_html=True)
-    with h_cols[1]:
-        if st.button("💻 실시간 현황판", key="btn_nav_main"):
-            st.session_state.view = 'main'
-            st.rerun()
-    with h_cols[2]:
-        if st.button("📋 완료된 공정 확인", key="btn_nav_history"):
-            st.session_state.view = 'history'
-            st.rerun()
-    with h_cols[3]:
-        if st.button("🔍 완료된 공정 확인(선별)", key="btn_nav_selection"):
-            st.session_state.view = 'selection'
-            st.rerun()
-    st.write("") # 미세 패딩용
+# --- 5. 헤더 및 네비게이션 버튼 가로 정렬 ---
+st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 
-st.divider() # 경계 분리선 추가로 깔끔함 극대화
+nav_cols = st.columns([1.5, 1.8, 2.2, 5])
+with nav_cols[0]:
+    if st.button("실시간 현황판", key="btn_nav_main"):
+        st.session_state.view = 'main'
+        st.rerun()
+with nav_cols[1]:
+    if st.button("완료된 공정 확인", key="btn_nav_history"):
+        st.session_state.view = 'history'
+        st.rerun()
+with nav_cols[2]:
+    if st.button("완료된 공정 확인(선별)", key="btn_nav_selection"):
+        st.session_state.view = 'selection'
+        st.rerun()
 
 # --- 6. 사이드바 ---
 with st.sidebar:
@@ -228,11 +214,13 @@ with st.sidebar:
         st.write("---")
         st.subheader("📝 투입 대기 리스트")
         
+        # 개별 대기 품목 나열 및 삭제 기능
         for idx, p in enumerate(st.session_state.pending_lots):
             del_cols = st.columns([8, 2])
             with del_cols[0]:
                 st.info(f"{idx+1}. {p['제품']} | {p['Lot']} ({p['설비']})")
             with del_cols[1]:
+                # 품목별 고유 키를 주어 개별 취소(삭제) 처리
                 if st.button("❌", key=f"del_item_{idx}_{p['Lot']}_{p['제품']}"):
                     st.session_state.pending_lots.pop(idx)
                     st.rerun()
