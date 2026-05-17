@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (글자 크기 및 입체 버튼 디자인 100% 유지) ---
+# --- 2. CSS 스타일 (버튼 크기 축소 및 스타일 통일 업그레이드) ---
 st.markdown("""
 <style>
 .fixed-header {
@@ -45,7 +45,6 @@ st.markdown("""
     background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%); 
 }
 
-/* 설비 글자 크기 16px 유지 */
 .machine-title {
     background: #f1f5f9; 
     text-align: center; 
@@ -66,36 +65,44 @@ st.markdown("""
 .bg-progress { background-color: #ef4444; }
 .bg-paused { background-color: #f59e0b; }
 
-/* 블록 안의 글자 크기 15px 유지 */
+/* 블록 안의 정보 텍스트 크기 */
 .card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
 .lot-type-highlight { font-size: 15px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 
-/* 완료된 공정 이력 표 안의 글자 크기 16px 유지 */
+/* 완료 이력 표 16px 유지 */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th {font-size: 16px !important; }
 
-/* 버튼 글자 크기 15px 및 입체 섀도우 유지 */
+/* [핵심 수정] 버튼 스타일 최적화: 글자 크기 13px(2px 축소) 및 패딩/높이 축소 */
 div.stButton > button, div.stPopover > button {
-    padding: 4px 10px !important; 
-    font-size: 15px !important; 
+    padding: 2px 8px !important; 
+    font-size: 13px !important; 
     font-weight: 700 !important;
-    min-height: 32px !important; 
+    min-height: 28px !important; 
     line-height: 1.2 !important;
     background-color: #ffffff !important;
     color: #1e3a8a !important;
     border: 2px solid #1e3a8a !important;
-    box-shadow: 0 4px 0px #1e3a8a !important; 
+    box-shadow: 0 3px 0px #1e3a8a !important; 
     border-radius: 6px !important;
     transition: all 0.05s ease-in-out;
     width: 100% !important; 
 }
 
+/* 팝업 내부의 '변경' 버튼 레이블 텍스트 정렬 */
+div.stPopover > button > div {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
 div.stButton > button:hover, div.stPopover > button:hover {
     background-color: #f8fafc !important;
+    border: 2px solid #1e3a8a !important;
 }
 div.stButton > button:active, div.stPopover > button:active {
-    transform: translateY(3px) !important;
+    transform: translateY(2px) !important;
     box-shadow: 0 1px 0px #1e3a8a !important;
 }
 </style>
@@ -218,7 +225,7 @@ with st.sidebar:
         st.error("⚠️ 중복 데이터 (동일 제품 및 LOT 공정 진행/종료됨)")
     elif lot_in:
         if len(f_machines) > 1:
-            with st.popover("➕ 대기열 추가 (설비 선택)", use_container_width=True):
+            with st.popover("➕ 대기열 추가", use_container_width=True):
                 for m in f_machines:
                     if st.button(m, key=f"init_{m}_{sel_p}_{lot_in}"):
                         handle_add_queue(sel_p, lot_in, lot_type, note_in, m)
@@ -260,23 +267,21 @@ with st.sidebar:
         count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         st.write(f"- {stage}: {count}건")
 
-    # --- 사이드바 맨 아래 보안 비밀번호 기반 데이터베이스 초기화 팝업 제어 ---
     st.write("---")
-    with st.popover("🔒 데이터베이스 초기화", use_container_width=True):
-        st.warning("⚠️ 주의: 확정 시 진행 중 및 완료된 모든 이력이 영구 삭제됩니다.")
-        input_pwd = st.text_input("관리자 비밀번호 입력", type="password", key="db_clear_pwd_field")
-        
-        if st.button("🚨 전체 데이터 즉시 초기화", type="primary", use_container_width=True):
+    with st.popover("🔒 데이터 초기화", use_container_width=True):
+        st.warning("⚠️ 주의: 모든 이력이 영구 삭제됩니다.")
+        input_pwd = st.text_input("비밀번호 입력", type="password", key="db_clear_pwd_field")
+        if st.button("🚨 초기화 실행", type="primary", use_container_width=True):
             if input_pwd == "1234":
                 try:
-                    supabase.table("product_history").delete().neq("Lot", "system_reserved_clear_dummy_lot_9982").execute()
-                    st.success("🎉 모든 공정 이력이 깨끗하게 초기화되었습니다!")
+                    supabase.table("product_history").delete().neq("Lot", "sys_clear_99").execute()
+                    st.success("🎉 초기화 완료!")
                     st.session_state.pending_lots = []
                     st.rerun()
-                except Exception as clear_err:
-                    st.error(f"초기화 실패: {clear_err}")
+                except Exception as e:
+                    st.error(f"실패: {e}")
             else:
-                st.error("❌ 비밀번호가 올바르지 않습니다. 초기화가 차단되었습니다.")
+                st.error("❌ 비밀번호 오류")
 
 # --- 7. 메인 화면 ---
 if st.session_state.view == 'main':
@@ -288,7 +293,6 @@ if st.session_state.view == 'main':
         for idx, machine in enumerate(MACHINE_MAP[stage]):
             with cols[idx]:
                 st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
-                
                 m_items = pd.DataFrame()
                 if not curr_df.empty and '설비' in curr_df.columns:
                     m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())]
@@ -303,7 +307,6 @@ if st.session_state.view == 'main':
                             st.markdown(f"<p class='info-text-10px' style='color:#b45309; font-weight:700;'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
                         st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
                         
-                        # --- [수정 구간] 대기 상태일 때 시작 버튼과 설비변경 기능 탑재 ---
                         if row['상태'] == '대기':
                             btn_cols = st.columns(2)
                             with btn_cols[0]:
@@ -312,15 +315,13 @@ if st.session_state.view == 'main':
                                     supabase.table("product_history").update({"상태": "진행중", "시작시간": now_time}).eq("id", row['Row']).execute()
                                     st.rerun()
                             with btn_cols[1]:
+                                # [변경] 버튼을 위한 Popover (디자인은 시작 버튼과 통일됨)
                                 with st.popover("변경", key=f"pop_chg_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
-                                    st.caption("이동할 설비 선택")
-                                    # 제품 마스터 등록 리스트에서 해당 제품/공정에 유효한 설비들만 필터링해서 가져옴
+                                    st.caption("이동 설비 선택")
                                     valid_machines = master_dict.get(row['제품'], {}).get(stage, [])
-                                    if not valid_machines:
-                                        valid_machines = MACHINE_MAP[stage] # 백업 예외 방지
-                                        
+                                    if not valid_machines: valid_machines = MACHINE_MAP[stage]
                                     for nm in valid_machines:
-                                        if nm != row['설비']: # 현재 위치한 설비는 제외하고 출력
+                                        if nm != row['설비']:
                                             if st.button(nm, key=f"chg_{nm}_{row['제품']}_{row['Lot']}_{stage}_{machine}"):
                                                 supabase.table("product_history").update({"설비": nm}).eq("id", row['Row']).execute()
                                                 st.rerun()
@@ -338,7 +339,7 @@ if st.session_state.view == 'main':
                             next_machines = master_dict[row['제품']][next_stg] if next_stg else []
                             if len(next_machines) > 1:
                                 with st.popover("완료", use_container_width=True):
-                                    st.caption("다음 공정 설비 선택")
+                                    st.caption("다음 설비 선택")
                                     for nm in next_machines:
                                         if st.button(nm, key=f"next_{nm}_{row['제품']}_{row['Lot']}_{stage}"):
                                             now_time = get_now_kst()
@@ -346,10 +347,9 @@ if st.session_state.view == 'main':
                                                 start_dt = datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M')
                                                 end_dt = datetime.strptime(now_time, '%Y-%m-%d %H:%M')
                                                 duration = str(end_dt - start_dt)
-                                            except:
-                                                duration = "-"
-                                            current_status = "1팀종료" if next_stg == "외관선별공정" else "완료"
-                                            supabase.table("product_history").update({"상태": current_status, "종료시간": now_time, "소요시간": duration}).eq("id", row['Row']).execute()
+                                            except: duration = "-"
+                                            status = "1팀종료" if next_stg == "외관선별공정" else "완료"
+                                            supabase.table("product_history").update({"상태": status, "종료시간": now_time, "소요시간": duration}).eq("id", row['Row']).execute()
                                             supabase.table("product_history").insert({
                                                 "Lot": row['Lot'], "제품": row['제품'], "공정": next_stg, "상태": "대기",
                                                 "시작시간": "", "종료시간": "", "소요시간": "", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm
@@ -362,10 +362,9 @@ if st.session_state.view == 'main':
                                         start_dt = datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M')
                                         end_dt = datetime.strptime(now_time, '%Y-%m-%d %H:%M')
                                         duration = str(end_dt - start_dt)
-                                    except:
-                                        duration = "-"
-                                    current_status = "1팀종료" if next_stg == "외관선별공정" else "완료"
-                                    supabase.table("product_history").update({"상태": current_status, "종료시간": now_time, "소요시간": duration}).eq("id", row['Row']).execute()
+                                    except: duration = "-"
+                                    status = "1팀종료" if next_stg == "외관선별공정" else "완료"
+                                    supabase.table("product_history").update({"상태": status, "종료시간": now_time, "소요시간": duration}).eq("id", row['Row']).execute()
                                     if next_stg:
                                         next_m = next_machines[0] if next_machines else ""
                                         supabase.table("product_history").insert({
@@ -377,7 +376,6 @@ if st.session_state.view == 'main':
                             if st.button("재시작", key=f"r_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
                                 supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
                                 st.rerun()
-# --- 8. 이력 리포트 화면 ---
 else:
     if st.session_state.view == 'history':
         st.header("📋 완료된 공정 이력 리포트 (1팀)")
@@ -387,10 +385,8 @@ else:
         team_df = log_df[(log_df['공정'] == '외관선별공정') & (log_df['상태'] == '완료')]
     if not team_df.empty:
         unique_products = sorted(team_df['제품'].unique().tolist())
-        sel_filter = st.selectbox("🔍 제품명으로 검색 (데이터가 많을 때 사용하세요)", ["전체 보기"] + unique_products)
+        sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + unique_products)
         display_df = team_df.copy()
-        if sel_filter != "전체 보기":
-            display_df = display_df[display_df['제품'] == sel_filter]
+        if sel_filter != "전체 보기": display_df = display_df[display_df['제품'] == sel_filter]
         st.dataframe(display_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), use_container_width=True)
-    else:
-        st.info("조건에 일치하는 완료 이력이 존재하지 않습니다.")
+    else: st.info("이력이 없습니다.")
