@@ -260,20 +260,18 @@ with st.sidebar:
         count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         st.write(f"- {stage}: {count}건")
 
-    # --- [신규 추가] 사이드바 맨 아래 보안 비밀번호 기반 데이터베이스 초기화 팝업 제어 ---
+    # --- 사이드바 맨 아래 보안 비밀번호 기반 데이터베이스 초기화 팝업 제어 ---
     st.write("---")
     with st.popover("🔒 데이터베이스 초기화", use_container_width=True):
         st.warning("⚠️ 주의: 확정 시 진행 중 및 완료된 모든 이력이 영구 삭제됩니다.")
         input_pwd = st.text_input("관리자 비밀번호 입력", type="password", key="db_clear_pwd_field")
         
         if st.button("🚨 전체 데이터 즉시 초기화", type="primary", use_container_width=True):
-            # 관리자 전용 인증 비밀번호 설정 (1234를 원하는 다른 번호로 수정 가능합니다)
             if input_pwd == "1234":
                 try:
-                    # product_history 테이블의 모든 데이터를 조건 없이 원격 삭제 트리거
                     supabase.table("product_history").delete().neq("Lot", "system_reserved_clear_dummy_lot_9982").execute()
                     st.success("🎉 모든 공정 이력이 깨끗하게 초기화되었습니다!")
-                    st.session_state.pending_lots = [] # 대기열 세션도 함께 비우기
+                    st.session_state.pending_lots = []
                     st.rerun()
                 except Exception as clear_err:
                     st.error(f"초기화 실패: {clear_err}")
@@ -283,7 +281,6 @@ with st.sidebar:
 # --- 7. 메인 화면 ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
-        # 실시간 각 대공정별 활성화된 건수를 계산하여 바(Bar) 텍스트 옆에 동적으로 출력
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         st.markdown(f'<div class="stage-bar sb-{idx_stage}">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
         
@@ -305,11 +302,29 @@ if st.session_state.view == 'main':
                         if row['특이사항']:
                             st.markdown(f"<p class='info-text-10px' style='color:#b45309; font-weight:700;'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
                         st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
+                        
+                        # --- [수정 구간] 대기 상태일 때 시작 버튼과 설비변경 기능 탑재 ---
                         if row['상태'] == '대기':
-                            if st.button("시작", key=f"s_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
-                                now_time = get_now_kst()
-                                supabase.table("product_history").update({"상태": "진행중", "시작시간": now_time}).eq("id", row['Row']).execute()
-                                st.rerun()
+                            btn_cols = st.columns(2)
+                            with btn_cols[0]:
+                                if st.button("시작", key=f"s_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
+                                    now_time = get_now_kst()
+                                    supabase.table("product_history").update({"상태": "진행중", "시작시간": now_time}).eq("id", row['Row']).execute()
+                                    st.rerun()
+                            with btn_cols[1]:
+                                with st.popover("변경", key=f"pop_chg_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
+                                    st.caption("이동할 설비 선택")
+                                    # 제품 마스터 등록 리스트에서 해당 제품/공정에 유효한 설비들만 필터링해서 가져옴
+                                    valid_machines = master_dict.get(row['제품'], {}).get(stage, [])
+                                    if not valid_machines:
+                                        valid_machines = MACHINE_MAP[stage] # 백업 예외 방지
+                                        
+                                    for nm in valid_machines:
+                                        if nm != row['설비']: # 현재 위치한 설비는 제외하고 출력
+                                            if st.button(nm, key=f"chg_{nm}_{row['제품']}_{row['Lot']}_{stage}_{machine}"):
+                                                supabase.table("product_history").update({"설비": nm}).eq("id", row['Row']).execute()
+                                                st.rerun()
+                                                
                         elif row['상태'] == '진행중':
                             if st.button("대기", key=f"p_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
                                 supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
