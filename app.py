@@ -50,6 +50,17 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 
 /* 버튼 간격 조정 (세로 배치용 미세 갭 설정) */
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 2px !important; }
+
+/* --- [정밀 조율] 오직 실시간현황판 블록 내부의 순정 버튼 높이만 절반(16px)으로 축소 --- */
+.main div[data-testid="stVerticalBlock"] div.stButton > button,
+.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button {
+    padding: 0px 4px !important; 
+    font-size: 11px !important; 
+    font-weight: 700 !important;
+    height: 16px !important; 
+    min-height: 16px !important; 
+    line-height: 1.0 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -287,11 +298,7 @@ else:
                 display_df = display_df[display_df['제품'] == sel_filter]
                 
             if only_live and not curr_df.empty:
-                # --- [마이크로 정밀 튜닝] 제품명 + 로트 + 공정명까지 3중 결합하여 진짜 '현재 살아있는 단계'만 추려냄 ---
-                # 실시간 현황판에 떠 있는 데이터의 고유 식별키 생성 (예: "페로스핀정10mg_25001_외관선별공정")
                 live_stage_combos = (curr_df['제품'].str.strip() + "_" + curr_df['Lot'].str.strip() + "_" + curr_df['공정'].str.strip()).unique().tolist()
-                
-                # 모든 이력 테이블 중에서 정확히 해당 제품, 로트, 공정명이 완벽히 일치하는(대기/진행중/지연) 행만 필터링
                 display_df = display_df[(display_df['제품'].str.strip() + "_" + display_df['Lot'].str.strip() + "_" + display_df['공정'].str.strip()).isin(live_stage_combos)]
         else:
             sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
