@@ -50,7 +50,7 @@ st.markdown("""
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* 블록 내부 일반 액션 버튼 스타일 (시작, 대기, 완료, 변경) */
+/* --- [완벽 해결] 블록 내부 일반 액션 버튼 스타일 강제 주입 --- */
 div.stButton > button, div[data-testid="stPopover"] button {
     padding: 4px 6px !important; 
     font-size: 13px !important; 
@@ -75,7 +75,6 @@ div.stButton > button:active, div[data-testid="stPopover"] button:active {
 }
 
 /* 상단 네비게이션용 4색 대형 균등 버튼 전용 강제 주입 코드 */
-.nav-box { width: 100%; padding: 0; margin-bottom: 25px; }
 div[data-testid="stHorizontalBlock"] .stButton button {
     height: 65px !important;
     font-size: 22px !important;
