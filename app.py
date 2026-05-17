@@ -187,10 +187,10 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget", index=["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"].index(st.session_state.reset_type))
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
-    is_duplicate = False
+is_duplicate = False
     if lot_in:
-        is_duplicate = (not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['공정'] == "과립공정")).any()) or \
-                       any(p['Lot'] == lot_in for p in st.session_state.pending_lots)
+        is_duplicate = (not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p) & (curr_df['공정'] == "과립공정")).any()) or \
+                       any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots)
                        
     f_stg = next((s for s in TARGET_STAGES if master_dict[sel_p][s]), TARGET_STAGES[0])
     f_machines = master_dict[sel_p][f_stg]
