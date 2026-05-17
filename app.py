@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (간섭 없는 깔끔한 순정 기반 고유 레이아웃 구조 적용) ---
+# --- 2. CSS 스타일 ---
 st.markdown("""
 <style>
 /* 헤더 설정 */
@@ -47,6 +47,9 @@ st.markdown("""
 
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
+
+/* 버튼 간격 조정 (세로 배치용 미세 갭 설정) */
+div[data-testid="stVerticalBlock"] > div { margin-bottom: 2px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -83,24 +86,7 @@ def get_now_kst():
 
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
-    
-    # --- [근본 해결] 빈 문자열("")이나 공백 콤마 데이터는 철저하게 걸러내어 진짜 유효 공정만 탑재하는 엔진 재구축 ---
-    master_dict = {}
-    for r in m_data.data:
-        p_name = str(r.get("제품명", "")).strip()
-        if not p_name: continue
-        
-        stage_map = {}
-        for s in TARGET_STAGES:
-            raw_val = str(r.get(s, "")).strip()
-            # 빈 칸이거나 콤마만 있거나 의미 없는 공백인 경우 완전히 배제
-            if not raw_val or raw_val == "None" or raw_val == "-":
-                stage_map[s] = []
-            else:
-                machines = [m.strip() for m in raw_val.split(',') if m.strip()]
-                stage_map[s] = machines
-        master_dict[p_name] = stage_map
-
+    master_dict = {str(r.get("제품명")).strip(): {s.strip(): [m.strip() for m in str(r.get(s, "")).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_data.data}
     h_data = supabase.table("product_history").select("*").execute()
     if not h_data.data:
         return master_dict, pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
@@ -118,7 +104,7 @@ if 'reset_lot' not in st.session_state: st.session_state.reset_lot = ""
 if 'reset_type' not in st.session_state: st.session_state.reset_type = "일반로트"
 if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 
-# --- 5. 헤더 및 네비게이션 바 ---
+# --- 5. 헤더 및 상단 메뉴 바 ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 
 nav_cols = st.columns(4) 
@@ -140,8 +126,6 @@ with st.sidebar:
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
     is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'].str.strip() == sel_p.strip())).any()) or any(p['Lot'] == lot_in and p['제품'].strip() == sel_p.strip() for p in st.session_state.pending_lots))
-    
-    # --- [정밀 수리] 설비 리스트가 실제로 채워져 있는 첫 번째 공정을 정확히 찾아냄 ---
     f_stg = next((s for s in TARGET_STAGES if master_dict.get(sel_p, {}).get(s)), TARGET_STAGES[0])
     f_machines = master_dict.get(sel_p, {}).get(f_stg, [])
     
@@ -216,37 +200,36 @@ if st.session_state.view == 'main':
                             st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
                             
                             if row['상태'] == '대기':
-                                b1, b2 = st.columns(2)
-                                if b1.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
+                                # --- [구조 전면 정렬] 시작, 변경 버튼을 가로(st.columns)에서 세로(st.write 순차배치)로 변경 ---
+                                if st.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
                                     supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
                                     st.rerun()
-                                with b2.popover("변경", use_container_width=True):
+                                    
+                                with st.popover("변경", use_container_width=True):
                                     valid_machines = master_dict.get(str(row['제품']).strip(), {}).get(stage, [])
                                     for nm in valid_machines:
                                         nm_clean = nm.strip()
                                         if nm_clean.upper() != str(row['설비']).strip().upper() and st.button(nm_clean, key=f"ch_act_{row['Row']}_{nm_clean}", use_container_width=True): 
                                             supabase.table("product_history").update({"설비": nm_clean}).eq("id", row['Row']).execute()
                                             st.rerun()
+                                            
                             elif row['상태'] == '진행중':
                                 if st.button("대기", key=f"pause_act_{row['Row']}", use_container_width=True): 
                                     supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                     st.rerun()
                                 
-                                # --- [추적 정밀 수리] 실제 설비 리스트가 등록된 공정 단계만 다음 공정으로 타겟 지정 ---
                                 n_stg = None
                                 prod_name = str(row['제품']).strip()
                                 current_index = TARGET_STAGES.index(stage)
                                 
                                 for i in range(current_index + 1, len(TARGET_STAGES)):
                                     check_stage = TARGET_STAGES[i].strip()
-                                    # 해당 공정에 실제 설비가 들어있는 리스트가 존재할 때만 매칭 인정
                                     if master_dict.get(prod_name, {}).get(check_stage):
                                         n_stg = check_stage
                                         break
                                         
                                 n_machines = master_dict.get(prod_name, {}).get(n_stg, []) if n_stg else []
                                 
-                                # --- [유실 완벽 방어] 다음 공정 인서트 연산 후 기존 기록 최종 업데이트 단행 ---
                                 if len(n_machines) > 1:
                                     with st.popover("완료", use_container_width=True):
                                         for nm in n_machines:
