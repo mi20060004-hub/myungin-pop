@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (스트림릿 고유의 단추 외부 틀까지 완벽 분쇄 압착) ---
+# --- 2. CSS 스타일 (스트림릿 버튼 내부 패딩벽 완전 분쇄 압착) ---
 st.markdown("""
 <style>
 /* 헤더 설정 */
@@ -52,9 +52,9 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 2px !important; }
 
 /* =========================================================================
-   [초정밀 완전 결착 패치] 오직 실시간현황판 블록 내부 버튼의 외부 포장재 틀까지 16px 압축
+   [최종 보정 패치] 버튼 내부/외부 포장재 및 컴포넌트 패딩까지 완벽 압착
    ========================================================================= */
-/* 1. 스트림릿이 강제로 집어넣는 버튼 외부 감싸개 div 틀의 두께 원천 붕괴 */
+/* 1. 컴포넌트가 배치되는 수직 블록 컨테이너의 간격 마진 최소화 */
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] {
     min-height: 16px !important;
@@ -63,7 +63,7 @@ div[data-testid="stVerticalBlock"] > div { margin-bottom: 2px !important; }
     padding: 0 !important;
 }
 
-/* 2. 팝업 단추를 포장하는 첫 번째 자식 레이어 높이 제한 */
+/* 2. 팝업 단추를 감싸는 첫 번째 컨테이너 프레임 강제 고정 */
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child {
     min-height: 16px !important;
     height: 16px !important;
@@ -71,17 +71,18 @@ div[data-testid="stVerticalBlock"] > div { margin-bottom: 2px !important; }
     width: 100% !important;
 }
 
-/* 3. 최종 알맹이 단추 자체의 규격 16px 철저 고정 및 수평 정렬 */
+/* 3. 알맹이 단추의 테마 패딩벽을 허물고 16px 높이 실현 */
 .main div[data-testid="stVerticalBlock"] div.stButton > button,
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button {
-    padding: 0px 4px !important; 
+    padding: 0px !important; /* 내부 기본 상하좌우 여백을 완벽하게 삭제 */
+    margin: 0px !important;
     font-size: 11px !important; 
     font-weight: 700 !important;
     height: 16px !important; 
     min-height: 16px !important; 
     max-height: 16px !important;
-    line-height: 14px !important;
-    display: inline-flex !important;
+    line-height: 16px !important; /* 텍스트가 정중앙에 걸리도록 정렬 */
+    display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     box-sizing: border-box !important;
