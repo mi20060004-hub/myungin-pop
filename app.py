@@ -199,7 +199,7 @@ with st.sidebar:
         if len(f_machines) > 1:
             with st.popover("➕ 대기열 추가 (설비 선택)", use_container_width=True):
                 for m in f_machines:
-                    if st.button(m, key=f"init_{m}_{lot_in}"):
+                    if st.button(m, key=f"init_{m}_{sel_p}_{lot_in}"):
                         handle_add_queue(sel_p, lot_in, lot_type, note_in, m)
                         st.rerun()
         else:
@@ -253,15 +253,15 @@ if st.session_state.view == 'main':
                             
                         st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
                         
-                        # --- 제어 버튼 영역 ---
+                        # --- 제어 버튼 영역 (제품명을 key 조합에 포함하여 중복 완전 방지) ---
                         if row['상태'] == '대기':
-                            if st.button("시작", key=f"s_{row['Lot']}_{stage}_{machine}", use_container_width=True):
+                            if st.button("시작", key=f"s_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
                                 now_time = get_now_kst()
                                 supabase.table("product_history").update({"상태": "진행중", "시작시간": now_time}).eq("id", row['Row']).execute()
                                 st.rerun()
                                 
                         elif row['상태'] == '진행중':
-                            if st.button("대기", key=f"p_{row['Lot']}_{stage}_{machine}", use_container_width=True):
+                            if st.button("대기", key=f"p_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
                                 supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                 st.rerun()
                                 
@@ -278,7 +278,7 @@ if st.session_state.view == 'main':
                                 with st.popover("완료", use_container_width=True):
                                     st.caption("다음 공정 설비 선택")
                                     for nm in next_machines:
-                                        if st.button(nm, key=f"next_{nm}_{row['Lot']}_{stage}"):
+                                        if st.button(nm, key=f"next_{nm}_{row['제품']}_{row['Lot']}_{stage}"):
                                             now_time = get_now_kst()
                                             try:
                                                 start_dt = datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M')
@@ -296,7 +296,7 @@ if st.session_state.view == 'main':
                                             }).execute()
                                             st.rerun()
                             else:
-                                if st.button("완료", key=f"e_{row['Lot']}_{stage}_{machine}", use_container_width=True):
+                                if st.button("완료", key=f"e_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
                                     now_time = get_now_kst()
                                     try:
                                         start_dt = datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M')
@@ -317,7 +317,7 @@ if st.session_state.view == 'main':
                                     st.rerun()
                                     
                         elif row['상태'] == '지연':
-                            if st.button("재시작", key=f"r_{row['Lot']}_{stage}_{machine}", use_container_width=True):
+                            if st.button("재시작", key=f"r_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
                                 supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
                                 st.rerun()
 else:
