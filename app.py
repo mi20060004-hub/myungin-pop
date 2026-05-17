@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit st
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from supabase import create_client, Client
@@ -60,11 +60,11 @@ div.stButton > button, div[data-testid="stPopover"] button {
     width: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 
-/* --- [완벽 교정] 최신 stColumn 껍질 내부의 모든 네비게이션 단추 서식 강제 장악 --- */
+/* 최신 stColumn 껍질 내부의 모든 네비게이션 단추 서식 강제 장악 */
 div[data-testid="stColumn"] button {
     height: 65px !important;
     font-size: 22px !important;
-    font-weight: 900 !important; /* 최고 두께 보장 */
+    font-weight: 900 !important; 
     border-radius: 10px !important;
     letter-spacing: -0.5px !important;
     white-space: nowrap !important;
@@ -72,40 +72,26 @@ div[data-testid="stColumn"] button {
     transition: all 0.05s ease-in-out !important;
 }
 
-/* 최신 가로 정렬 레이어 기준 4색 다이렉트 컬러 매핑 */
-/* 1. 실시간 현황판 (세련된 로열 블루) */
+/* 4색 다이렉트 컬러 매핑 */
 div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(1) button {
     background-color: #2563eb !important; color: white !important; 
     border: 2px solid #1e40af !important; box-shadow: 0 6px 0px #1e40af !important;
 }
-/* 2. 완료된 공정 확인 (세련된 에메랄드 그린) */
 div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(2) button {
     background-color: #059669 !important; color: white !important; 
     border: 2px solid #047857 !important; box-shadow: 0 6px 0px #047857 !important;
 }
-/* 3. 완료된 공정 확인(선별) (세련된 다크 앰버 오렌지) */
 div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(3) button {
     background-color: #d97706 !important; color: white !important; 
     border: 2px solid #b45309 !important; box-shadow: 0 6px 0px #b45309 !important;
 }
-/* 4. 모든 공정 이력 확인 (세련된 럭셔리 퍼플) */
 div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(4) button {
     background-color: #7c3aed !important; color: white !important; 
     border: 2px solid #6d28d9 !important; box-shadow: 0 6px 0px #6d28d9 !important;
 }
 
-/* 호버 시 선명도 강화 */
-div[data-testid="stColumn"] button:hover {
-    filter: brightness(1.1) !important;
-    color: white !important;
-}
-
-/* 입체감 있는 물리 버튼 클릭 효과 */
-div[data-testid="stColumn"] button:active {
-    transform: translateY(4px) !important;
-    box-shadow: 0 2px 0px rgba(0,0,0,0.2) !important;
-}
-
+div[data-testid="stColumn"] button:hover { filter: brightness(1.1) !important; color: white !important; }
+div[data-testid="stColumn"] button:active { transform: translateY(4px) !important; box-shadow: 0 2px 0px rgba(0,0,0,0.2) !important; }
 div[data-testid="stPopover"] svg { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -164,7 +150,7 @@ if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 # --- 5. 헤더 및 균등 대형 네비게이션 바 ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 
-nav_cols = st.columns([1, 1, 1, 1]) # 4개 버튼 넓이 완벽 균등 유지
+nav_cols = st.columns([1, 1, 1, 1])
 with nav_cols[0]:
     if st.button("실시간 현황판", key="nav_1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
 with nav_cols[1]:
@@ -223,7 +209,7 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-# --- 7. 메인 콘텐츠 및 제목 연동 (원본 로직 완벽 보존) ---
+# --- 7. 메인 콘텐츠 및 제목 연동 ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
@@ -249,10 +235,15 @@ if st.session_state.view == 'main':
                                     if nm != row['설비'] and st.button(nm, key=f"ch_{row['Row']}_{nm}"): supabase.table("product_history").update({"설비": nm}).eq("id", row['Row']).execute(); st.rerun()
                         elif row['상태'] == '진행중':
                             if st.button("대기", key=f"p_{row['Row']}"): supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute(); st.rerun()
+                            
+                            # --- [추적 오류 완벽 보정] 비어있는 중간 공정이 있어도 끝까지 스캔하여 다음 공정을 찾아냄 ---
                             n_stg = None
                             for i in range(TARGET_STAGES.index(stage) + 1, len(TARGET_STAGES)):
-                                if master_dict[row['제품']][TARGET_STAGES[i]]: n_stg = TARGET_STAGES[i]; break
-                            n_machines = master_dict[row['제품']][n_stg] if n_stg else []
+                                if master_dict.get(row['제품'], {}).get(TARGET_STAGES[i]): 
+                                    n_stg = TARGET_STAGES[i]
+                                    break # 설비가 지정된 유효한 다음 공정을 찾으면 중단
+                                    
+                            n_machines = master_dict.get(row['제품'], {}).get(n_stg, []) if n_stg else []
                             if len(n_machines) > 1:
                                 with st.popover("완료"):
                                     for nm in n_machines:
@@ -268,7 +259,6 @@ if st.session_state.view == 'main':
                         elif row['상태'] == '지연':
                             if st.button("재시작", key=f"r_{row['Row']}"): supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute(); st.rerun()
 else:
-    # 요청하신 버튼 문구와 상단 헤더 제목 100% 매칭
     title_map = {"history": "완료된 공정 확인", "selection": "완료된 공정 확인(선별)", "all_history": "모든 공정 이력 확인"}
     st.header(f"📋 {title_map[st.session_state.view]}")
     
