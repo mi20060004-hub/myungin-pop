@@ -263,7 +263,7 @@ with st.sidebar:
 # --- 7. 메인 화면 ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
-        # [수정] 실시간 각 대공정별 활성화된 건수를 계산하여 바(Bar) 텍스트 옆에 동적으로 출력
+        # 실시간 각 대공정별 활성화된 건수를 계산하여 바(Bar) 텍스트 옆에 동적으로 출력
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         st.markdown(f'<div class="stage-bar sb-{idx_stage}">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
         
@@ -271,9 +271,9 @@ if st.session_state.view == 'main':
         for idx, machine in enumerate(MACHINE_MAP[stage]):
             with cols[idx]:
                 st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
-                m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설bi'] == machine.strip())] if not curr_df.empty else pd.DataFrame()
                 
-                # 오타 방지용 컬럼 안전 매핑 복구
+                # [오타 완벽 교정] '설bi'를 진짜 컬럼명인 '설비'로 완벽하게 수정했습니다.
+                m_items = pd.DataFrame()
                 if not curr_df.empty and '설비' in curr_df.columns:
                     m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())]
                     
