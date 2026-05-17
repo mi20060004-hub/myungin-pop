@@ -119,7 +119,6 @@ def get_now_kst():
     return (datetime.now(timezone(timedelta(hours=9)))).strftime('%Y-%m-%d %H:%M')
 
 def load_data():
-    # 마스터 데이터 로드
     m_data = supabase.table("product_master").select("*").execute()
     master_dict = {}
     for r in m_data.data:
@@ -129,7 +128,6 @@ def load_data():
             m_list = r.get(stage, "")
             master_dict[p_name][stage] = [m.strip() for m in str(m_list).split(',') if m.strip()] if m_list else []
 
-    # 이력 데이터 로드
     h_data = supabase.table("product_history").select("*").execute()
     if not h_data.data:
         curr_df = pd.DataFrame(columns=['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비', 'id'])
@@ -187,7 +185,7 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget", index=["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"].index(st.session_state.reset_type))
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
-is_duplicate = False
+    is_duplicate = False
     if lot_in:
         is_duplicate = (not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p) & (curr_df['공정'] == "과립공정")).any()) or \
                        any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots)
