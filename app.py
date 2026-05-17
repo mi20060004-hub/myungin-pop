@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (스트림릿 버튼 내부 패딩벽 완전 분쇄 압착) ---
+# --- 2. CSS 스타일 (스트림릿 고유의 버튼 상하단 정렬 한계선까지 완벽 철거) ---
 st.markdown("""
 <style>
 /* 헤더 설정 */
@@ -52,36 +52,41 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 2px !important; }
 
 /* =========================================================================
-   [최종 보정 패치] 버튼 내부/외부 포장재 및 컴포넌트 패딩까지 완벽 압착
+   [스트림릿 버튼 테마 최종 굴복 CSS] 
+   알맹이, 외부 포장 틀, 정렬 박스의 모든 높이 및 여백 규칙을 16px로 강제 통일
    ========================================================================= */
-/* 1. 컴포넌트가 배치되는 수직 블록 컨테이너의 간격 마진 최소화 */
-.main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] {
+/* 1. 버튼 컴포넌트 전체를 아우르는 레이아웃 그리드 틀을 16px로 수축 */
+.main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"] {
     min-height: 16px !important;
     height: 16px !important;
-    margin-bottom: 3px !important;
-    padding: 0 !important;
+    margin: 0px 0px 3px 0px !important;
+    padding: 0px !important;
 }
 
-/* 2. 팝업 단추를 감싸는 첫 번째 컨테이너 프레임 강제 고정 */
+/* 2. 스트림릿 고유 버튼/팝업 div 틀 강제 다운사이징 */
+.main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
+.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child {
     min-height: 16px !important;
     height: 16px !important;
+    max-height: 16px !important;
+    margin: 0px !important;
+    padding: 0px !important;
     display: flex !important;
-    width: 100% !important;
+    align-items: center !important;
 }
 
-/* 3. 알맹이 단추의 테마 패딩벽을 허물고 16px 높이 실현 */
+/* 3. 단추 알맹이 자체의 뚱뚱한 순정 padding과 상하 크기를 16px로 철저히 강제 정렬 */
 .main div[data-testid="stVerticalBlock"] div.stButton > button,
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button {
-    padding: 0px !important; /* 내부 기본 상하좌우 여백을 완벽하게 삭제 */
+    padding: 0px !important;
     margin: 0px !important;
     font-size: 11px !important; 
     font-weight: 700 !important;
     height: 16px !important; 
     min-height: 16px !important; 
     max-height: 16px !important;
-    line-height: 16px !important; /* 텍스트가 정중앙에 걸리도록 정렬 */
+    line-height: 14px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
