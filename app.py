@@ -6,22 +6,25 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (상단 통합 헤더 및 입체 버튼 디자인 완벽 유지) ---
+# --- 2. CSS 스타일 (상단 고정 헤더 및 입체 버튼 디자인 완벽 유지) ---
 st.markdown("""
 <style>
-/* 상단 고정 파란색 바 */
-.fixed-header {
+/* [핵심 수정] 타이틀과 버튼 3개를 통째로 가두고 상단에 고정하는 진짜 헤더 박스 */
+.fixed-header-container {
     position: fixed; 
     top: 0; 
     left: 0; 
     right: 0; 
     height: 70px; 
     background-color: #1e3a8a; 
-    z-index: 999998; 
+    z-index: 999999; /* 최상단 레이어 보장 */
     box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    padding: 0 30px;
 }
 
-/* 메인 본문 탑 마진 확보 (헤더에 안 가려지게 조절) */
+/* 메인 본문 영역이 고정 헤더에 파묻히지 않도록 탑 마진 확보 */
 .main .block-container { 
     padding-top: 95px !important; 
 }
@@ -99,7 +102,7 @@ div.stButton > button:active, div.stPopover > button:active {
     box-shadow: 0 1px 0px #1e3a8a !important;
 }
 
-/* 스트림릿 기본 불필요 상단 여백 제거 */
+/* 스트림릿 기본 불필요 상단 검은바 제거 */
 [data-testid="stHeader"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
@@ -176,16 +179,13 @@ def handle_add_queue(p_name, lot, l_type, note, machine):
         st.session_state.reset_type = "일반로트"
         st.session_state.reset_note = ""
 
-# --- 5. [완성] 고정 헤더 배경 배치 및 그 내부에 대시보드 버튼 가로 정렬 ---
-st.markdown('<div class="fixed-header"></div>', unsafe_allow_html=True)
+# --- 5. [완전 해결] fixed-header-container 박스를 열고 그 안에 제목과 스트림릿 컬럼을 가두어 고정 ---
+st.markdown('<div class="fixed-header-container">', unsafe_allow_html=True)
 
-# 헤더용 레이아웃 스크립트 컨테이너
 header_floating_zone = st.container()
 with header_floating_zone:
-    st.markdown('<div style="position: fixed; top: 15px; left: 30px; right: 30px; z-index: 999999; display: flex; align-items: center; justify-content: space-between;">', unsafe_allow_html=True)
-    
-    # 좌우 구조 분할을 위한 대형 컬럼
-    h_cols = st.columns([4.2, 1.5, 1.8, 2.3, 2.2])
+    # 제목과 버튼들이 해상도에 맞춰 나란히 정렬되도록 컬럼 할당
+    h_cols = st.columns([4.2, 1.5, 1.8, 2.3, 0.2])
     with h_cols[0]:
         st.markdown('<p style="color: white !important; font-size: 28px !important; font-weight: 800; margin: 0; line-height: 1.2; white-space: nowrap;">🏭 명인제약 생산 시점 관리</p>', unsafe_allow_html=True)
     with h_cols[1]:
@@ -200,8 +200,8 @@ with header_floating_zone:
         if st.button("🔍 완료된 공정 확인(선별)", key="btn_nav_selection"):
             st.session_state.view = 'selection'
             st.rerun()
-            
-    st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True) # 고정 박스 닫기
 
 # --- 6. 사이드바 ---
 with st.sidebar:
