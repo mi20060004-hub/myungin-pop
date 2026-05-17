@@ -48,18 +48,11 @@ st.markdown("""
 .bg-progress { background-color: #ef4444; }
 .bg-paused { background-color: #f59e0b; }
 
-.card-text-10px { font-size: 10px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
-.card-text-l-10px { font-size: 10px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
+/* [수정 완료] 제품명, 제조번호, 로트유형의 글자 크기를 모두 15px로 상향 통일 */
+.card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
+.card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
-
-.lot-type-highlight {
-    font-size: 10px !important;
-    color: #ef4444 !important;
-    font-weight: 800 !important;
-    text-align: center;
-    margin: 1px 0;
-    line-height: 1.2;
-}
+.lot-type-highlight { font-size: 15px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 
 /* 버튼 글자 크기 15px 및 입체 섀도우 유지 */
 div.stButton > button, div.stPopover > button {
@@ -161,7 +154,6 @@ def handle_add_queue(p_name, lot, l_type, note, machine):
 
 # --- 5. 헤더 및 네비게이션 버튼 가로 정렬 ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
-
 nav_cols = st.columns([1.5, 1.8, 2.2, 5])
 with nav_cols[0]:
     if st.button("실시간 현황판", key="btn_nav_main"):
@@ -214,13 +206,11 @@ with st.sidebar:
         st.write("---")
         st.subheader("📝 투입 대기 리스트")
         
-        # 개별 대기 품목 나열 및 삭제 기능
         for idx, p in enumerate(st.session_state.pending_lots):
             del_cols = st.columns([8, 2])
             with del_cols[0]:
                 st.info(f"{idx+1}. {p['제품']} | {p['Lot']} ({p['설비']})")
             with del_cols[1]:
-                # 품목별 고유 키를 주어 개별 취소(삭제) 처리
                 if st.button("❌", key=f"del_item_{idx}_{p['Lot']}_{p['제품']}"):
                     st.session_state.pending_lots.pop(idx)
                     st.rerun()
