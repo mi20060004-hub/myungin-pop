@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (버튼 크기 축소 및 스타일 통일 업그레이드) ---
+# --- 2. CSS 스타일 (버튼 크기 축소 및 스타일 통일 완전 해결) ---
 st.markdown("""
 <style>
 .fixed-header {
@@ -74,13 +74,15 @@ st.markdown("""
 /* 완료 이력 표 16px 유지 */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th {font-size: 16px !important; }
 
-/* [핵심 수정] 버튼 스타일 최적화: 글자 크기 13px(2px 축소) 및 패딩/높이 축소 */
+/* [완벽 수리] 시작 버튼과 팝업 변경 버튼의 CSS 구조 일원화 및 글자 크기 13px 강제 세팅 */
 div.stButton > button, div.stPopover > button {
-    padding: 2px 8px !important; 
+    padding: 2px 4px !important; 
     font-size: 13px !important; 
     font-weight: 700 !important;
-    min-height: 28px !important; 
-    line-height: 1.2 !important;
+    height: 28px !important; 
+    min-height: 28px !important;
+    max-height: 28px !important;
+    line-height: 1 !important;
     background-color: #ffffff !important;
     color: #1e3a8a !important;
     border: 2px solid #1e3a8a !important;
@@ -88,18 +90,29 @@ div.stButton > button, div.stPopover > button {
     border-radius: 6px !important;
     transition: all 0.05s ease-in-out;
     width: 100% !important; 
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
 }
 
-/* 팝업 내부의 '변경' 버튼 레이블 텍스트 정렬 */
-div.stPopover > button > div {
-    display: flex;
-    justify-content: center;
-    width: 100%;
+/* 팝업 버튼 내부의 기본 테두리 및 여백 프레임 강제 무력화 */
+div.stPopover > div:first-child {
+    width: 100% !important;
+}
+div.stPopover > button {
+    border: 2px solid #1e3a8a !important;
+}
+
+/* 팝업 버튼 오른쪽의 내림 화살표 아이콘(v) 제거하여 일반 버튼처럼 보이게 함 */
+div.stPopover svg {
+    display: none !important;
 }
 
 div.stButton > button:hover, div.stPopover > button:hover {
     background-color: #f8fafc !important;
-    border: 2px solid #1e3a8a !important;
+    color: #1e3a8a !important;
 }
 div.stButton > button:active, div.stPopover > button:active {
     transform: translateY(2px) !important;
@@ -315,7 +328,6 @@ if st.session_state.view == 'main':
                                     supabase.table("product_history").update({"상태": "진행중", "시작시간": now_time}).eq("id", row['Row']).execute()
                                     st.rerun()
                             with btn_cols[1]:
-                                # [변경] 버튼을 위한 Popover (디자인은 시작 버튼과 통일됨)
                                 with st.popover("변경", key=f"pop_chg_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
                                     st.caption("이동 설비 선택")
                                     valid_machines = master_dict.get(row['제품'], {}).get(stage, [])
