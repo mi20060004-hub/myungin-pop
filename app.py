@@ -86,7 +86,24 @@ def get_now_kst():
 
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
-    master_dict = {str(r.get("제품명")).strip(): {s.strip(): [m.strip() for m in str(r.get(s, "")).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_data.data}
+    
+    # --- [근본 해결] split 연산 후 유령 빈칸('') 찌꺼기를 원천 배제하는 정밀 필터 적용 ---
+    master_dict = {}
+    for r in m_data.data:
+        p_name = str(r.get("제품명", "")).strip()
+        if not p_name: continue
+        
+        stage_map = {}
+        for s in TARGET_STAGES:
+            raw_val = str(r.get(s, "")).strip()
+            if not raw_val or raw_val.upper() == "NONE" or raw_val == "-":
+                stage_map[s] = []
+            else:
+                # 공백 문자를 완전히 거른 유효 설비 리스트만 빌드 (유령 리스트 방지)
+                machines = [m.strip() for m in raw_val.split(',') if m.strip()]
+                stage_map[s] = machines
+        master_dict[p_name] = stage_map
+
     h_data = supabase.table("product_history").select("*").execute()
     if not h_data.data:
         return master_dict, pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
@@ -126,6 +143,8 @@ with st.sidebar:
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
     is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'].str.strip() == sel_p.strip())).any()) or any(p['Lot'] == lot_in and p['제품'].strip() == sel_p.strip() for p in st.session_state.pending_lots))
+    
+    # --- [추적 정밀 수리] 설비 목록이 실제로 담겨있는 최초 공정 단계를 완벽히 검출 ---
     f_stg = next((s for s in TARGET_STAGES if master_dict.get(sel_p, {}).get(s)), TARGET_STAGES[0])
     f_machines = master_dict.get(sel_p, {}).get(f_stg, [])
     
@@ -200,7 +219,6 @@ if st.session_state.view == 'main':
                             st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
                             
                             if row['상태'] == '대기':
-                                # --- [구조 전면 정렬] 시작, 변경 버튼을 가로(st.columns)에서 세로(st.write 순차배치)로 변경 ---
                                 if st.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
                                     supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
                                     st.rerun()
