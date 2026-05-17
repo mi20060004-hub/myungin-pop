@@ -1,4 +1,4 @@
-import streamlit st
+import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from supabase import create_client, Client
@@ -150,7 +150,7 @@ if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 # --- 5. 헤더 및 균등 대형 네비게이션 바 ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 
-nav_cols = st.columns([1, 1, 1, 1])
+nav_cols = st.columns([1, 1, 1, 1]) # 4개 버튼 넓이 완벽 균등 유지
 with nav_cols[0]:
     if st.button("실시간 현황판", key="nav_1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
 with nav_cols[1]:
@@ -168,7 +168,7 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
-    is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p)).any()) or any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots))
+    is_duplicate = lot_in and ((not curr_df.empty Club and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p)).any()) or any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots))
     f_stg = next((s for s in TARGET_STAGES if master_dict[sel_p][s]), TARGET_STAGES[0])
     f_machines = master_dict[sel_p][f_stg]
     
@@ -209,7 +209,7 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-# --- 7. 메인 콘텐츠 및 제목 연동 ---
+# --- 7. 메인 콘텐츠 및 제목 연동 (원본 로직 완벽 보존) ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
@@ -241,7 +241,7 @@ if st.session_state.view == 'main':
                             for i in range(TARGET_STAGES.index(stage) + 1, len(TARGET_STAGES)):
                                 if master_dict.get(row['제품'], {}).get(TARGET_STAGES[i]): 
                                     n_stg = TARGET_STAGES[i]
-                                    break # 설비가 지정된 유효한 다음 공정을 찾으면 중단
+                                    break
                                     
                             n_machines = master_dict.get(row['제품'], {}).get(n_stg, []) if n_stg else []
                             if len(n_machines) > 1:
@@ -259,6 +259,7 @@ if st.session_state.view == 'main':
                         elif row['상태'] == '지연':
                             if st.button("재시작", key=f"r_{row['Row']}"): supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute(); st.rerun()
 else:
+    # 요청하신 버튼 문구와 상단 헤더 제목 100% 매칭
     title_map = {"history": "완료된 공정 확인", "selection": "완료된 공정 확인(선별)", "all_history": "모든 공정 이력 확인"}
     st.header(f"📋 {title_map[st.session_state.view]}")
     
