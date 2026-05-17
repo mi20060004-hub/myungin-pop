@@ -287,12 +287,12 @@ else:
                 display_df = display_df[display_df['제품'] == sel_filter]
                 
             if only_live and not curr_df.empty:
-                # --- [정밀 튜닝] Lot 번호 단독 비교에서 -> (제품명 + Lot 번호) 복합 결합 비교 체계로 대폭 개편 ---
-                # 실시간 구동 중인 고유한 '제품명_Lot' 마킹 조합 리스트를 생성
-                live_combos = (curr_df['제품'].str.strip() + "_" + curr_df['Lot'].str.strip()).unique().tolist()
+                # --- [마이크로 정밀 튜닝] 제품명 + 로트 + 공정명까지 3중 결합하여 진짜 '현재 살아있는 단계'만 추려냄 ---
+                # 실시간 현황판에 떠 있는 데이터의 고유 식별키 생성 (예: "페로스핀정10mg_25001_외관선별공정")
+                live_stage_combos = (curr_df['제품'].str.strip() + "_" + curr_df['Lot'].str.strip() + "_" + curr_df['공정'].str.strip()).unique().tolist()
                 
-                # 전체 이력 테이블에서도 동일하게 조합 문자열을 가공하여 매칭 여부 판정
-                display_df = display_df[(display_df['제품'].str.strip() + "_" + display_df['Lot'].str.strip()).isin(live_combos)]
+                # 모든 이력 테이블 중에서 정확히 해당 제품, 로트, 공정명이 완벽히 일치하는(대기/진행중/지연) 행만 필터링
+                display_df = display_df[(display_df['제품'].str.strip() + "_" + display_df['Lot'].str.strip() + "_" + display_df['공정'].str.strip()).isin(live_stage_combos)]
         else:
             sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
             if sel_filter != "전체 보기": 
