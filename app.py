@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (메뉴바 및 내부 모든 버튼 커스텀) ---
+# --- 2. CSS 스타일 (상단 메뉴바와 블록 내부 버튼 디자인 완벽 분리 격리) ---
 st.markdown("""
 <style>
 /* 헤더 설정 */
@@ -50,10 +50,9 @@ st.markdown("""
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* 블록 내부 모든 조작 버튼 스타일 강제 주입 */
-.main div.stButton > button, 
-.main div[data-testid="stPopover"] button,
-div[data-testid="stVerticalBlock"] div.stButton > button {
+/* --- [격리 수리] 블록 내부 컴팩트 버튼 스타일 (시작, 대기, 완료 팝업 내부 설비 단추) --- */
+.main div[data-testid="stVerticalBlock"] div.stButton > button,
+.main div[data-testid="stPopover"] button {
     padding: 4px 6px !important; 
     font-size: 13px !important; 
     font-weight: 700 !important;
@@ -66,20 +65,17 @@ div[data-testid="stVerticalBlock"] div.stButton > button {
     box-shadow: 0 4px 0px #1e3a8a !important; 
     border-radius: 6px !important; 
     transition: all 0.05s ease-in-out !important;
-    width: 100% !important; 
-    display: flex !important; 
-    align-items: center !important; 
-    justify-content: center !important;
+    width: 100% !important;
+    display: flex !important; align-items: center !important; justify-content: center !important;
 }
-
-.main div.stButton > button:active, 
+.main div[data-testid="stVerticalBlock"] div.stButton > button:active,
 .main div[data-testid="stPopover"] button:active {
     transform: translateY(3px) !important;
     box-shadow: 0 1px 0px #1e3a8a !important;
 }
 
-/* 상단 네비게이션용 4색 대형 균등 버튼 전용 강제 주입 코드 */
-div[data-testid="stHorizontalBlock"] .stButton button {
+/* --- [완벽 제한] 오직 최상단 가로 행 메뉴바 버튼에만 대형 디자인 주입 --- */
+div[data-testid="stHorizontalBlock"] > div .stButton button {
     height: 65px !important;
     font-size: 22px !important;
     font-weight: 900 !important; 
@@ -89,7 +85,7 @@ div[data-testid="stHorizontalBlock"] .stButton button {
     display: flex !important; align-items: center !important; justify-content: center !important;
 }
 
-/* 상단 가로정렬 4개 버튼에 각각 색상 다이렉트 주입 */
+/* 상단 가로정렬 4개 버튼 독점적 색상 주입 */
 div[data-testid="stHorizontalBlock"] > div:nth-child(1) .stButton button {
     background-color: #2563eb !important; color: white !important; border: 2px solid #1e40af !important; box-shadow: 0 6px 0px #1e40af !important;
 }
@@ -103,8 +99,8 @@ div[data-testid="stHorizontalBlock"] > div:nth-child(4) .stButton button {
     background-color: #7c3aed !important; color: white !important; border: 2px solid #6d28d9 !important; box-shadow: 0 6px 0px #6d28d9 !important;
 }
 
-div[data-testid="stHorizontalBlock"] .stButton button:hover { filter: brightness(1.1) !important; color: white !important; }
-div[data-testid="stHorizontalBlock"] .stButton button:active { transform: translateY(4px) !important; box-shadow: 0 2px 0px rgba(0,0,0,0.2) !important; }
+div[data-testid="stHorizontalBlock"] > div .stButton button:hover { filter: brightness(1.1) !important; color: white !important; }
+div[data-testid="stHorizontalBlock"] > div .stButton button:active { transform: translateY(4px) !important; box-shadow: 0 2px 0px rgba(0,0,0,0.2) !important; }
 div[data-testid="stPopover"] svg { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -272,7 +268,6 @@ if st.session_state.view == 'main':
                                     supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                     st.rerun()
                                 
-                                # --- [정밀 교정 완료] 공백이 모두 청소된 마스터 본문으로 완벽 추적 연산 ---
                                 n_stg = None
                                 prod_name = str(row['제품']).strip()
                                 current_index = TARGET_STAGES.index(stage)
