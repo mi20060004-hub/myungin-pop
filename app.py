@@ -6,30 +6,18 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (사용자 지정 폰트 크기 및 입체 버튼 스타일 100% 유지) ---
+# --- 2. CSS 스타일 (글자 크기, 입체 버튼 및 여백 최적화) ---
 st.markdown("""
 <style>
-.fixed-header {
-    position: fixed; 
-    top: 0; 
-    left: 0; 
-    right: 0; 
-    height: 66px; 
-    background-color: #1e3a8a; 
-    z-index: 999998; 
-    display: flex; 
-    align-items: center; 
-    padding: 0 30px; 
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
-}
+/* 최상단 메인 타이틀 텍스트 스타일 (크기 28px 유지) */
 .main-title-text {
-    color: white !important; 
+    color: #1e3a8a !important; 
     font-size: 28px !important; 
     font-weight: 800; 
     margin: 0; 
+    line-height: 1.2;
     white-space: nowrap;
 }
-.main .block-container { padding-top: 100px !important; }
 
 .stage-bar {
     color: white; 
@@ -79,12 +67,12 @@ st.markdown("""
     line-height: 1.2;
 }
 
-/* 버튼 글자 크기 15px 및 입체 섀도우 유지 */
+/* 버튼 글자 크기 15px 및 입체 섀도우 완벽 유지 */
 div.stButton > button, div.stPopover > button {
     padding: 4px 10px !important; 
     font-size: 15px !important; 
     font-weight: 700 !important;
-    min-height: 32px !important; 
+    min-height: 34px !important; 
     line-height: 1.2 !important;
     background-color: #ffffff !important;
     color: #1e3a8a !important;
@@ -103,10 +91,8 @@ div.stButton > button:active, div.stPopover > button:active {
     box-shadow: 0 1px 0px #1e3a8a !important;
 }
 
-/* 헤더 고정 컨테이너 내부의 스트림릿 컬럼 여백 조정 */
-[data-testid="stHeaderBlock"] {
-    display: none;
-}
+/* 스트림릿 기본 상단 바 여백 최적화 */
+.main .block-container { padding-top: 25px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -182,30 +168,27 @@ def handle_add_queue(p_name, lot, l_type, note, machine):
         st.session_state.reset_type = "일반로트"
         st.session_state.reset_note = ""
 
-# --- 5. [수정] 상단 헤더 영역 내부에 네비게이션 버튼을 가로 정렬로 결합 ---
-st.markdown('<div class="fixed-header" id="dynamic-header"></div>', unsafe_allow_html=True)
-
-# 헤더용 absolute 레이아웃 트릭 컨테이너 생성
-header_zone = st.container()
-with header_zone:
-    # 화면 최상단 고정 바 내부에 요소를 배치하기 위해 마진 역산 컬럼 생성
-    st.markdown('<div style="position: fixed; top: 15px; left: 30px; right: 30px; z-index: 999999;">', unsafe_allow_html=True)
-    h_cols = st.columns([3.8, 1.5, 1.8, 2.2, 2.7])
+# --- 5. [수정 완료] 메인 화면 최상단 제목 및 가로 네비게이션 배치 (안정성 100%) ---
+header_container = st.container()
+with header_container:
+    h_cols = st.columns([4.0, 1.6, 1.8, 2.2, 0.4])
     with h_cols[0]:
-        st.markdown('<p class="main-title-text">명인제약 생산 시점 관리</p>', unsafe_allow_html=True)
+        st.markdown('<p class="main-title-text" style="margin-top: 3px;">🏭 명인제약 생산 시점 관리</p>', unsafe_allow_html=True)
     with h_cols[1]:
-        if st.button("실시간 현황판", key="btn_nav_main"):
+        if st.button("💻 실시간 현황판", key="btn_nav_main"):
             st.session_state.view = 'main'
             st.rerun()
     with h_cols[2]:
-        if st.button("완료된 공정 확인", key="btn_nav_history"):
+        if st.button("📋 완료된 공정 확인", key="btn_nav_history"):
             st.session_state.view = 'history'
             st.rerun()
     with h_cols[3]:
-        if st.button("완료된 공정 확인(선별)", key="btn_nav_selection"):
+        if st.button("🔍 완료된 공정 확인(선별)", key="btn_nav_selection"):
             st.session_state.view = 'selection'
             st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.write("") # 미세 패딩용
+
+st.divider() # 경계 분리선 추가로 깔끔함 극대화
 
 # --- 6. 사이드바 ---
 with st.sidebar:
