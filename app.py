@@ -6,10 +6,9 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (상단 메뉴바와 블록 내부 버튼 디자인 완벽 분리 격리) ---
+# --- 2. 순정 CSS 스타일 (간섭 유발 디자인 전면 삭제 및 고유 폰트만 유지) ---
 st.markdown("""
 <style>
-/* 헤더 설정 */
 .fixed-header {
     position: fixed; top: 0; left: 0; right: 0; height: 66px; 
     background-color: #1e3a8a; z-index: 999998; 
@@ -22,13 +21,10 @@ st.markdown("""
 }
 .main .block-container { padding-top: 100px !important; }
 
-/* 공정 바 및 설비 타이틀 */
 .stage-bar {
     color: white; padding: 8px 13px; border-radius: 6px; 
     font-size: 18px; font-weight: 700; margin-top: 20px; margin-bottom: 10px; 
-}
-.sb-0, .sb-1, .sb-2, .sb-3, .sb-4, .sb-5, .sb-6, .sb-7, .sb-8, .sb-9 { 
-    background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%); 
+    background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
 }
 .machine-title {
     background: #f1f5f9; text-align: center; font-size: 16px !important; 
@@ -37,7 +33,6 @@ st.markdown("""
     display: flex; align-items: center; justify-content: center; color: #1e293b; 
 }
 
-/* 블록 내부 텍스트 규칙 (15px 유지) */
 .card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
@@ -47,61 +42,7 @@ st.markdown("""
 .bg-progress { background-color: #ef4444; }
 .bg-paused { background-color: #f59e0b; }
 
-/* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
-
-/* --- [격리 수리] 블록 내부 컴팩트 버튼 스타일 (시작, 대기, 완료 팝업 내부 설비 단추) --- */
-.main div[data-testid="stVerticalBlock"] div.stButton > button,
-.main div[data-testid="stPopover"] button {
-    padding: 4px 6px !important; 
-    font-size: 13px !important; 
-    font-weight: 700 !important;
-    height: 32px !important; 
-    min-height: 32px !important; 
-    line-height: 1.2 !important;
-    background-color: #ffffff !important; 
-    color: #1e3a8a !important;
-    border: 2px solid #1e3a8a !important; 
-    box-shadow: 0 4px 0px #1e3a8a !important; 
-    border-radius: 6px !important; 
-    transition: all 0.05s ease-in-out !important;
-    width: 100% !important;
-    display: flex !important; align-items: center !important; justify-content: center !important;
-}
-.main div[data-testid="stVerticalBlock"] div.stButton > button:active,
-.main div[data-testid="stPopover"] button:active {
-    transform: translateY(3px) !important;
-    box-shadow: 0 1px 0px #1e3a8a !important;
-}
-
-/* --- [완벽 제한] 오직 최상단 가로 행 메뉴바 버튼에만 대형 디자인 주입 --- */
-div[data-testid="stHorizontalBlock"] > div .stButton button {
-    height: 65px !important;
-    font-size: 22px !important;
-    font-weight: 900 !important; 
-    border-radius: 10px !important;
-    letter-spacing: -0.5px !important;
-    white-space: nowrap !important;
-    display: flex !important; align-items: center !important; justify-content: center !important;
-}
-
-/* 상단 가로정렬 4개 버튼 독점적 색상 주입 */
-div[data-testid="stHorizontalBlock"] > div:nth-child(1) .stButton button {
-    background-color: #2563eb !important; color: white !important; border: 2px solid #1e40af !important; box-shadow: 0 6px 0px #1e40af !important;
-}
-div[data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton button {
-    background-color: #059669 !important; color: white !important; border: 2px solid #047857 !important; box-shadow: 0 6px 0px #047857 !important;
-}
-div[data-testid="stHorizontalBlock"] > div:nth-child(3) .stButton button {
-    background-color: #d97706 !important; color: white !important; border: 2px solid #b45309 !important; box-shadow: 0 6px 0px #b45309 !important;
-}
-div[data-testid="stHorizontalBlock"] > div:nth-child(4) .stButton button {
-    background-color: #7c3aed !important; color: white !important; border: 2px solid #6d28d9 !important; box-shadow: 0 6px 0px #6d28d9 !important;
-}
-
-div[data-testid="stHorizontalBlock"] > div .stButton button:hover { filter: brightness(1.1) !important; color: white !important; }
-div[data-testid="stHorizontalBlock"] > div .stButton button:active { transform: translateY(4px) !important; box-shadow: 0 2px 0px rgba(0,0,0,0.2) !important; }
-div[data-testid="stPopover"] svg { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -156,10 +97,10 @@ if 'reset_lot' not in st.session_state: st.session_state.reset_lot = ""
 if 'reset_type' not in st.session_state: st.session_state.reset_type = "일반로트"
 if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 
-# --- 5. 헤더 및 균등 대형 네비게이션 바 ---
+# --- 5. 헤더 및 상단 순정 메뉴 바 ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 
-nav_cols = st.columns([1, 1, 1, 1]) 
+nav_cols = st.columns(4) 
 with nav_cols[0]:
     if st.button("실시간 현황판", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
 with nav_cols[1]:
@@ -224,11 +165,11 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-# --- 7. 메인 콘텐츠 및 제목 연동 ---
+# --- 7. 메인 콘텐츠 및 현황판 그리기 ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
-        st.markdown(f'<div class="stage-bar sb-{idx_stage}">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="stage-bar">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
         
         cols = st.columns(10)
         stage_machines = MACHINE_MAP[stage]
@@ -268,6 +209,7 @@ if st.session_state.view == 'main':
                                     supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                     st.rerun()
                                 
+                                # --- [알고리즘 대수리] 다음 유효 타겟 공정 철저 계산 ---
                                 n_stg = None
                                 prod_name = str(row['제품']).strip()
                                 current_index = TARGET_STAGES.index(stage)
@@ -294,22 +236,27 @@ if st.session_state.view == 'main':
                                             n_machines = [m.strip() for m in master_dict[prod_name][m_key] if m.strip()]
                                             break
                                 
+                                # --- [동기화 버그 최종 해결] 데이터 인서트 연산을 먼저 끝내고, 마지막에 마감 처리 ---
                                 if len(n_machines) > 1:
                                     with st.popover("완료", use_container_width=True):
                                         for nm in n_machines:
                                             nm_clean = nm.strip()
                                             if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                 dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                                # 1. 다음 공정 대기 블록을 안전하게 먼저 생성(Insert)
                                                 supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
+                                                # 2. 다음 블록 생성이 완료된 후, 기존 기록을 최종 마감(Update)
+                                                supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                 st.rerun()
                                 else:
                                     if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
                                         dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                        supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                        # 1. 다음 단일 공정이 있다면 대기 블록 선행 구축
                                         if n_stg: 
                                             next_m = n_machines[0].strip() if n_machines else ""
                                             supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": next_m}).execute()
+                                        # 2. 안전 확보 후 기존 데이터 완료 처리
+                                        supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                         st.rerun()
                             elif row['상태'] == '지연':
                                 if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
