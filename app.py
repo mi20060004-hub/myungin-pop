@@ -74,10 +74,7 @@ st.markdown("""
 /* 완료 이력 표 16px 유지 */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th {font-size: 16px !important; }
 
-/* [초강력 스타일 통합] 
-  stButton의 기본 버튼과 stPopover의 트리거 단추를 묶어 
-  글자가 절대 깨지지 않는 13px 입체 단추 모양으로 통일화합니다.
-*/
+/* [초강력 스타일 통합] stButton의 기본 버튼과 stPopover의 트리거 단추 일원화 */
 div.stButton > button, 
 div[data-testid="stPopover"] button {
     padding: 4px 6px !important; 
@@ -168,16 +165,17 @@ def load_data():
     if not h_data.data:
         curr_df = pd.DataFrame(columns=['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비', 'id'])
         log_df = pd.DataFrame(columns=['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비'])
+        all_raw_df = pd.DataFrame(columns=['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비'])
     else:
-        all_df = pd.DataFrame(h_data.data)
-        if 'id' in all_df.columns:
-            all_df['Row'] = all_df['id']
-        curr_df = all_df[~all_df['상태'].isin(['완료', '1팀종료'])].copy()
-        log_df = all_df[all_df['상태'].isin(['완료', '1팀종료'])].copy()
+        all_raw_df = pd.DataFrame(h_data.data)
+        if 'id' in all_raw_df.columns:
+            all_raw_df['Row'] = all_raw_df['id']
+        curr_df = all_raw_df[~all_raw_df['상태'].isin(['완료', '1팀종료'])].copy()
+        log_df = all_raw_df[all_raw_df['상태'].isin(['완료', '1팀종료'])].copy()
         
-    return master_dict, curr_df, log_df
+    return master_dict, curr_df, log_df, all_raw_df
 
-master_dict, curr_df, log_df = load_data()
+master_dict, curr_df, log_df, all_raw_df = load_data()
 
 if 'pending_lots' not in st.session_state:
     st.session_state.pending_lots = []
@@ -195,14 +193,14 @@ def handle_add_queue(p_name, lot, l_type, note, machine):
         st.session_state.reset_type = "일반로트"
         st.session_state.reset_note = ""
 
-# --- 5. 헤더 부분 ---
+# --- 5. 헤더 및 상단 메뉴바 (4개의 탭 균등 배치) ---
 st.markdown(f"""
 <div class="fixed-header">
     <p class="main-title-text">명인제약 생산 시점 관리</p>
 </div>
 """, unsafe_allow_html=True)
 
-nav_cols = st.columns([1.5, 1.8, 2.2, 5])
+nav_cols = st.columns([1.5, 1.8, 2.2, 2.2, 2.3])
 with nav_cols[0]:
     if st.button("실시간 현황판", key="btn_nav_main"):
         st.session_state.view = 'main'
@@ -214,6 +212,10 @@ with nav_cols[1]:
 with nav_cols[2]:
     if st.button("완료된 공정 확인(선별)", key="btn_nav_selection"):
         st.session_state.view = 'selection'
+        st.rerun()
+with nav_cols[3]:
+    if st.button("모든 공정 이력 확인", key="btn_nav_all_history"):
+        st.session_state.view = 'all_history'
         st.rerun()
 
 # --- 6. 사이드바 ---
@@ -298,7 +300,7 @@ with st.sidebar:
             else:
                 st.error("❌ 비밀번호 오류")
 
-# --- 7. 메인 화면 ---
+# --- 7. 메인 화면 및 각 탭 라우팅 ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
@@ -389,18 +391,26 @@ if st.session_state.view == 'main':
                         elif row['상태'] == '지연':
                             if st.button("재시작", key=f"r_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
                                 supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
-                                st.rerun()
+                                r.rerun()
 else:
     if st.session_state.view == 'history':
         st.header("📋 완료된 공정 이력 리포트 (1팀)")
-        team_df = log_df[log_df['상태'] == '1팀종료']
-    else:
+        display_df = log_df[log_df['상태'] == '1팀종료'].copy()
+    elif st.session_state.view == 'selection':
         st.header("🔍 완료된 공정 이력 리포트 (선별)")
-        team_df = log_df[(log_df['공정'] == '외관선별공정') & (log_df['상태'] == '완료')]
-    if not team_df.empty:
-        unique_products = sorted(team_df['제품'].unique().tolist())
-        sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + unique_products)
-        display_df = team_df.copy()
-        if sel_filter != "전체 보기": display_df = display_df[display_df['제품'] == sel_filter]
-        st.dataframe(display_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), use_container_width=True)
-    else: st.info("이력이 없습니다.")
+        display_df = log_df[(log_df['공정'] == '외관선별공정') & (log_df['상태'] == '완료')].copy()
+    elif st.session_state.view == 'all_history':
+        st.header("🗂️ 모든 공정 이력 확인")
+        display_df = all_raw_df.copy()
+
+    if not display_df.empty:
+        unique_products = sorted(display_df['제품'].unique().tolist())
+        sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + unique_products, key=f"filter_{st.session_state.view}")
+        if sel_filter != "전체 보기": 
+            display_df = display_df[display_df['제품'] == sel_filter]
+        
+        # 요청하신 항목 순서대로 정렬하여 출력
+        final_cols = ['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']
+        st.dataframe(display_df[final_cols].sort_index(ascending=False), use_container_width=True)
+    else: 
+        st.info("조회할 이력이 없습니다.")
