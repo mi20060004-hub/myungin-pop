@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (스트림릿 버튼 방어벽 완벽 분쇄형 16px 압축) ---
+# --- 2. CSS 스타일 (스트림릿 고유의 단추 외부 틀까지 완벽 분쇄 압착) ---
 st.markdown("""
 <style>
 /* 헤더 설정 */
@@ -51,7 +51,27 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 /* 버튼 간격 조정 (세로 배치용 미세 갭 설정) */
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 2px !important; }
 
-/* --- [완벽 압멸] 스트림릿 고유의 단추 여백 방어벽을 원천 철거하고 높이를 16px로 강제 고정 --- */
+/* =========================================================================
+   [초정밀 완전 결착 패치] 오직 실시간현황판 블록 내부 버튼의 외부 포장재 틀까지 16px 압축
+   ========================================================================= */
+/* 1. 스트림릿이 강제로 집어넣는 버튼 외부 감싸개 div 틀의 두께 원천 붕괴 */
+.main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
+.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] {
+    min-height: 16px !important;
+    height: 16px !important;
+    margin-bottom: 3px !important;
+    padding: 0 !important;
+}
+
+/* 2. 팝업 단추를 포장하는 첫 번째 자식 레이어 높이 제한 */
+.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child {
+    min-height: 16px !important;
+    height: 16px !important;
+    display: flex !important;
+    width: 100% !important;
+}
+
+/* 3. 최종 알맹이 단추 자체의 규격 16px 철저 고정 및 수평 정렬 */
 .main div[data-testid="stVerticalBlock"] div.stButton > button,
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button {
     padding: 0px 4px !important; 
@@ -65,13 +85,6 @@ div[data-testid="stVerticalBlock"] > div { margin-bottom: 2px !important; }
     align-items: center !important;
     justify-content: center !important;
     box-sizing: border-box !important;
-}
-
-/* 팝업(변경/완료)을 감싸는 컨테이너 높이까지 원천 제한하여 빈 공간 완전 박멸 */
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child {
-    height: 16px !important;
-    min-height: 16px !important;
-    display: inline-flex !important;
     width: 100% !important;
 }
 </style>
