@@ -23,8 +23,9 @@ st.markdown("""
     box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
 }
 .header-logo {
-    height: 45px; 
+    height: 38px; /* 헤더 밸런스에 맞춰 로고 높이 최적화 */
     margin-right: 20px;
+    object-fit: contain;
 }
 .main-title-text {
     color: white !important; 
@@ -174,13 +175,12 @@ def handle_add_queue(p_name, lot, l_type, note, machine):
         st.session_state.reset_type = "일반로트"
         st.session_state.reset_note = ""
 
-# --- 5. 헤더 부분 (로고 + 제목 결합) ---
-# GitHub에 업로드한 로고의 직접 링크 주소
-RAW_LOGO_URL = "https://raw.githubusercontent.com/mi20060004-hub/myungin-pop/main/logo.png"
+# --- 5. 헤더 부분 (명인제약 공식 웹 서버 로고 주소 다이렉트 연결) ---
+OFFICIAL_LOGO_URL = "https://www.myunginjeak.co.kr/images/common/logo.png"
 
 st.markdown(f"""
 <div class="fixed-header">
-    <img src="{RAW_LOGO_URL}" class="header-logo">
+    <img src="{OFFICIAL_LOGO_URL}" class="header-logo">
     <p class="main-title-text">명인제약 생산 시점 관리</p>
 </div>
 """, unsafe_allow_html=True)
