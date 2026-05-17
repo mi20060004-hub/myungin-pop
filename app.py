@@ -50,7 +50,7 @@ st.markdown("""
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* 블록 내부의 모든 액션 버튼 스타일 강제 주입 */
+/* --- 블록 내부 모든 조작 버튼 스타일 강제 주입 --- */
 .main div.stButton > button, 
 .main div[data-testid="stPopover"] button,
 div[data-testid="stVerticalBlock"] div.stButton > button {
@@ -142,7 +142,8 @@ def get_now_kst():
 
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
-    master_dict = {str(r.get("제품명")).strip(): {s: [m.strip() for m in str(r.get(s, "")).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_data.data}
+    # --- 제품명과 공정명 양끝의 숨은 공백을 원천 제거(strip)하여 메모리에 탑재 ---
+    master_dict = {str(r.get("제품명")).strip(): {s.strip(): [m.strip() for m in str(r.get(s, "")).split(',') if m.strip()] for s in TARGET_STAGES} for r in m_data.data}
     h_data = supabase.table("product_history").select("*").execute()
     if not h_data.data:
         return master_dict, pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
@@ -181,7 +182,7 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
-    is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p)).any()) or any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots))
+    is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'].str.strip() == sel_p.strip())).any()) or any(p['Lot'] == lot_in and p['제품'].strip() == sel_p.strip() for p in st.session_state.pending_lots))
     f_stg = next((s for s in TARGET_STAGES if master_dict.get(sel_p, {}).get(s)), TARGET_STAGES[0])
     f_machines = master_dict.get(sel_p, {}).get(f_stg, [])
     
@@ -191,11 +192,11 @@ with st.sidebar:
             with st.popover("➕ 대기열 추가", use_container_width=True):
                 for m in f_machines:
                     if st.button(m, key=f"init_{m}_{sel_p}_{lot_in}"):
-                        st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '특이사항': note_in, '설비': m.strip()})
+                        st.session_state.pending_lots.append({'제품': sel_p.strip(), 'Lot': lot_in, '유형': lot_type, '특이사항': note_in, '설비': m.strip()})
                         st.session_state.reset_lot = ""; st.rerun()
         else:
             if st.button("➕ 투입 대기열 추가", use_container_width=True):
-                st.session_state.pending_lots.append({'제품': sel_p, 'Lot': lot_in, '유형': lot_type, '특이사항': note_in, '설비': f_machines[0].strip() if f_machines else ""})
+                st.session_state.pending_lots.append({'제품': sel_p.strip(), 'Lot': lot_in, '유형': lot_type, '특이사항': note_in, '설비': f_machines[0].strip() if f_machines else ""})
                 st.session_state.reset_lot = ""; st.rerun()
 
     if st.session_state.pending_lots:
@@ -206,12 +207,13 @@ with st.sidebar:
             if c2.button("❌", key=f"del_{idx}"): st.session_state.pending_lots.pop(idx); st.rerun()
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             for p in st.session_state.pending_lots:
-                first_stg = next((s for s in TARGET_STAGES if master_dict.get(p['제품'], {}).get(s)), TARGET_STAGES[0])
+                p_clean = p['제품'].strip()
+                first_stg = next((s for s in TARGET_STAGES if master_dict.get(p_clean, {}).get(s)), TARGET_STAGES[0])
                 target_m = p['설비'].strip()
                 if not target_m:
-                    m_list = master_dict.get(p['제품'], {}).get(first_stg, [])
+                    m_list = master_dict.get(p_clean, {}).get(first_stg, [])
                     if m_list: target_m = m_list[0].strip()
-                supabase.table("product_history").insert({"Lot": p['Lot'], "제품": p['제품'], "공정": first_stg, "상태": "대기", "유형": p['유형'], "특이사항": p['특이사항'], "설비": target_m}).execute()
+                supabase.table("product_history").insert({"Lot": p['Lot'], "제품": p_clean, "공정": first_stg, "상태": "대기", "유형": p['유형'], "특이사항": p['특이사항'], "설비": target_m}).execute()
             st.session_state.pending_lots = []; st.rerun()
 
     st.divider()
@@ -271,17 +273,19 @@ if st.session_state.view == 'main':
                                     supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                     st.rerun()
                                 
-                                # --- [파이썬 들여쓰기 구문 정렬 완료] ---
+                                # --- [공백 버그 완벽 수리] strip 처리된 깨끗한 텍스트로 교차 검증 및 추적 ---
                                 n_stg = None
                                 prod_name = str(row['제품']).strip()
                                 current_index = TARGET_STAGES.index(stage)
                                 
                                 for i in range(current_index + 1, len(TARGET_STAGES)):
-                                    check_stage = TARGET_STAGES[i]
+                                    check_stage = TARGET_STAGES[i].strip()
                                     matched_key = None
                                     if prod_name in master_dict:
                                         for m_key in master_dict[prod_name].keys():
-                                            if check_stage in m_key or m_key in check_stage:
+                                            m_key_clean = m_key.strip()
+                                            if check_stage in m_key_clean or m_key_clean in check_stage:
+                                                # 설비 리스트가 실제로 존재하는 진짜 공정만 타겟으로 지정
                                                 if master_dict[prod_name][m_key] and len(master_dict[prod_name][m_key]) > 0:
                                                     matched_key = m_key
                                                     break
@@ -292,7 +296,8 @@ if st.session_state.view == 'main':
                                 n_machines = []
                                 if n_stg and prod_name in master_dict:
                                     for m_key in master_dict[prod_name].keys():
-                                        if n_stg in m_key or m_key in n_stg:
+                                        m_key_clean = m_key.strip()
+                                        if n_stg in m_key_clean or m_key_clean in n_stg:
                                             n_machines = [m.strip() for m in master_dict[prod_name][m_key] if m.strip()]
                                             break
                                 
@@ -303,7 +308,7 @@ if st.session_state.view == 'main':
                                             if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                 dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                                 supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
+                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
                                                 st.rerun()
                                 else:
                                     if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
@@ -311,12 +316,12 @@ if st.session_state.view == 'main':
                                         supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                         if n_stg: 
                                             next_m = n_machines[0].strip() if n_machines else ""
-                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": next_m}).execute()
+                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": next_m}).execute()
                                         st.rerun()
-                            elif row['상태'] == '지연':
-                                if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
-                                    supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
-                                    st.rerun()
+                        elif row['상태'] == '지연':
+                            if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
+                                supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
+                                        st.rerun()
             else:
                 with cols[idx]:
                     st.write("") 
