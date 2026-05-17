@@ -50,11 +50,10 @@ st.markdown("""
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* --- 블록 내부 모든 조작 버튼 스타일 강제 주입 --- */
+/* 블록 내부의 모든 액션 버튼 스타일 강제 주입 */
 .main div.stButton > button, 
 .main div[data-testid="stPopover"] button,
-div[data-testid="stVerticalBlock"] div.stButton > button,
-button[id^="stSidebar"] {
+div[data-testid="stVerticalBlock"] div.stButton > button {
     padding: 4px 6px !important; 
     font-size: 13px !important; 
     font-weight: 700 !important;
@@ -272,7 +271,7 @@ if st.session_state.view == 'main':
                                     supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                     st.rerun()
                                 
-                                # --- [알고리즘 대수리] 공정 이름 매칭 및 '설비 리스트 존재 여부'까지 2중 교차 검증 검사 수행 ---
+                                # --- [파이썬 들여쓰기 구문 정렬 완료] ---
                                 n_stg = None
                                 prod_name = str(row['제품']).strip()
                                 current_index = TARGET_STAGES.index(stage)
@@ -283,11 +282,9 @@ if st.session_state.view == 'main':
                                     if prod_name in master_dict:
                                         for m_key in master_dict[prod_name].keys():
                                             if check_stage in m_key or m_key in check_stage:
-                                                # 단순히 키만 보는게 아니라, 실제 설비 리스트 텍스트가 들어있는지 철저히 판별
                                                 if master_dict[prod_name][m_key] and len(master_dict[prod_name][m_key]) > 0:
                                                     matched_key = m_key
                                                     break
-                                                    
                                     if matched_key: 
                                         n_stg = check_stage
                                         break
@@ -316,10 +313,10 @@ if st.session_state.view == 'main':
                                             next_m = n_machines[0].strip() if n_machines else ""
                                             supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": next_m}).execute()
                                         st.rerun()
-                        elif row['상태'] == '지연':
-                            if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
-                                supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
-                                st.rerun()
+                            elif row['상태'] == '지연':
+                                if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
+                                    supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
+                                    st.rerun()
             else:
                 with cols[idx]:
                     st.write("") 
