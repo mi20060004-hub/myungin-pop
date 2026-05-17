@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (최신 스트림릿 버전 완벽 대응 메뉴바 및 내부 모든 버튼 커스텀) ---
+# --- 2. CSS 스타일 (메뉴바 및 내부 모든 버튼 커스텀) ---
 st.markdown("""
 <style>
 /* 헤더 설정 */
@@ -50,8 +50,7 @@ st.markdown("""
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* --- [대수리 완료] 블록 내부의 모든 액션 버튼 스타일 강제 주입 --- */
-/* 스트림릿의 모든 일반 버튼 및 팝업 내부 버튼에 13px 입체 스타일 동시 강제 주입 */
+/* 블록 내부의 모든 액션 버튼 스타일 강제 주입 */
 .main div.stButton > button, 
 .main div[data-testid="stPopover"] button,
 div[data-testid="stVerticalBlock"] div.stButton > button {
@@ -73,14 +72,13 @@ div[data-testid="stVerticalBlock"] div.stButton > button {
     justify-content: center !important;
 }
 
-/* 블록 내부 버튼 클릭 시 반응 모션 */
 .main div.stButton > button:active, 
 .main div[data-testid="stPopover"] button:active {
     transform: translateY(3px) !important;
     box-shadow: 0 1px 0px #1e3a8a !important;
 }
 
-/* --- 상단 네비게이션용 4색 대형 균등 버튼 전용 강제 주입 코드 --- */
+/* 상단 네비게이션용 4색 대형 균등 버튼 전용 강제 주입 코드 */
 div[data-testid="stHorizontalBlock"] .stButton button {
     height: 65px !important;
     font-size: 22px !important;
@@ -259,32 +257,45 @@ if st.session_state.view == 'main':
                                 supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                 st.rerun()
                             
-                            # --- [추적 완전 해결 패치] 딕셔너리 안전 참조로 다음 유효 공정을 무조건 완벽 추적 ---
+                            # --- [추적 완전 해결 패치] 공정명 텍스트 불일치를 원천 방어하는 유연한 검색 뼈대 개조 ---
                             n_stg = None
                             prod_name = str(row['제품']).strip()
                             current_index = TARGET_STAGES.index(stage)
                             
                             for i in range(current_index + 1, len(TARGET_STAGES)):
                                 check_stage = TARGET_STAGES[i]
-                                if prod_name in master_dict and check_stage in master_dict[prod_name]:
-                                    if master_dict[prod_name][check_stage]: 
-                                        n_stg = check_stage
-                                        break
+                                # master_dict 내부의 모든 키를 순회하며 매칭 검사 수행
+                                matched_key = None
+                                if prod_name in master_dict:
+                                    for m_key in master_dict[prod_name].keys():
+                                        if check_stage in m_key or m_key in check_stage:
+                                            matched_key = m_key
+                                            break
+                                            
+                                if matched_key and master_dict[prod_name][matched_key]: 
+                                    n_stg = check_stage
+                                    break
                                     
-                            n_machines = master_dict.get(prod_name, {}).get(n_stg, []) if n_stg else []
+                            # n_machines 데이터 추출 안정화
+                            n_machines = []
+                            if n_stg and prod_name in master_dict:
+                                for m_key in master_dict[prod_name].keys():
+                                    if n_stg in m_key or m_key in n_stg:
+                                        n_machines = master_dict[prod_name][m_key]
+                                        break
                             
                             if len(n_machines) > 1:
                                 with st.popover("완료", use_container_width=True):
                                     for nm in n_machines:
                                         if st.button(nm, key=f"next_act_{row['Row']}_{nm}", use_container_width=True):
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                            supabase.table("product_history").update({"상태": "1팀종료" if n_stg == "외관선별공정" else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                            supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                             supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm}).execute()
                                             st.rerun()
                             else:
                                 if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                    supabase.table("product_history").update({"상태": "1팀종료" if n_stg == "외관선별공정" else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                    supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                     if n_stg: 
                                         supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": n_machines[0] if n_machines else ""}).execute()
                                     st.rerun()
