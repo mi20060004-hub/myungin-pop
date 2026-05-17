@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (대형 유색 메뉴 버튼 및 기존 스타일 통합) ---
+# --- 2. CSS 스타일 (대형 4색 입체 메뉴 버튼 시스템 원천 고정) ---
 st.markdown("""
 <style>
 /* 헤더 설정 */
@@ -96,49 +96,50 @@ div[data-testid="stPopover"] button {
 }
 div[data-testid="stPopover"] svg { display: none !important; }
 
-/* --- [신규 추가] 상단 네비게이션 대형 유색 버튼 스타일 --- */
-.nav-area { margin-bottom: 20px; }
-
+/* --- [완벽 해결] 대형 유색 네비게이션 버튼을 스트림릿 버튼 단면에 100% 강제 고정 --- */
 /* 1. 실시간 현황판 (파란색) */
-div.nav-btn-main button {
+div[data-testid="stHorizontalBlock"] > div:nth-child(1) button {
     background-color: #2563eb !important;
     color: white !important;
     font-size: 20px !important;
+    font-weight: 800 !important;
     height: 55px !important;
     border: 2px solid #1e3a8a !important;
     box-shadow: 0 5px 0px #1d4ed8 !important;
 }
 /* 2. 완료된 공정 확인 (초록색) */
-div.nav-btn-history button {
+div[data-testid="stHorizontalBlock"] > div:nth-child(2) button {
     background-color: #10b981 !important;
     color: white !important;
     font-size: 20px !important;
+    font-weight: 800 !important;
     height: 55px !important;
     border: 2px solid #065f46 !important;
     box-shadow: 0 5px 0px #047857 !important;
 }
 /* 3. 완료된 공정 확인(선별) (오렌지색) */
-div.nav-btn-selection button {
+div[data-testid="stHorizontalBlock"] > div:nth-child(3) button {
     background-color: #f59e0b !important;
     color: white !important;
     font-size: 20px !important;
+    font-weight: 800 !important;
     height: 55px !important;
     border: 2px solid #92400e !important;
     box-shadow: 0 5px 0px #b45309 !important;
 }
 /* 4. 모든 공정 이력 확인 (보라색) */
-div.nav-btn-all button {
+div[data-testid="stHorizontalBlock"] > div:nth-child(4) button {
     background-color: #8b5cf6 !important;
     color: white !important;
     font-size: 20px !important;
+    font-weight: 800 !important;
     height: 55px !important;
     border: 2px solid #5b21b6 !important;
     box-shadow: 0 5px 0px #6d28d9 !important;
 }
 
-/* 네비게이션 버튼 클릭/호버 효과 */
-div.nav-btn-main button:active, div.nav-btn-history button:active, 
-div.nav-btn-selection button:active, div.nav-btn-all button:active {
+/* 대형 메뉴 버튼 클릭 시 반응 모션 */
+div[data-testid="stHorizontalBlock"] button:active {
     transform: translateY(4px) !important;
     box-shadow: 0 1px 0px #333 !important;
 }
@@ -199,25 +200,17 @@ if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 # --- 5. 헤더 및 대형 유색 네비게이션 바 ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 
-nav_cols = st.columns([2.5, 2.8, 3.2, 3.2, 3]) # 버튼을 키우기 위해 컬럼 비율 조정
+nav_cols = st.columns([2.5, 2.8, 3.5, 3.2, 2.5]) # 레이아웃 정렬 최적화
 with nav_cols[0]:
-    st.markdown('<div class="nav-btn-main">', unsafe_allow_html=True)
     if st.button("실시간 현황판", key="btn_nav_main"): st.session_state.view = 'main'; st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 with nav_cols[1]:
-    st.markdown('<div class="nav-btn-history">', unsafe_allow_html=True)
     if st.button("완료된 공정 확인", key="btn_nav_history"): st.session_state.view = 'history'; st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 with nav_cols[2]:
-    st.markdown('<div class="nav-btn-selection">', unsafe_allow_html=True)
     if st.button("완료된 공정 확인(선별)", key="btn_nav_selection"): st.session_state.view = 'selection'; st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 with nav_cols[3]:
-    st.markdown('<div class="nav-btn-all">', unsafe_allow_html=True)
     if st.button("모든 공정 이력 확인", key="btn_nav_all_history"): st.session_state.view = 'all_history'; st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 6. 사이드바 (기능 유지) ---
+# --- 6. 사이드바 (기능 완벽 보존) ---
 with st.sidebar:
     st.header("🏭 제조 투입")
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="sel_p_widget")
@@ -225,7 +218,6 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
-    # 중복 체크 로직
     is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p)).any()) or any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots))
     
     f_stg = next((s for s in TARGET_STAGES if master_dict[sel_p][s]), TARGET_STAGES[0])
@@ -268,7 +260,7 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-# --- 7. 메인 화면 ---
+# --- 7. 메인 화면 및 리포트 화면 (제목 완전 연동 수정) ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
@@ -313,11 +305,19 @@ if st.session_state.view == 'main':
                         elif row['상태'] == '지연':
                             if st.button("재시작", key=f"r_{row['Row']}"): supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute(); st.rerun()
 else:
-    # 이력 리포트 탭
-    st.header(f"📋 {st.session_state.view} 리포트")
-    display_df = log_df[log_df['상태'] == '1팀종료'] if st.session_state.view == 'history' else log_df[(log_df['공정'] == '외관선별공정') & (log_df['상태'] == '완료')] if st.session_state.view == 'selection' else all_raw_df
+    # [수정 완결] 상단 네비게이션 버튼 문구와 완벽히 잃치하도록 제목 가변 처리
+    if st.session_state.view == 'history':
+        st.header("📋 완료된 공정 확인")
+        display_df = log_df[log_df['상태'] == '1팀종료'].copy()
+    elif st.session_state.view == 'selection':
+        st.header("🔍 완료된 공정 확인(선별)")
+        display_df = log_df[(log_df['공정'] == '외관선별공정') & (log_df['상태'] == '완료')].copy()
+    elif st.session_state.view == 'all_history':
+        st.header("🗂️ 모든 공정 이력 확인")
+        display_df = all_raw_df.copy()
+
     if not display_df.empty:
-        sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()))
+        sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
         if sel_filter != "전체 보기": display_df = display_df[display_df['제품'] == sel_filter]
         st.dataframe(display_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), use_container_width=True)
     else: st.info("데이터가 없습니다.")
