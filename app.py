@@ -187,11 +187,8 @@ with st.sidebar:
     
     is_duplicate = False
     if lot_in:
-        # 1. 실시간 가동 중인 데이터 체크 (제품명과 Lot 동시 비교)
         dup_curr = (not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p)).any())
-        # 2. 완료 및 1팀종료 이력 데이터 체크 (제품명과 Lot 동시 비교)
         dup_log = (not log_df.empty and ((log_df['Lot'] == lot_in) & (log_df['제품'] == sel_p)).any())
-        # 3. 사이드바 투입 대기열 체크
         dup_queue = any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots)
         
         is_duplicate = dup_curr or dup_log or dup_queue
@@ -216,17 +213,33 @@ with st.sidebar:
     if st.session_state.pending_lots:
         st.write("---")
         st.subheader("📝 투입 대기 리스트")
+        
+        # 개별 대기 품목 나열 및 삭제 기능
         for idx, p in enumerate(st.session_state.pending_lots):
-            st.info(f"{idx+1}. {p['제품']} | {p['Lot']} ({p['설비']})")
-        if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
-            for p in st.session_state.pending_lots:
-                f_stg_p = next((s for s in TARGET_STAGES if master_dict[p['제품']][s]), TARGET_STAGES[0])
-                supabase.table("product_history").insert({
-                    "Lot": p['Lot'], "제품": p['제품'], "공정": f_stg_p, "상태": "대기",
-                    "시작시간": "", "종료시간": "", "소요시간": "", "유형": p['유형'], "특이사항": p['특이사항'], "설비": p['설비']
-                }).execute()
-            st.session_state.pending_lots = []
-            st.rerun()
+            del_cols = st.columns([8, 2])
+            with del_cols[0]:
+                st.info(f"{idx+1}. {p['제품']} | {p['Lot']} ({p['설비']})")
+            with del_cols[1]:
+                # 품목별 고유 키를 주어 개별 취소(삭제) 처리
+                if st.button("❌", key=f"del_item_{idx}_{p['Lot']}_{p['제품']}"):
+                    st.session_state.pending_lots.pop(idx)
+                    st.rerun()
+                    
+        btn_cols = st.columns(2)
+        with btn_cols[0]:
+            if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
+                for p in st.session_state.pending_lots:
+                    f_stg_p = next((s for s in TARGET_STAGES if master_dict[p['제품']][s]), TARGET_STAGES[0])
+                    supabase.table("product_history").insert({
+                        "Lot": p['Lot'], "제품": p['제품'], "공정": f_stg_p, "상태": "대기",
+                        "시작시간": "", "종료시간": "", "소요시간": "", "유형": p['유형'], "특이사항": p['특이사항'], "설비": p['설비']
+                    }).execute()
+                st.session_state.pending_lots = []
+                st.rerun()
+        with btn_cols[1]:
+            if st.button("🗑️ 전체 비우기", type="secondary", use_container_width=True):
+                st.session_state.pending_lots = []
+                st.rerun()
             
     st.divider()
     st.write(f"**실시간 가동 총합:** {len(curr_df)}건")
