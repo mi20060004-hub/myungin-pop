@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (최신 stColumn 규격 반영: 균등 길이 + 22px 대형 4색 입체 메뉴 원천 고정) ---
+# --- 2. CSS 스타일 (최신 스트림릿 버전 완벽 대응 메뉴바 및 내부 버튼 커스텀) ---
 st.markdown("""
 <style>
 /* 헤더 설정 */
@@ -50,48 +50,58 @@ st.markdown("""
 /* 표 글자 크기 (16px 유지) */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* 블록 내부 액션 버튼 (13px 콤팩트 스타일 고정) */
+/* --- [완벽 해결] 블록 내부 일반 액션 버튼 스타일 (시작, 대기, 완료, 변경) --- */
 div.stButton > button, div[data-testid="stPopover"] button {
-    padding: 2px 4px !important; font-size: 13px !important; font-weight: 700 !important;
-    height: 30px !important; min-height: 30px !important; line-height: 1.2 !important;
-    background-color: #ffffff !important; color: #1e3a8a !important;
-    border: 2px solid #1e3a8a !important; box-shadow: 0 3px 0px #1e3a8a !important; 
-    border-radius: 6px !important; transition: all 0.05s ease-in-out;
-    width: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important;
+    padding: 4px 6px !important; 
+    font-size: 13px !important; 
+    font-weight: 700 !important;
+    height: 32px !important; 
+    min-height: 32px !important; 
+    line-height: 1.2 !important;
+    background-color: #ffffff !important; 
+    color: #1e3a8a !important;
+    border: 2px solid #1e3a8a !important; 
+    box-shadow: 0 4px 0px #1e3a8a !important; 
+    border-radius: 6px !important; 
+    transition: all 0.05s ease-in-out;
+    width: 100% !important; 
+    display: flex !important; 
+    align-items: center !important; 
+    justify-content: center !important;
+}
+div.stButton > button:active, div[data-testid="stPopover"] button:active {
+    transform: translateY(3px) !important;
+    box-shadow: 0 1px 0px #1e3a8a !important;
 }
 
-/* 최신 stColumn 껍질 내부의 모든 네비게이션 단추 서식 강제 장악 */
-div[data-testid="stColumn"] button {
+/* --- [대해결] 상단 네비게이션용 4색 대형 균등 버튼 전용 강제 주입 코드 --- */
+.nav-box { width: 100%; padding: 0; margin-bottom: 25px; }
+div[data-testid="stHorizontalBlock"] .stButton button {
     height: 65px !important;
     font-size: 22px !important;
-    font-weight: 900 !important; 
+    font-weight: 900 !important; /* 최고 두께 보장 */
     border-radius: 10px !important;
     letter-spacing: -0.5px !important;
     white-space: nowrap !important;
     display: flex !important; align-items: center !important; justify-content: center !important;
-    transition: all 0.05s ease-in-out !important;
 }
 
-/* 4색 다이렉트 컬러 매핑 */
-div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(1) button {
-    background-color: #2563eb !important; color: white !important; 
-    border: 2px solid #1e40af !important; box-shadow: 0 6px 0px #1e40af !important;
+/* 상단 가로정렬 4개 버튼에 각각 색상 다이렉트 주입 */
+div[data-testid="stHorizontalBlock"] > div:nth-child(1) .stButton button {
+    background-color: #2563eb !important; color: white !important; border: 2px solid #1e40af !important; box-shadow: 0 6px 0px #1e40af !important;
 }
-div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(2) button {
-    background-color: #059669 !important; color: white !important; 
-    border: 2px solid #047857 !important; box-shadow: 0 6px 0px #047857 !important;
+div[data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton button {
+    background-color: #059669 !important; color: white !important; border: 2px solid #047857 !important; box-shadow: 0 6px 0px #047857 !important;
 }
-div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(3) button {
-    background-color: #d97706 !important; color: white !important; 
-    border: 2px solid #b45309 !important; box-shadow: 0 6px 0px #b45309 !important;
+div[data-testid="stHorizontalBlock"] > div:nth-child(3) .stButton button {
+    background-color: #d97706 !important; color: white !important; border: 2px solid #b45309 !important; box-shadow: 0 6px 0px #b45309 !important;
 }
-div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"]:nth-child(4) button {
-    background-color: #7c3aed !important; color: white !important; 
-    border: 2px solid #6d28d9 !important; box-shadow: 0 6px 0px #6d28d9 !important;
+div[data-testid="stHorizontalBlock"] > div:nth-child(4) .stButton button {
+    background-color: #7c3aed !important; color: white !important; border: 2px solid #6d28d9 !important; box-shadow: 0 6px 0px #6d28d9 !important;
 }
 
-div[data-testid="stColumn"] button:hover { filter: brightness(1.1) !important; color: white !important; }
-div[data-testid="stColumn"] button:active { transform: translateY(4px) !important; box-shadow: 0 2px 0px rgba(0,0,0,0.2) !important; }
+div[data-testid="stHorizontalBlock"] .stButton button:hover { filter: brightness(1.1) !important; color: white !important; }
+div[data-testid="stHorizontalBlock"] .stButton button:active { transform: translateY(4px) !important; box-shadow: 0 2px 0px rgba(0,0,0,0.2) !important; }
 div[data-testid="stPopover"] svg { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -152,13 +162,13 @@ st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 
 
 nav_cols = st.columns([1, 1, 1, 1]) # 4개 버튼 넓이 완벽 균등 유지
 with nav_cols[0]:
-    if st.button("실시간 현황판", key="nav_1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
+    if st.button("실시간 현황판", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
 with nav_cols[1]:
-    if st.button("완료된 공정 확인", key="nav_2", use_container_width=True): st.session_state.view = 'history'; st.rerun()
+    if st.button("완료된 공정 확인", key="n2", use_container_width=True): st.session_state.view = 'history'; st.rerun()
 with nav_cols[2]:
-    if st.button("완료된 공정 확인(선별)", key="nav_3", use_container_width=True): st.session_state.view = 'selection'; st.rerun()
+    if st.button("완료된 공정 확인(선별)", key="n3", use_container_width=True): st.session_state.view = 'selection'; st.rerun()
 with nav_cols[3]:
-    if st.button("모든 공정 이력 확인", key="nav_4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
+    if st.button("모든 공정 이력 확인", key="n4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
 
 # --- 6. 사이드바 (원본 100% 보존) ---
 with st.sidebar:
@@ -229,14 +239,20 @@ if st.session_state.view == 'main':
                         
                         if row['상태'] == '대기':
                             b1, b2 = st.columns(2)
-                            if b1.button("시작", key=f"s_{row['Row']}"): supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute(); st.rerun()
-                            with b2.popover("변경"):
+                            if b1.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
+                                supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
+                                st.rerun()
+                            with b2.popover("변경", use_container_width=True):
                                 for nm in master_dict.get(row['제품'], {}).get(stage, []):
-                                    if nm != row['설비'] and st.button(nm, key=f"ch_{row['Row']}_{nm}"): supabase.table("product_history").update({"설비": nm}).eq("id", row['Row']).execute(); st.rerun()
+                                    if nm != row['설비'] and st.button(nm, key=f"ch_act_{row['Row']}_{nm}", use_container_width=True): 
+                                        supabase.table("product_history").update({"설비": nm}).eq("id", row['Row']).execute()
+                                        st.rerun()
                         elif row['상태'] == '진행중':
-                            if st.button("대기", key=f"p_{row['Row']}"): supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute(); st.rerun()
+                            if st.button("대기", key=f"pause_act_{row['Row']}", use_container_width=True): 
+                                supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
+                                st.rerun()
                             
-                            # --- [추적 오류 완벽 보정] 비어있는 중간 공정이 있어도 끝까지 스캔하여 다음 공정을 찾아냄 ---
+                            # --- [추적 오류 및 유실 방지 패치] 비어있는 중간 공정이 있어도 무조건 끝까지 스캔 ---
                             n_stg = None
                             for i in range(TARGET_STAGES.index(stage) + 1, len(TARGET_STAGES)):
                                 if master_dict.get(row['제품'], {}).get(TARGET_STAGES[i]): 
@@ -245,19 +261,24 @@ if st.session_state.view == 'main':
                                     
                             n_machines = master_dict.get(row['제품'], {}).get(n_stg, []) if n_stg else []
                             if len(n_machines) > 1:
-                                with st.popover("완료"):
+                                with st.popover("완료", use_container_width=True):
                                     for nm in n_machines:
-                                        if st.button(nm, key=f"next_{row['Row']}_{nm}"):
+                                        if st.button(nm, key=f"next_act_{row['Row']}_{nm}", use_container_width=True):
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                             supabase.table("product_history").update({"상태": "1팀종료" if n_stg == "외관선별공정" else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm}).execute(); st.rerun()
+                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm}).execute()
+                                            st.rerun()
                             else:
-                                if st.button("완료", key=f"e_{row['Row']}"):
+                                if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                     supabase.table("product_history").update({"상태": "1팀종료" if n_stg == "외관선별공정" else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                    if n_stg: supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": n_machines[0] if n_machines else ""}).execute(); st.rerun()
+                                    if n_stg: 
+                                        supabase.table("product_history").insert({"Lot": row['Lot'], "제품": row['제품'], "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": n_machines[0] if n_machines else ""}).execute()
+                                    st.rerun()
                         elif row['상태'] == '지연':
-                            if st.button("재시작", key=f"r_{row['Row']}"): supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute(); st.rerun()
+                            if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
+                                supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
+                                st.rerun()
 else:
     title_map = {"history": "완료된 공정 확인", "selection": "완료된 공정 확인(선별)", "all_history": "모든 공정 이력 확인"}
     st.header(f"📋 {title_map[st.session_state.view]}")
