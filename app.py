@@ -86,20 +86,16 @@ def get_now_kst():
 
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
-    
-    # --- [근본 해결] split 연산 후 유령 빈칸('') 찌꺼기를 원천 배제하는 정밀 필터 적용 ---
     master_dict = {}
     for r in m_data.data:
         p_name = str(r.get("제품명", "")).strip()
         if not p_name: continue
-        
         stage_map = {}
         for s in TARGET_STAGES:
             raw_val = str(r.get(s, "")).strip()
             if not raw_val or raw_val.upper() == "NONE" or raw_val == "-":
                 stage_map[s] = []
             else:
-                # 공백 문자를 완전히 거른 유효 설비 리스트만 빌드 (유령 리스트 방지)
                 machines = [m.strip() for m in raw_val.split(',') if m.strip()]
                 stage_map[s] = machines
         master_dict[p_name] = stage_map
@@ -134,7 +130,7 @@ with nav_cols[2]:
 with nav_cols[3]:
     if st.button("모든 공정 이력 확인", key="nav_4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
 
-# --- 6. 사이드바 (원본 100% 보존) ---
+# --- 6. 사이드바 ---
 with st.sidebar:
     st.header("🏭 제조 투입")
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="sel_p_widget")
@@ -143,8 +139,6 @@ with st.sidebar:
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
     is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'].str.strip() == sel_p.strip())).any()) or any(p['Lot'] == lot_in and p['제품'].strip() == sel_p.strip() for p in st.session_state.pending_lots))
-    
-    # --- [추적 정밀 수리] 설비 목록이 실제로 담겨있는 최초 공정 단계를 완벽히 검출 ---
     f_stg = next((s for s in TARGET_STAGES if master_dict.get(sel_p, {}).get(s)), TARGET_STAGES[0])
     f_machines = master_dict.get(sel_p, {}).get(f_stg, [])
     
@@ -179,7 +173,10 @@ with st.sidebar:
             st.session_state.pending_lots = []; st.rerun()
 
     st.divider()
-    st.write(f"**가동 건수**")
+    
+    # --- [개선 1] 각 공정별 합산 값을 구하여 제목 옆 괄호 안에 전체 공정 제품 수량 노출 ---
+    total_active_count = len(curr_df) if not curr_df.empty else 0
+    st.write(f"**가동 건수 (총 {total_active_count}건)**")
     for stage in TARGET_STAGES:
         st.write(f"- {stage}: {len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0}건")
 
@@ -277,8 +274,29 @@ else:
     st.header(f"📋 {title_map[st.session_state.view]}")
     
     display_df = log_df[log_df['상태'] == '1팀종료'] if st.session_state.view == 'history' else log_df[(log_df['공정'] == '외관선별공정') & (log_df['상태'] == '완료')] if st.session_state.view == 'selection' else all_raw_df
+    
     if not display_df.empty:
-        sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
-        if sel_filter != "전체 보기": display_df = display_df[display_df['제품'] == sel_filter]
+        # --- [개선 2] 모든 공정 이력 확인 탭일 때만 '현재 실시간 현황판에 있는 로트 필터' 옵션 제공 ---
+        if st.session_state.view == 'all_history':
+            filter_cols = st.columns([6, 4])
+            with filter_cols[0]:
+                sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
+            with filter_cols[1]:
+                st.write("") # 세로 정렬 맞춤용 빈 공간
+                only_live = st.toggle("⚡ 현재 실시간 현황판에 있는 로트만 보기", value=False)
+            
+            if sel_filter != "전체 보기": 
+                display_df = display_df[display_df['제품'] == sel_filter]
+                
+            if only_live and not curr_df.empty:
+                # 실시간 현황판(curr_df)에 존재하는 Lot 목록만 추출하여 이력 테이블 필터링
+                live_lots = curr_df['Lot'].unique().tolist()
+                display_df = display_df[display_df['Lot'].isin(live_lots)]
+        else:
+            sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
+            if sel_filter != "전체 보기": 
+                display_df = display_df[display_df['제품'] == sel_filter]
+                
         st.dataframe(display_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), use_container_width=True)
-    else: st.info("데이터가 없습니다.")
+    else: 
+        st.info("데이터가 없습니다.")
