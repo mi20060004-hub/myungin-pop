@@ -187,14 +187,20 @@ with st.sidebar:
     
     is_duplicate = False
     if lot_in:
-        is_duplicate = (not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p) & (curr_df['공정'] == "과립공정")).any()) or \
-                       any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots)
+        # 1. 실시간 가동 중인 데이터 체크 (제품명과 Lot 동시 비교)
+        dup_curr = (not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'] == sel_p)).any())
+        # 2. 완료 및 1팀종료 이력 데이터 체크 (제품명과 Lot 동시 비교)
+        dup_log = (not log_df.empty and ((log_df['Lot'] == lot_in) & (log_df['제품'] == sel_p)).any())
+        # 3. 사이드바 투입 대기열 체크
+        dup_queue = any(p['Lot'] == lot_in and p['제품'] == sel_p for p in st.session_state.pending_lots)
+        
+        is_duplicate = dup_curr or dup_log or dup_queue
                        
     f_stg = next((s for s in TARGET_STAGES if master_dict[sel_p][s]), TARGET_STAGES[0])
     f_machines = master_dict[sel_p][f_stg]
     
     if lot_in and is_duplicate:
-        st.error("⚠️ 중복 데이터 (동일 LOT 공정 진행 중)")
+        st.error("⚠️ 중복 데이터 (동일 제품 및 LOT 공정 진행/종료됨)")
     elif lot_in:
         if len(f_machines) > 1:
             with st.popover("➕ 대기열 추가 (설비 선택)", use_container_width=True):
@@ -253,7 +259,7 @@ if st.session_state.view == 'main':
                             
                         st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
                         
-                        # --- 제어 버튼 영역 (제품명을 key 조합에 포함하여 중복 완전 방지) ---
+                        # --- 제어 버튼 영역 ---
                         if row['상태'] == '대기':
                             if st.button("시작", key=f"s_{row['제품']}_{row['Lot']}_{stage}_{machine}", use_container_width=True):
                                 now_time = get_now_kst()
