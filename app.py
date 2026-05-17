@@ -72,10 +72,8 @@ st.markdown("""
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
 .lot-type-highlight { font-size: 15px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 
-/* [신규] 완료된 공정 이력 표 안의 글자 크기를 16px로 상향 */
-div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th {
-    font-size: 16px !important;
-}
+/* 완료된 공정 이력 표 안의 글자 크기 16px 유지 */
+div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th {font-size: 16px !important; }
 
 /* 버튼 글자 크기 15px 및 입체 섀도우 유지 */
 div.stButton > button, div.stPopover > button {
@@ -265,12 +263,20 @@ with st.sidebar:
 # --- 7. 메인 화면 ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
-        st.markdown(f'<div class="stage-bar sb-{idx_stage}">▶ {stage}</div>', unsafe_allow_html=True)
+        # [수정] 실시간 각 대공정별 활성화된 건수를 계산하여 바(Bar) 텍스트 옆에 동적으로 출력
+        stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
+        st.markdown(f'<div class="stage-bar sb-{idx_stage}">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
+        
         cols = st.columns(10)
         for idx, machine in enumerate(MACHINE_MAP[stage]):
             with cols[idx]:
                 st.markdown(f"<div class='machine-title'>{machine}</div>", unsafe_allow_html=True)
-                m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())] if not curr_df.empty else pd.DataFrame()
+                m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설bi'] == machine.strip())] if not curr_df.empty else pd.DataFrame()
+                
+                # 오타 방지용 컬럼 안전 매핑 복구
+                if not curr_df.empty and '설비' in curr_df.columns:
+                    m_items = curr_df[(curr_df['공정'] == stage) & (curr_df['설비'] == machine.strip())]
+                    
                 for _, row in m_items.iterrows():
                     with st.container(border=True):
                         st.markdown(f"<p class='card-text-10px'>{row['제품']}</p>", unsafe_allow_html=True)
@@ -345,22 +351,12 @@ else:
     else:
         st.header("🔍 완료된 공정 이력 리포트 (선별)")
         team_df = log_df[(log_df['공정'] == '외관선별공정') & (log_df['상태'] == '완료')]
-    
-    # [제품명 필터 기능 추가]
     if not team_df.empty:
-        # 이력 데이터 중 고유 제품명 추출
         unique_products = sorted(team_df['제품'].unique().tolist())
         sel_filter = st.selectbox("🔍 제품명으로 검색 (데이터가 많을 때 사용하세요)", ["전체 보기"] + unique_products)
-        
-        # 필터링 적용
         display_df = team_df.copy()
         if sel_filter != "전체 보기":
             display_df = display_df[display_df['제품'] == sel_filter]
-        
-        # 표 출력 (글자 크기 16px 반영)
-        st.dataframe(
-            display_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), 
-            use_container_width=True
-        )
+        st.dataframe(display_df[['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비']].sort_index(ascending=False), use_container_width=True)
     else:
         st.info("조건에 일치하는 완료 이력이 존재하지 않습니다.")
