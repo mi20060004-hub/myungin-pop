@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (시작 및 변경 버튼 스타일 완전 동기화) ---
+# --- 2. CSS 스타일 (시작 & 변경 버튼 쌍둥이 입체 스타일 완벽 구현) ---
 st.markdown("""
 <style>
 .fixed-header {
@@ -65,7 +65,7 @@ st.markdown("""
 .bg-progress { background-color: #ef4444; }
 .bg-paused { background-color: #f59e0b; }
 
-/* 블록 안의 정보 텍스트 크기 */
+/* 블록 안의 정보 텍스트 크기 15px 유지 */
 .card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
@@ -74,54 +74,50 @@ st.markdown("""
 /* 완료 이력 표 16px 유지 */
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th {font-size: 16px !important; }
 
-/* [디자인 일원화] 일반 stButton과 stPopover 내부 단추 단 단면에 강제 타겟팅 주입 */
+/* [초강력 스타일 통합] 
+  stButton의 기본 버튼과 stPopover의 트리거 단추를 묶어 
+  글자가 절대 깨지지 않는 13px 입체 단추 모양으로 통일화합니다.
+*/
 div.stButton > button, 
-div[data-testid="stPopover"] > div:first-child > button,
-div[data-testid="stPopoverBody"]-trigger {
-    padding: 2px 4px !important; 
+div[data-testid="stPopover"] button {
+    padding: 4px 6px !important; 
     font-size: 13px !important; 
     font-weight: 700 !important;
-    height: 28px !important; 
-    min-height: 28px !important;
-    max-height: 28px !important;
+    height: 32px !important; 
+    min-height: 32px !important;
     line-height: 1.2 !important;
     background-color: #ffffff !important;
     color: #1e3a8a !important;
     border: 2px solid #1e3a8a !important;
-    box-shadow: 0 3px 0px #1e3a8a !important; 
+    box-shadow: 0 4px 0px #1e3a8a !important; 
     border-radius: 6px !important;
     transition: all 0.05s ease-in-out;
     width: 100% !important; 
-    display: inline-flex !important;
+    display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    overflow: hidden !important;
     white-space: nowrap !important;
 }
 
-/* 팝업 외부 감싸는 고유 정렬 컨테이너 크기 강제 동기화 */
+/* 팝업 버튼 내부 레이어 정렬 및 화살표 가리기 */
 div[data-testid="stPopover"] {
     width: 100% !important;
-    display: block !important;
 }
 div[data-testid="stPopover"] > div:first-child {
     width: 100% !important;
 }
-
-/* 팝업 버튼 오른쪽의 내림 화살표(∨) 및 아이콘 강제 삭제 */
-div[data-testid="stPopover"] svg, 
-div[data-testid="stPopover"] [data-testid="stIcon"] {
+div[data-testid="stPopover"] svg {
     display: none !important;
 }
 
-/* 마우스 호버 및 클릭 액션 동동 적용 */
-div.stButton > button:hover, div[data-testid="stPopover"] > div:first-child > button:hover {
+/* 호버 및 액션 통합 효과 */
+div.stButton > button:hover, div[data-testid="stPopover"] button:hover {
     background-color: #f8fafc !important;
     color: #1e3a8a !important;
     border: 2px solid #1e3a8a !important;
 }
-div.stButton > button:active, div[data-testid="stPopover"] > div:first-child > button:active {
-    transform: translateY(2px) !important;
+div.stButton > button:active, div[data-testid="stPopover"] button:active {
+    transform: translateY(3px) !important;
     box-shadow: 0 1px 0px #1e3a8a !important;
 }
 </style>
