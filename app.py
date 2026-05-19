@@ -364,10 +364,27 @@ else:
         display_df = all_raw_df.copy() if not all_raw_df.empty else pd.DataFrame()
     
     if not display_df.empty:
-        sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
-        if sel_filter != "전체 보기": 
-            display_df = display_df[display_df['제품'] == sel_filter]
+        # --- [부활 핵심] 모든 공정 이력 확인 탭 전용 동적 필터링 바 및 실시간 연동 토글 세팅 ---
+        if st.session_state.view == 'all_history':
+            filter_cols = st.columns([6, 4])
+            with filter_cols[0]:
+                sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
+            with filter_cols[1]:
+                st.write("") 
+                only_live = st.toggle("⚡ 현재 실시간 현황판에 있는 로트만 보기", value=False)
             
+            if sel_filter != "전체 보기": 
+                display_df = display_df[display_df['제품'] == sel_filter]
+                
+            if only_live and not curr_df.empty:
+                # 실시간 현황판에 살아있는 로트의 조합 식별 코드
+                live_stage_combos = (curr_df['제품'].str.strip() + "_" + curr_df['Lot'].str.strip() + "_" + curr_df['공정'].str.strip()).unique().tolist()
+                display_df = display_df[(display_df['제품'].str.strip() + "_" + display_df['Lot'].str.strip() + "_" + display_df['공정'].str.strip()).isin(live_stage_combos)]
+        else:
+            sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
+            if sel_filter != "전체 보기": 
+                display_df = display_df[display_df['제품'] == sel_filter]
+                
         avail_cols = [c for c in ['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비'] if c in display_df.columns]
         st.dataframe(display_df[avail_cols].sort_index(ascending=False), use_container_width=True)
     else: 
