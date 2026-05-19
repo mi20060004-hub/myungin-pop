@@ -221,18 +221,16 @@ if st.session_state.view == 'main':
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
                                 
-                                # --- 🎨 [재고 수량별 동적 색상 스위칭 규칙] ---
+                                # --- 🎨 칭량공정 전용 동적 색상 매핑 브릿지 (공백 오류 전면 해결) ---
                                 if current_stock_val == "정보없음":
-                                    st.markdown(f"<p class='stock-text-highlight' style='color:#ef4444 !important;'>재고: 정보없음</p>", unsafe_allow_html=True)
+                                    st.markdown("<p class='stock-text-highlight' style='color:#ef4444 !important;'>재고: 정보없음</p>", unsafe_allow_html=True)
                                 else:
                                     try:
-                                        # 수량이 숫자형태일 경우 1.0 이하 판별
                                         if float(current_stock_val) <= 1.0:
                                             st.markdown(f"<p class='stock-text-highlight' style='color:#ef4444 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                         else:
                                             st.markdown(f"<p class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                     except ValueError:
-                                        # 예외 문자열 대비 기본 초록색 처리
                                         st.markdown(f"<p class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
@@ -301,17 +299,17 @@ if st.session_state.view == 'main':
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
                                 
-                                # --- 🎨 [재고 수량별 동적 색상 스위칭 규칙] ---
+                                # --- 🎨 일반 공정 전용 동적 색상 매핑 브릿지 (p 태그 전면 강제 주입으로 깨짐 방지) ---
                                 if current_stock_val == "정보없음":
-                                    st.markdown(f"<div class='stock-text-highlight' style='color:#ef4444 !important;'>재고: 정보없음</div>", unsafe_allow_html=True)
+                                    st.markdown("<p class='stock-text-highlight' style='color:#ef4444 !important;'>재고: 정보없음</p>", unsafe_allow_html=True)
                                 else:
                                     try:
                                         if float(current_stock_val) <= 1.0:
-                                            st.markdown(f"<div class='stock-text-highlight' style='color:#ef4444 !important;'>재고: {current_stock_val}</div>", unsafe_allow_html=True)
+                                            st.markdown(f"<p class='stock-text-highlight' style='color:#ef4444 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                         else:
-                                            st.markdown(f"<div class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</div>", unsafe_allow_html=True)
+                                            st.markdown(f"<p class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                     except ValueError:
-                                        st.markdown(f"<div class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</div>", unsafe_allow_html=True)
+                                        st.markdown(f"<p class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항']: st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
