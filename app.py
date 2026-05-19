@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (★ 버튼 높이 절반 압축 업데이트) ---
+# --- 2. CSS 스타일 (★ 스트림릿 컴포넌트 강제 압착 절대 규칙 업데이트) ---
 st.markdown("""
 <style>
 .fixed-header {
@@ -51,15 +51,17 @@ st.markdown("""
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 1px !important; }
 
-/* 🛠️ [초슬림화 핵심 CSS] 버튼 높이를 기존 16px에서 12px~13px 수준으로 압착 */
-.main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"] {
-    min-height: 13px !important; height: 13px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important;
-}
+/* 🛠️ [완벽 해결] 스트림릿 고유 버튼 컴포넌트 스펙을 강제로 부수고 절반 높이로 압착 */
+.main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child {
     min-height: 13px !important; height: 13px !important; max-height: 13px !important; margin: 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
+
+/* 시작, 대기, 완료(팝오버) 버튼 내부 여백 제거 및 초슬림 높이 강제 지정 */
+.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
+.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
 .main div[data-testid="stVerticalBlock"] div.stButton > button,
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button {
     padding: 0px !important; margin: 0px !important; font-size: 10px !important; font-weight: 800 !important; 
@@ -169,7 +171,7 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
-    is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'].str.strip() == sel_p.strip())).any()) or any(p['Lot'] == lot_in and p['제품'].strip() == sel_p.strip() for p in st.session_state.pending_lots))
+    is_duplicate = lot_in and ((not curr_df.empty bounds and ((curr_df['Lot'] == lot_in) & (curr_df['제품'].str.strip() == sel_p.strip())).any()) or any(p['Lot'] == lot_in and p['제품'].strip() == sel_p.strip() for p in st.session_state.pending_lots))
     
     if lot_in and is_duplicate: st.error("⚠️ 중복 데이터")
     elif lot_in:
