@@ -37,7 +37,7 @@ st.markdown("""
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
 
-/* 재고 상태별 3단 분리 클래스 */
+/* 🎨 재고 상태별 3단 분리 클래스 */
 .stock-red { font-size: 13px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
 .stock-green { font-size: 13px !important; color: #004d40 !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
 .stock-black { font-size: 13px !important; color: #1e293b !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
@@ -51,7 +51,7 @@ st.markdown("""
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 1px !important; }
 
-/* 🛠️ [완벽 해결] 스트림릿 고유 버튼 컴포넌트 스펙을 강제로 부수고 절반 높이로 압착 */
+/* 🛠️ 스트림릿 고유 버튼 컴포넌트 스펙을 강제로 부수고 절반 높이로 압착 */
 .main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
@@ -171,7 +171,8 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
-    is_duplicate = lot_in and ((not curr_df.empty bounds and ((curr_df['Lot'] == lot_in) & (curr_df['제품'].str.strip() == sel_p.strip())).any()) or any(p['Lot'] == lot_in and p['제품'].strip() == sel_p.strip() for p in st.session_state.pending_lots))
+    # ★ [오타 완벽 해결] 중복 검사 로직 내 잘못 끼어있던 bounds 단어 제거
+    is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'].str.strip() == sel_p.strip())).any()) or any(p['Lot'] == lot_in and p['제품'].strip() == sel_p.strip() for p in st.session_state.pending_lots))
     
     if lot_in and is_duplicate: st.error("⚠️ 중복 데이터")
     elif lot_in:
@@ -302,8 +303,8 @@ if st.session_state.view == 'main':
                         for _, row in m_specific_items.iterrows():
                             with st.container(border=True):
                                 prod_name = str(row['제품']).strip()
-                                st.markdown(f"<p class='card-text-10px'>{prod_name}</p>", unsafe_allow_html=True)
-                                st.markdown(f"<p class='card-text-l-10px'>{row['Lot']}</p>", unsafe_allow_html=True)
+                                st.markdown(f"<div class='card-text-10px'>{prod_name}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div class='card-text-l-10px'>{row['Lot']}</div>", unsafe_allow_html=True)
                                 
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
@@ -354,7 +355,7 @@ if st.session_state.view == 'main':
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M' ) - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
-                                                    supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                                    supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "so요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
                                     else:
                                         if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
