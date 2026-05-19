@@ -36,8 +36,8 @@ st.markdown("""
 .card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
-/* stock-text-highlight 색상 수정: 더 잘 보이도록 어둡게 */
-.stock-text-highlight { font-size: 13px !important; color: #004d40 !important; font-weight: 700 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
+/* stock-text-highlight 색상 규칙 정의 */
+.stock-text-highlight { font-size: 13px !important; font-weight: 700 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
 .lot-type-highlight { font-size: 15px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 3px 0; border-radius: 3px; margin-bottom: 5px; }
 .bg-waiting { background-color: #3b82f6; }
@@ -112,7 +112,6 @@ def load_data():
 
     stock_dict = {}
     try:
-        # ★ 수파베이스에서 새 컬럼 명칭인 '적요', '재고 월수'를 직접 긁어오도록 연동 엔진 전면 수정
         s_data = supabase.table("product_stock").select("적요, \"재고 월수\"").order("id", desc=True).execute()
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
@@ -221,10 +220,20 @@ if st.session_state.view == 'main':
                                 
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
+                                
+                                # --- 🎨 [재고 수량별 동적 색상 스위칭 규칙] ---
                                 if current_stock_val == "정보없음":
-                                    st.markdown(f"<p class='stock-text-highlight'>재고: <span style='color:#ef4444;'>정보없음</span></p>", unsafe_allow_html=True)
+                                    st.markdown(f"<p class='stock-text-highlight' style='color:#ef4444 !important;'>재고: 정보없음</p>", unsafe_allow_html=True)
                                 else:
-                                    st.markdown(f"<p class='stock-text-highlight'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                    try:
+                                        # 수량이 숫자형태일 경우 1.0 이하 판별
+                                        if float(current_stock_val) <= 1.0:
+                                            st.markdown(f"<p class='stock-text-highlight' style='color:#ef4444 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                        else:
+                                            st.markdown(f"<p class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                    except ValueError:
+                                        # 예외 문자열 대비 기본 초록색 처리
+                                        st.markdown(f"<p class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항']: st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
@@ -291,10 +300,18 @@ if st.session_state.view == 'main':
                                 
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
+                                
+                                # --- 🎨 [재고 수량별 동적 색상 스위칭 규칙] ---
                                 if current_stock_val == "정보없음":
-                                    st.markdown(f"<p class='stock-text-highlight'>재고: <span style='color:#ef4444;'>정보없음</span></p>", unsafe_allow_html=True)
+                                    st.markdown(f"<div class='stock-text-highlight' style='color:#ef4444 !important;'>재고: 정보없음</div>", unsafe_allow_html=True)
                                 else:
-                                    st.markdown(f"<p class='stock-text-highlight'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                    try:
+                                        if float(current_stock_val) <= 1.0:
+                                            st.markdown(f"<div class='stock-text-highlight' style='color:#ef4444 !important;'>재고: {current_stock_val}</div>", unsafe_allow_html=True)
+                                        else:
+                                            st.markdown(f"<div class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</div>", unsafe_allow_html=True)
+                                    except ValueError:
+                                        st.markdown(f"<div class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</div>", unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항']: st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
