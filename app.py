@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (★ 컴포넌트 하단 유령 여백까지 완벽 파괴 및 강제 압착) ---
+# --- 2. CSS 스타일 (★ 스트림릿 컴포넌트 3중 구조 전면 해체 및 강제 초슬림 압착) ---
 st.markdown("""
 <style>
 .fixed-header {
@@ -50,32 +50,34 @@ st.markdown("""
 
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* 🛠️ [초강력 압착 규칙] 버튼 블록 하단에 강제로 잡히는 스트림릿 고유 유령 여백(1rem) 무력화 */
-div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; }
+/* 🛠️ [초강력 여백 파괴] 블록 컨테이너와 감싸고 있는 정렬 박스의 모든 패딩/마진 완전 소멸 */
+div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
 div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
 
-/* 버튼 컨테이너 내부의 강제 여백 제로화 */
+/* 🛠️ [진짜 압착] 버튼과 팝오버를 구성하는 상위 프레임 높이를 14px로 납작하게 강제 고정 */
 .main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child {
-    min-height: 14px !important; height: 14px !important; max-height: 14px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
+.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child,
+.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button {
+    min-height: 14px !important; height: 14px !important; max-height: 14px !important; margin: 0px 0px 1px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
 
-/* 모든 내부 버튼 요소의 내부 패딩을 삭제하고 14px 크기로 강제 바인딩 */
+/* 🛠️ 버튼 내부 글자 주변 여백을 완전히 0으로 압착하고 글자 크기와 높이를 100% 동기화 */
 .main div[data-testid="stVerticalBlock"] button,
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
-.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"] {
+.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
+.main div[data-testid="stVerticalBlock"] div.stButton > button {
     padding-top: 0px !important; padding-bottom: 0px !important; padding-left: 2px !important; padding-right: 2px !important;
-    margin: 0px !important; font-size: 10px !important; font-weight: 800 !important; 
+    margin: 0px !important; font-size: 11px !important; font-weight: 800 !important; 
     height: 14px !important; min-height: 14px !important; max-height: 14px !important; 
-    line-height: 12px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
+    line-height: 14px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
     box-sizing: border-box !important; width: 100% !important; border-radius: 3px !important;
 }
 
-/* 팝오버 텍스트 정렬 보정 */
+/* 팝오버(완료/변경) 내부 텍스트 라인 강제 일치 */
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
-    margin: 0px !important; padding: 0px !important; line-height: 12px !important; font-size: 10px !important; font-weight: 800 !important;
+    margin: 0px !important; padding: 0px !important; line-height: 14px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -159,7 +161,7 @@ if 'reset_type' not in st.session_state: st.session_state.reset_type = "일반�
 if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 
 # --- 5. 헤더 및 상단 메뉴 바 ---
-st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>' , unsafe_allow_html=True)
+st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 nav_cols = st.columns(4) 
 with nav_cols[0]:
     if st.button("실시간 현황판", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
