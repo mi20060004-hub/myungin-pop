@@ -36,8 +36,11 @@ st.markdown("""
 .card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
-/* stock-text-highlight 색상 규칙 정의 */
-.stock-text-highlight { font-size: 13px !important; font-weight: 700 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
+
+/* 🎨 [완벽 해결] 재고 색상 전용 클래스 분리 선언 */
+.stock-red { font-size: 13px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
+.stock-green { font-size: 13px !important; color: #004d40 !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
+
 .lot-type-highlight { font-size: 15px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 3px 0; border-radius: 3px; margin-bottom: 5px; }
 .bg-waiting { background-color: #3b82f6; }
@@ -221,17 +224,17 @@ if st.session_state.view == 'main':
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
                                 
-                                # --- 🎨 칭량공정 전용 동적 색상 매핑 브릿지 (공백 오류 전면 해결) ---
+                                # --- 🎨 클래스 분리 교체 방식 적용 (칭량공정) ---
                                 if current_stock_val == "정보없음":
-                                    st.markdown("<p class='stock-text-highlight' style='color:#ef4444 !important;'>재고: 정보없음</p>", unsafe_allow_html=True)
+                                    st.markdown("<p class='stock-red'>재고: 정보없음</p>", unsafe_allow_html=True)
                                 else:
                                     try:
                                         if float(current_stock_val) <= 1.0:
-                                            st.markdown(f"<p class='stock-text-highlight' style='color:#ef4444 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                            st.markdown(f"<p class='stock-red'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                         else:
-                                            st.markdown(f"<p class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                            st.markdown(f"<p class='stock-green'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                     except ValueError:
-                                        st.markdown(f"<p class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                        st.markdown(f"<p class='stock-green'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항']: st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
@@ -299,17 +302,17 @@ if st.session_state.view == 'main':
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
                                 
-                                # --- 🎨 일반 공정 전용 동적 색상 매핑 브릿지 (p 태그 전면 강제 주입으로 깨짐 방지) ---
+                                # --- 🎨 클래스 분리 교체 방식 적용 (일반 설비 공정) ---
                                 if current_stock_val == "정보없음":
-                                    st.markdown("<p class='stock-text-highlight' style='color:#ef4444 !important;'>재고: 정보없음</p>", unsafe_allow_html=True)
+                                    st.markdown("<p class='stock-red'>재고: 정보없음</p>", unsafe_allow_html=True)
                                 else:
                                     try:
                                         if float(current_stock_val) <= 1.0:
-                                            st.markdown(f"<p class='stock-text-highlight' style='color:#ef4444 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                            st.markdown(f"<p class='stock-red'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                         else:
-                                            st.markdown(f"<p class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                            st.markdown(f"<p class='stock-green'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                     except ValueError:
-                                        st.markdown(f"<p class='stock-text-highlight' style='color:#004d40 !important;'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                        st.markdown(f"<p class='stock-green'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항']: st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
@@ -344,7 +347,7 @@ if st.session_state.view == 'main':
                                             for nm in n_machines:
                                                 nm_clean = nm.strip()
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
-                                                    dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                                    dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M' ) - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
                                                     supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
