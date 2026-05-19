@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (★ 버튼 내부 패딩 제로화 및 글자 크기 동기화로 절반 압착 완성) ---
+# --- 2. CSS 스타일 (★ 4중 레이어 컨테이너 프레임 통째로 초슬림 압착 규칙) ---
 st.markdown("""
 <style>
 .fixed-header {
@@ -50,33 +50,34 @@ st.markdown("""
 
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* 🛠️ [레이아웃 마진 제로화] 수직 블록들 간의 불필요한 기본 여백 제거 */
-div[data-testid="stVerticalBlock"] > div { margin-bottom: 1px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
+/* 🛠️ 1단계: 컴포넌트 사이를 넓게 띄우는 스트림릿 기본 하단 레이아웃 여백(1rem) 완전 파괴 */
+div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
 div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
 
-/* 🛠️ [뼈대 압착] 버튼과 팝오버 박스 프레임 높이를 18px로 반토막 고정 */
-.main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
+/* 🛠️ 2단계: 버튼과 팝오버 상자를 둘러싸고 있는 모든 상위 컨테이너 박스의 높이를 통째로 16px로 슬림하게 강제 차단 */
+.main div[data-testid="stVerticalBlock"] div[data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child {
-    min-height: 18px !important; height: 18px !important; max-height: 18px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
+.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child,
+.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] data-inline-label {
+    min-height: 16px !important; height: 16px !important; max-height: 16px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
 
-/* 🛠️ [진짜 글자방어벽 무력화] 글자 크기를 슬림하게 축소하고 상하 여백(Padding)을 0px로 전면 제로화 */
+/* 🛠️ 3단계: 시작, 대기, 완료 버튼의 내부 여백(Padding)을 완전히 없애고 버튼 높이를 16px로 반토막 고정 */
 .main div[data-testid="stVerticalBlock"] button,
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
 .main div[data-testid="stVerticalBlock"] div.stButton > button {
     padding-top: 0px !important; padding-bottom: 0px !important; padding-left: 2px !important; padding-right: 2px !important;
     margin: 0px !important; font-size: 11px !important; font-weight: 800 !important; 
-    height: 18px !important; min-height: 18px !important; max-height: 18px !important; 
-    line-height: 18px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
+    height: 16px !important; min-height: 16px !important; max-height: 16px !important; 
+    line-height: 16px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
     box-sizing: border-box !important; width: 100% !important; border-radius: 4px !important;
 }
 
-/* 완료 및 변경 팝오버 상자 내의 텍스트 여백 일치 */
+/* 🛠️ 4단계: 완료 및 변경 팝오버 내부에 숨어있는 기본 텍스트 여백 일치 */
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
-    margin: 0px !important; padding: 0px !important; line-height: 18px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
+    margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 </style>
 """, unsafe_allow_html=True)
