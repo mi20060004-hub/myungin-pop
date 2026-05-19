@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (★ 스트림릿 컴포넌트 강제 압착 절대 규칙 업데이트) ---
+# --- 2. CSS 스타일 (★ 스트림릿 컴포넌트 3중 레이어 강제 압착 브레이커) ---
 st.markdown("""
 <style>
 .fixed-header {
@@ -37,7 +37,7 @@ st.markdown("""
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
 
-/* 🎨 재고 상태별 3단 분리 클래스 */
+/* 재고 상태별 3단 분리 클래스 */
 .stock-red { font-size: 13px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
 .stock-green { font-size: 13px !important; color: #004d40 !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
 .stock-black { font-size: 13px !important; color: #1e293b !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
@@ -51,23 +51,26 @@ st.markdown("""
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 1px !important; }
 
-/* 🛠️ 스트림릿 고유 버튼 컴포넌트 스펙을 강제로 부수고 절반 높이로 압착 */
+/* 🛠️ [초슬림화 완벽 개조] 버튼과 팝오버를 감싸는 모든 컨테이너 레이어의 높이 제한 해제 후 강제 재정의 */
 .main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child {
-    min-height: 13px !important; height: 13px !important; max-height: 13px !important; margin: 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
+    min-height: 14px !important; height: 14px !important; max-height: 14px !important; margin: 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
 
-/* 시작, 대기, 완료(팝오버) 버튼 내부 여백 제거 및 초슬림 높이 강제 지정 */
-.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
-.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
-.main div[data-testid="stVerticalBlock"] div.stButton > button,
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button {
-    padding: 0px !important; margin: 0px !important; font-size: 10px !important; font-weight: 800 !important; 
-    height: 13px !important; min-height: 13px !important; max-height: 13px !important; 
-    line-height: 11px !important; display: flex !important; align-items: center !important; justify-content: center !important; 
-    box-sizing: border-box !important; width: 100% !important; border-radius: 4px !important;
+/* 스트림릿 기본 버튼의 테두리 여백(Padding)과 높이를 완벽하게 절반 이하로 압착 */
+.main div[data-testid="stVerticalBlock"] button {
+    padding-top: 0px !important; padding-bottom: 0px !important; padding-left: 2px !important; padding-right: 2px !important;
+    margin: 0px !important; font-size: 10px !important; font-weight: 800 !important; 
+    height: 14px !important; min-height: 14px !important; max-height: 14px !important; 
+    line-height: 12px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
+    box-sizing: border-box !important; width: 100% !important; border-radius: 3px !important;
+}
+
+/* 팝오버(완료/변경) 전용 특수 스펙 완전 무력화 */
+.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
+    margin: 0px !important; padding: 0px !important; line-height: 12px !important; font-size: 10px !important; font-weight: 800 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -171,7 +174,6 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
-    # ★ [오타 완벽 해결] 중복 검사 로직 내 잘못 끼어있던 bounds 단어 제거
     is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'].str.strip() == sel_p.strip())).any()) or any(p['Lot'] == lot_in and p['제품'].strip() == sel_p.strip() for p in st.session_state.pending_lots))
     
     if lot_in and is_duplicate: st.error("⚠️ 중복 데이터")
