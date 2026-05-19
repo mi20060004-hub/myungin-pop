@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (★ 스트림릿 컴포넌트 3중 구조 전면 해체 및 강제 초슬림 압착) ---
+# --- 2. CSS 스타일 (★ 버튼 내부 패딩 제로화 및 글자 크기 동기화로 절반 압착 완성) ---
 st.markdown("""
 <style>
 .fixed-header {
@@ -50,34 +50,33 @@ st.markdown("""
 
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* 🛠️ [초강력 여백 파괴] 블록 컨테이너와 감싸고 있는 정렬 박스의 모든 패딩/마진 완전 소멸 */
-div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
+/* 🛠️ [레이아웃 마진 제로화] 수직 블록들 간의 불필요한 기본 여백 제거 */
+div[data-testid="stVerticalBlock"] > div { margin-bottom: 1px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
 div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
 
-/* 🛠️ [진짜 압착] 버튼과 팝오버를 구성하는 상위 프레임 높이를 14px로 납작하게 강제 고정 */
+/* 🛠️ [뼈대 압착] 버튼과 팝오버 박스 프레임 높이를 18px로 반토막 고정 */
 .main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child,
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button {
-    min-height: 14px !important; height: 14px !important; max-height: 14px !important; margin: 0px 0px 1px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
+.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child {
+    min-height: 18px !important; height: 18px !important; max-height: 18px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
 
-/* 🛠️ 버튼 내부 글자 주변 여백을 완전히 0으로 압착하고 글자 크기와 높이를 100% 동기화 */
+/* 🛠️ [진짜 글자방어벽 무력화] 글자 크기를 슬림하게 축소하고 상하 여백(Padding)을 0px로 전면 제로화 */
 .main div[data-testid="stVerticalBlock"] button,
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
 .main div[data-testid="stVerticalBlock"] div.stButton > button {
     padding-top: 0px !important; padding-bottom: 0px !important; padding-left: 2px !important; padding-right: 2px !important;
     margin: 0px !important; font-size: 11px !important; font-weight: 800 !important; 
-    height: 14px !important; min-height: 14px !important; max-height: 14px !important; 
-    line-height: 14px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
-    box-sizing: border-box !important; width: 100% !important; border-radius: 3px !important;
+    height: 18px !important; min-height: 18px !important; max-height: 18px !important; 
+    line-height: 18px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
+    box-sizing: border-box !important; width: 100% !important; border-radius: 4px !important;
 }
 
-/* 팝오버(완료/변경) 내부 텍스트 라인 강제 일치 */
+/* 완료 및 변경 팝오버 상자 내의 텍스트 여백 일치 */
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
-    margin: 0px !important; padding: 0px !important; line-height: 14px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
+    margin: 0px !important; padding: 0px !important; line-height: 18px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -363,7 +362,7 @@ if st.session_state.view == 'main':
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M' ) - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
-                                                    supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "so요시간": dur}).eq("id", row['Row']).execute()
+                                                    supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
                                     else:
                                         if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
