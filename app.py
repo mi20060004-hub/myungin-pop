@@ -36,7 +36,8 @@ st.markdown("""
 .card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
-.stock-text-highlight { font-size: 13px !important; color: #0d9488 !important; font-weight: 700 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
+/* stock-text-highlight 색상 수정: 더 잘 보이도록 어둡게 */
+.stock-text-highlight { font-size: 13px !important; color: #004d40 !important; font-weight: 700 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
 .lot-type-highlight { font-size: 15px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 3px 0; border-radius: 3px; margin-bottom: 5px; }
 .bg-waiting { background-color: #3b82f6; }
@@ -223,9 +224,9 @@ if st.session_state.view == 'main':
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
                                 if current_stock_val == "정보없음":
-                                    st.markdown(f"<p class='stock-text-highlight'>📦 재고: <span style='color:#ef4444;'>정보없음</span></p>", unsafe_allow_html=True)
+                                    st.markdown(f"<p class='stock-text-highlight'>재고: <span style='color:#ef4444;'>정보없음</span></p>", unsafe_allow_html=True)
                                 else:
-                                    st.markdown(f"<p class='stock-text-highlight'>📦 재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                    st.markdown(f"<p class='stock-text-highlight'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항']: st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
@@ -295,9 +296,9 @@ if st.session_state.view == 'main':
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
                                 if current_stock_val == "정보없음":
-                                    st.markdown(f"<p class='stock-text-highlight'>📦 재고: <span style='color:#ef4444;'>정보없음</span></p>", unsafe_allow_html=True)
+                                    st.markdown(f"<p class='stock-text-highlight'>재고: <span style='color:#ef4444;'>정보없음</span></p>", unsafe_allow_html=True)
                                 else:
-                                    st.markdown(f"<p class='stock-text-highlight'>📦 재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                    st.markdown(f"<p class='stock-text-highlight'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항']: st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
