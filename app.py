@@ -37,9 +37,10 @@ st.markdown("""
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
 
-/* 🎨 [완벽 해결] 재고 색상 전용 클래스 분리 선언 */
+/* 🎨 재고 상태별 3단 분리 CSS 클래스 정의 */
 .stock-red { font-size: 13px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
 .stock-green { font-size: 13px !important; color: #004d40 !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
+.stock-black { font-size: 13px !important; color: #1e293b !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
 
 .lot-type-highlight { font-size: 15px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 3px 0; border-radius: 3px; margin-bottom: 5px; }
@@ -50,18 +51,9 @@ st.markdown("""
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 2px !important; }
 
-.main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"] {
-    min-height: 16px !important; height: 16px !important; margin: 0px 0px 3px 0px !important; padding: 0px !important;
-}
-.main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child {
-    min-height: 16px !important; height: 16px !important; max-height: 16px !important; margin: 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
-}
-.main div[data-testid="stVerticalBlock"] div.stButton > button,
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button {
-    padding: 0px !important; margin: 0px !important; font-size: 11px !important; font-weight: 700 !important; height: 16px !important; min-height: 16px !important; max-height: 16px !important; line-height: 14px !important; display: flex !important; align-items: center !important; justify-content: center !important; box-sizing: border-box !important; width: 100% !important;
-}
+.main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"] { min-height: 16px !important; height: 16px !important; margin: 0px 0px 3px 0px !important; padding: 0px !important; }
+.main div[data-testid="stVerticalBlock"] div[data-testid="stButton"], .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"], .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child { min-height: 16px !important; height: 16px !important; max-height: 16px !important; margin: 0px !important; padding: 0px !important; display: flex !important; align-items: center !important; }
+.main div[data-testid="stVerticalBlock"] div.stButton > button, .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button { padding: 0px !important; margin: 0px !important; font-size: 11px !important; font-weight: 700 !important; height: 16px !important; min-height: 16px !important; max-height: 16px !important; line-height: 14px !important; display: flex !important; align-items: center !important; justify-content: center !important; box-sizing: border-box !important; width: 100% !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -224,9 +216,9 @@ if st.session_state.view == 'main':
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
                                 
-                                # --- 🎨 클래스 분리 교체 방식 적용 (칭량공정) ---
+                                # --- 🎨 [3단 스위칭 피드백형 조건문 적용] (칭량공정) ---
                                 if current_stock_val == "정보없음":
-                                    st.markdown("<p class='stock-red'>재고: 정보없음</p>", unsafe_allow_html=True)
+                                    st.markdown("<p class='stock-black'>재고: 정보없음</p>", unsafe_allow_html=True)
                                 else:
                                     try:
                                         if float(current_stock_val) <= 1.0:
@@ -302,9 +294,9 @@ if st.session_state.view == 'main':
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
                                 
-                                # --- 🎨 클래스 분리 교체 방식 적용 (일반 설비 공정) ---
+                                # --- 🎨 [3단 스위칭 피드백형 조건문 적용] (일반 설비 공정) ---
                                 if current_stock_val == "정보없음":
-                                    st.markdown("<p class='stock-red'>재고: 정보없음</p>", unsafe_allow_html=True)
+                                    st.markdown("<p class='stock-black'>재고: 정보없음</p>", unsafe_allow_html=True)
                                 else:
                                     try:
                                         if float(current_stock_val) <= 1.0:
