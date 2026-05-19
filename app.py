@@ -75,9 +75,9 @@ except Exception as e:
     st.error(f"🔗 데이터베이스 연결 실패: {e}")
     st.stop()
 
-# --- 4. 데이터 로직 (★ 칭량공정 최상단 추가) ---
+# --- 4. 데이터 로직 ---
 MACHINE_MAP = {
-    "칭량공정": [], # 별도 설비 없음
+    "칭량공정": [], 
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
     "건조공정": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
     "정립공정": ["Comil0112", "Comil0212", "Comil0312", "파워밀"],
@@ -112,13 +112,14 @@ def load_data():
 
     stock_dict = {}
     try:
-        s_data = supabase.table("product_stock").select("제품명, 재고수량").order("id", desc=True).execute()
+        # ★ 수파베이스에서 새 컬럼 명칭인 '적요', '재고 월수'를 직접 긁어오도록 연동 엔진 전면 수정
+        s_data = supabase.table("product_stock").select("적요, \"재고 월수\"").order("id", desc=True).execute()
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
-            s_df = s_df.drop_duplicates(subset=['제품명'], keep='first')
+            s_df = s_df.drop_duplicates(subset=['적요'], keep='first')
             for _, s_row in s_df.iterrows():
-                clean_stock_p = str(s_row['제품명']).replace(" ", "").strip()
-                stock_dict[clean_stock_p] = str(s_row['재고수량']).strip()
+                clean_stock_p = str(s_row['적요']).replace(" ", "").strip()
+                stock_dict[clean_stock_p] = str(s_row['재고 월수']).strip()
     except Exception:
         pass
 
@@ -178,7 +179,6 @@ with st.sidebar:
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             for p in st.session_state.pending_lots:
                 p_clean = p['제품'].strip()
-                # 무조건 첫 공정인 '칭량공정'으로 진입하도록 설정
                 supabase.table("product_history").insert({"Lot": p['Lot'], "제품": p_clean, "공정": "칭량공정", "상태": "대기", "유형": p['유형'], "특이사항": p['특이사항'], "설비": ""}).execute()
             st.session_state.pending_lots = []; st.rerun()
 
@@ -206,11 +206,9 @@ if st.session_state.view == 'main':
         if not curr_df.empty:
             m_items = curr_df[curr_df['공정'] == stage]
         
-        # --- [보완 핵심] 칭량공정: 설비 없이 가로 10개씩 무한 줄 바꿈 바둑판 배치 로직 ---
         if stage == "칭량공정":
             if not m_items.empty:
                 total_items = len(m_items)
-                # 10개 단위로 줄(Row)을 계산하여 동적 출력
                 for chunk_idx in range(0, total_items, 10):
                     chunk_df = m_items.iloc[chunk_idx:chunk_idx+10]
                     cols = st.columns(10)
@@ -241,7 +239,6 @@ if st.session_state.view == 'main':
                                         supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                         st.rerun()
                                     
-                                    # 다음 공정(과립공정 등) 자동 인계 로직
                                     n_stg = None
                                     for i in range(idx_stage + 1, len(TARGET_STAGES)):
                                         check_stage = TARGET_STAGES[i].strip()
@@ -274,7 +271,6 @@ if st.session_state.view == 'main':
             else:
                 st.caption("대기 중인 칭량 작업이 없습니다.")
 
-        # --- 일반 설비 기반 공정 렌더링 로직 ---
         else:
             cols = st.columns(10)
             stage_machines = MACHINE_MAP[stage]
@@ -364,7 +360,6 @@ else:
         display_df = all_raw_df.copy() if not all_raw_df.empty else pd.DataFrame()
     
     if not display_df.empty:
-        # --- [부활 핵심] 모든 공정 이력 확인 탭 전용 동적 필터링 바 및 실시간 연동 토글 세팅 ---
         if st.session_state.view == 'all_history':
             filter_cols = st.columns([6, 4])
             with filter_cols[0]:
@@ -377,7 +372,6 @@ else:
                 display_df = display_df[display_df['제품'] == sel_filter]
                 
             if only_live and not curr_df.empty:
-                # 실시간 현황판에 살아있는 로트의 조합 식별 코드
                 live_stage_combos = (curr_df['제품'].str.strip() + "_" + curr_df['Lot'].str.strip() + "_" + curr_df['공정'].str.strip()).unique().tolist()
                 display_df = display_df[(display_df['제품'].str.strip() + "_" + display_df['Lot'].str.strip() + "_" + display_df['공정'].str.strip()).isin(live_stage_combos)]
         else:
