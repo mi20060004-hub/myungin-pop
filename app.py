@@ -55,7 +55,7 @@ div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; paddin
 div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
 
 /* 버튼 및 팝오버 상위 컨테이너 슬림 압착 고정 */
-.main div[data-testid="stVerticalBlock"] div[data-testid="stElementContainer"],
+.main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child,
@@ -223,15 +223,15 @@ if st.session_state.view == 'main':
         if not curr_df.empty:
             m_items = curr_df[curr_df['공정'] == stage].copy()
             
-            # --- 🛠️ [정렬 엔진 전면 개조] 복합 스코어 산출 방식 탑재 ---
+            # --- 🛠️ [3단계 선입선출 정렬 스코어 연산] ---
             def calculate_sort_score(row):
                 p_clean = str(row['제품']).replace(" ", "").strip()
                 stock_val = stock_dict.get(p_clean, "정보없음")
                 
-                # 1단계 순위: 상태가 '진행중'이면 우선권을 주기 위해 가중치를 음수 최고점으로 부여
+                # 1순위: 상태가 '진행중'이면 최고 우선권 (0: 진행중, 1: 대기/지연)
                 is_progress = 0 if str(row['상태']).strip() == "진행중" else 1
                 
-                # 2단계 순위: 재고 수량 숫자로 변환 (정보없음은 최하위 점수인 -1.0점 처리하여 가장 먼저 나오게 유도)
+                # 2순위: 재고 부족 오름차순 (정보없음은 최하위 점수 -1.0 처리)
                 if stock_val == "정보없음":
                     numeric_stock = -1.0
                 else:
@@ -239,11 +239,19 @@ if st.session_state.view == 'main':
                         numeric_stock = float(stock_val)
                     except ValueError:
                         numeric_stock = 999999.0
+                
+                # 3순위: 제조번호(Lot) 선입선출용 텍스트/숫자 추출 후 반영
+                lot_str = str(row['Lot']).strip()
+                try:
+                    numeric_lot = float(lot_str)
+                except ValueError:
+                    numeric_lot = 999999.0
                         
-                return (is_progress, numeric_stock)
+                return (is_progress, numeric_stock, numeric_lot)
 
             if not m_items.empty:
                 m_items['sort_score'] = m_items.apply(calculate_sort_score, axis=1)
+                # 세 가지 정렬 가중치 기준으로 정교하게 오름차순 배치
                 m_items = m_items.sort_values(by='sort_score', ascending=True).drop(columns=['sort_score'])
         
         if stage == "칭량공정":
