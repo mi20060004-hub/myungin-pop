@@ -35,6 +35,7 @@ st.markdown("""
 
 .card-text-10px { font-size: 15px !important; font-weight: 800; margin: 0; text-align: center; line-height: 1.2; }
 .card-text-l-10px { font-size: 15px !important; color: #1e40af; font-weight: 700; text-align: center; margin: 0; line-height: 1.2; }
+.card-text-date { font-size: 12px !important; color: #64748b; font-weight: 700; text-align: center; margin: 1px 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
 
 /* 재고 상태별 3단 분리 클래스 */
@@ -113,6 +114,25 @@ TARGET_STAGES = list(MACHINE_MAP.keys())
 def get_now_kst():
     return (datetime.now(timezone(timedelta(hours=9)))).strftime('%Y-%m-%d %H:%M')
 
+def get_today_date_kst():
+    return datetime.now(timezone(timedelta(hours=9))).date()
+
+# 🆕 제조일자 기준 경과일수 문자열 계산기 함수
+def get_elapsed_days_str(date_val):
+    if pd.isna(date_val):
+        return ""
+    date_str = str(date_val).strip()
+    if not date_str or date_str.upper() == "NONE" or date_str == "-":
+        return ""
+    try:
+        # yyyy-mm-dd 파싱
+        target_dt = datetime.strptime(date_str[:10], '%Y-%m-%d').date()
+        today_dt = get_today_date_kst()
+        delta_days = (today_dt - target_dt).days
+        return f" ({delta_days}일째)"
+    except Exception:
+        return ""
+
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
     master_dict = {}
@@ -176,6 +196,10 @@ with st.sidebar:
     st.header("🏭 제조 투입")
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="sel_p_widget")
     lot_in = st.text_input("제조번호(Lot) 입력", key="lot_in_widget", value=st.session_state.reset_lot).strip()
+    
+    date_in = st.date_input("제조일자 선택", value=get_today_date_kst(), key="date_in_widget")
+    date_str = date_in.strftime('%Y-%m-%d')
+    
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
@@ -184,19 +208,19 @@ with st.sidebar:
     if lot_in and is_duplicate: st.error("⚠️ 중복 데이터")
     elif lot_in:
         if st.button("➕ 투입 대기열 추가", use_container_width=True):
-            st.session_state.pending_lots.append({'제품': sel_p.strip(), 'Lot': lot_in, '유형': lot_type, '특이사항': note_in, '설비': ""})
+            st.session_state.pending_lots.append({'제품': sel_p.strip(), 'Lot': lot_in, '제조일자': date_str, '유형': lot_type, '특이사항': note_in, '설비': ""})
             st.session_state.reset_lot = ""; st.rerun()
 
     if st.session_state.pending_lots:
         st.write("---")
         for idx, p in enumerate(st.session_state.pending_lots):
             c1, c2 = st.columns([8, 2])
-            c1.info(f"{p['제품']} | {p['Lot']}")
+            c1.info(f"{p['제품']} | {p['Lot']} ({p['제조일자']})")
             if c2.button("❌", key=f"del_{idx}"): st.session_state.pending_lots.pop(idx); st.rerun()
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             for p in st.session_state.pending_lots:
                 p_clean = p['제품'].strip()
-                supabase.table("product_history").insert({"Lot": p['Lot'], "제품": p_clean, "공정": "칭량공정", "상태": "대기", "유형": p['유형'], "특이사항": p['특이사항'], "설비": ""}).execute()
+                supabase.table("product_history").insert({"Lot": p['Lot'], "제품": p_clean, "공정": "칭량공정", "상태": "대기", "제조일자": p['제조일자'], "유형": p['유형'], "특이사항": p['특이사항'], "설비": ""}).execute()
             st.session_state.pending_lots = []; st.rerun()
 
     st.divider()
@@ -261,6 +285,12 @@ if st.session_state.view == 'main':
                                 st.markdown(f"<p class='card-text-10px'>{prod_name}</p>", unsafe_allow_html=True)
                                 st.markdown(f"<p class='card-text-l-10px'>{row['Lot']}</p>", unsafe_allow_html=True)
                                 
+                                # 🆕 [칭량공정] 제조일자 및 경과일수 (X일째) 통합 연동 표출
+                                p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
+                                if p_date and p_date.upper() != "NONE" and p_date != "-":
+                                    elapsed_suffix = get_elapsed_days_str(p_date)
+                                    st.markdown(f"<p class='card-text-date'>📆 {p_date}{elapsed_suffix}</p>", unsafe_allow_html=True)
+                                
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
                                 
@@ -279,9 +309,9 @@ if st.session_state.view == 'main':
                                 if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
                                 
-                                # --- 🛠️ [안전벨트 장치] 칭량공정 데이터 전송용 결측치 차단 세팅 ---
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
                                 c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
+                                c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
                                 
                                 if row['상태'] == '대기':
                                     if st.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
@@ -306,7 +336,7 @@ if st.session_state.view == 'main':
                                                 nm_clean = nm.strip()
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": c_type, "특이사항": c_note, "설비": nm_clean}).execute()
+                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": nm_clean}).execute()
                                                     supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
                                     else:
@@ -314,7 +344,7 @@ if st.session_state.view == 'main':
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                             next_m = n_machines[0].strip() if n_machines else ""
                                             if n_stg:
-                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": c_type, "특이사항": c_note, "설비": next_m}).execute()
+                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m}).execute()
                                             supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                             st.rerun()
                                 elif row['상태'] == '지연':
@@ -342,6 +372,12 @@ if st.session_state.view == 'main':
                                 st.markdown(f"<div class='card-text-10px'>{prod_name}</div>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='card-text-l-10px'>{row['Lot']}</div>", unsafe_allow_html=True)
                                 
+                                # 🆕 [일반 후공정] 제조일자 및 경과일수 (X일째) 통합 연동 표출
+                                p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
+                                if p_date and p_date.upper() != "NONE" and p_date != "-":
+                                    elapsed_suffix = get_elapsed_days_str(p_date)
+                                    st.markdown(f"<div class='card-text-date'>📆 {p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
+                                
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
                                 
@@ -360,9 +396,9 @@ if st.session_state.view == 'main':
                                 if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
                                 
-                                # --- 🛠️ [안전벨트 장치] 일반 후공정용 결측치 차단 세팅 ---
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
                                 c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
+                                c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
                                 
                                 if row['상태'] == '대기':
                                     if st.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
@@ -394,7 +430,7 @@ if st.session_state.view == 'main':
                                                 nm_clean = nm.strip()
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M' ) - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": c_type, "특이사항": c_note, "설비": nm_clean}).execute()
+                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": nm_clean}).execute()
                                                     supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
                                     else:
@@ -402,7 +438,7 @@ if st.session_state.view == 'main':
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                             if n_stg: 
                                                 next_m = n_machines[0].strip() if n_machines else ""
-                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": c_type, "특이사항": c_note, "설비": next_m}).execute()
+                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m}).execute()
                                             supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                             st.rerun()
                                 elif row['상태'] == '지연':
@@ -443,7 +479,7 @@ else:
             if sel_filter != "전체 보기": 
                 display_df = display_df[display_df['제품'] == sel_filter]
                 
-        avail_cols = [c for c in ['Lot', '제품', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비'] if c in display_df.columns]
+        avail_cols = [c for c in ['Lot', '제품', '제조일자', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비'] if c in display_df.columns]
         st.dataframe(display_df[avail_cols].sort_index(ascending=False), use_container_width=True)
     else: 
         st.info("데이터가 없습니다.")
