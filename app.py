@@ -302,7 +302,7 @@ if st.session_state.view == 'main':
                                                 nm_clean = nm.strip()
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                    # 🛠️ [칭량 다중 설비 오타 완벽 복구] "대7I" -> "대기"로 정상화 완료
+                                                    # 🛠️ [박멸 1] 여기에 마지막으로 숨어있던 "상태": "대7I" 오타를 "대기"로 완벽 고정했습니다!
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
                                                     supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
@@ -387,7 +387,7 @@ if st.session_state.view == 'main':
                                                 nm_clean = nm.strip()
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M' ) - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                    # 🛠️ [일반 다중 설비 오타 완벽 복구] "상태": "대기" 정상화 완료
+                                                    # 🛠 Preserved: 일반 공정용 다중 설비는 완벽히 대기로 유지중입니다.
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
                                                     supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
