@@ -223,15 +223,11 @@ if st.session_state.view == 'main':
         if not curr_df.empty:
             m_items = curr_df[curr_df['공정'] == stage].copy()
             
-            # --- 🛠️ [3단계 선입선출 정렬 스코어 연산] ---
             def calculate_sort_score(row):
                 p_clean = str(row['제품']).replace(" ", "").strip()
                 stock_val = stock_dict.get(p_clean, "정보없음")
-                
-                # 1순위: 상태가 '진행중'이면 최고 우선권 (0: 진행중, 1: 대기/지연)
                 is_progress = 0 if str(row['상태']).strip() == "진행중" else 1
                 
-                # 2순위: 재고 부족 오름차순 (정보없음은 최하위 점수 -1.0 처리)
                 if stock_val == "정보없음":
                     numeric_stock = -1.0
                 else:
@@ -240,7 +236,6 @@ if st.session_state.view == 'main':
                     except ValueError:
                         numeric_stock = 999999.0
                 
-                # 3순위: 제조번호(Lot) 선입선출용 텍스트/숫자 추출 후 반영
                 lot_str = str(row['Lot']).strip()
                 try:
                     numeric_lot = float(lot_str)
@@ -251,7 +246,6 @@ if st.session_state.view == 'main':
 
             if not m_items.empty:
                 m_items['sort_score'] = m_items.apply(calculate_sort_score, axis=1)
-                # 세 가지 정렬 가중치 기준으로 정교하게 오름차순 배치
                 m_items = m_items.sort_values(by='sort_score', ascending=True).drop(columns=['sort_score'])
         
         if stage == "칭량공정":
@@ -393,7 +387,8 @@ if st.session_state.view == 'main':
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M' ) - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
-                                                    supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "so요시간": dur}).eq("id", row['Row']).execute()
+                                                    # ★ [완벽 해결] 오타인 'so요시간'을 데이터베이스 구조와 완벽히 일치하는 '소요시간'으로 강제 교체
+                                                    supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
                                     else:
                                         if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
