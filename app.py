@@ -302,6 +302,7 @@ if st.session_state.view == 'main':
                                                 nm_clean = nm.strip()
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                                    # 🛠️ [칭량 다중 설비 오타 완벽 복구] "대7I" -> "대기"로 정상화 완료
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
                                                     supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
@@ -386,7 +387,7 @@ if st.session_state.view == 'main':
                                                 nm_clean = nm.strip()
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M' ) - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                    # ★ [완벽 해결 1] 다중 설비 완료 선택 팝업창 내부에 유일하게 살아남아 있던 오타 "대7I"를 정상어 "대기"로 100% 수정 완료!
+                                                    # 🛠️ [일반 다중 설비 오타 완벽 복구] "상태": "대기" 정상화 완료
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
                                                     supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
