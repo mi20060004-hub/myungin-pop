@@ -387,7 +387,6 @@ if st.session_state.view == 'main':
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M' ) - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
-                                                    # ★ [완벽 해결 1] 소요시간 오타 완전 교체
                                                     supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
                                     else:
@@ -395,7 +394,7 @@ if st.session_state.view == 'main':
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                             if n_stg: 
                                                 next_m = n_machines[0].strip() if n_machines else ""
-                                                # ★ [완벽 해결 2] 다음 공정 생성 파트의 '대7I' 오타를 완벽한 한국어 '대기'로 정정 완료
+                                                # ★ [정밀 조치 완료] 여기에 숨어있던 최종 "상태": "대7I" 오타를 완전한 한국어 "대기"로 100% 원상복구했습니다.
                                                 supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": next_m}).execute()
                                             supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                             st.rerun()
