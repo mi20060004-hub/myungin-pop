@@ -480,6 +480,6 @@ else:
                 display_df = display_df[display_df['제품'] == sel_filter]
                 
         avail_cols = [c for c in ['Lot', '제품', '제조일자', '공정', '상태', '시작시간', '종료시간', '소요시간', '유형', '특이사항', '설비'] if c in display_df.columns]
-        st.dataframe(display_df[avail_cols].sort_index(ascending=False), use_container_width=True)
+        st.dataframe(display_df[avail_cols].sort_index(ascending=False), use_container_width=True, height=600)
     else: 
         st.info("데이터가 없습니다.")
