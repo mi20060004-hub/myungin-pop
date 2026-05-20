@@ -387,7 +387,7 @@ if st.session_state.view == 'main':
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M' ) - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
-                                                    # ★ [완벽 해결] 오타인 'so요시간'을 데이터베이스 구조와 완벽히 일치하는 '소요시간'으로 강제 교체
+                                                    # ★ [완벽 해결 1] 오타였던 'so요시간'을 데이터베이스 컬럼 규격인 '소요시간'으로 확실하게 정정
                                                     supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
                                     else:
@@ -395,6 +395,7 @@ if st.session_state.view == 'main':
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                             if n_stg: 
                                                 next_m = n_machines[0].strip() if n_machines else ""
+                                                # ★ [완벽 해결 2] 다음 공정 생성 파트의 '상태': '대7I' 오타를 완벽한 한국어 규격인 '대기' 상태로 원상 복구 완료
                                                 supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": next_m}).execute()
                                             supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                             st.rerun()
