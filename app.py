@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (★ 4중 레이어 컨테이너 프레임 통째로 초슬림 압착 규칙) ---
+# --- 2. CSS 스타일 (버튼 초슬림 압착 및 스타일 레이어 완벽 유지) ---
 st.markdown("""
 <style>
 .fixed-header {
@@ -50,11 +50,11 @@ st.markdown("""
 
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* 🛠️ 1단계: 컴포넌트 사이를 넓게 띄우는 스트림릿 기본 하단 레이아웃 여백(1rem) 완전 파괴 */
+/* 컴포넌트 사이 레이아웃 여백 제거 */
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
 div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
 
-/* 🛠️ 2단계: 버튼과 팝오버 상자를 둘러싸고 있는 모든 상위 컨테이너 박스의 높이를 통째로 16px로 슬림하게 강제 차단 */
+/* 버튼 및 팝오버 상위 컨테이너 슬림 압착 고정 */
 .main div[data-testid="stVerticalBlock"] div[data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
@@ -63,7 +63,7 @@ div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height
     min-height: 16px !important; height: 16px !important; max-height: 16px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
 
-/* 🛠️ 3단계: 시작, 대기, 완료 버튼의 내부 여백(Padding)을 완전히 없애고 버튼 높이를 16px로 반토막 고정 */
+/* 시작, 대기, 완료 버튼 패딩 제로화 및 16px 반토막 고정 */
 .main div[data-testid="stVerticalBlock"] button,
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
@@ -75,7 +75,6 @@ div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height
     box-sizing: border-box !important; width: 100% !important; border-radius: 4px !important;
 }
 
-/* 🛠️ 4단계: 완료 및 변경 팝오버 내부에 숨어있는 기본 텍스트 여백 일치 */
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
     margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
@@ -222,7 +221,30 @@ if st.session_state.view == 'main':
         
         m_items = pd.DataFrame()
         if not curr_df.empty:
-            m_items = curr_df[curr_df['공정'] == stage]
+            m_items = curr_df[curr_df['공정'] == stage].copy()
+            
+            # --- 🛠️ [정렬 엔진 전면 개조] 복합 스코어 산출 방식 탑재 ---
+            def calculate_sort_score(row):
+                p_clean = str(row['제품']).replace(" ", "").strip()
+                stock_val = stock_dict.get(p_clean, "정보없음")
+                
+                # 1단계 순위: 상태가 '진행중'이면 우선권을 주기 위해 가중치를 음수 최고점으로 부여
+                is_progress = 0 if str(row['상태']).strip() == "진행중" else 1
+                
+                # 2단계 순위: 재고 수량 숫자로 변환 (정보없음은 최하위 점수인 -1.0점 처리하여 가장 먼저 나오게 유도)
+                if stock_val == "정보없음":
+                    numeric_stock = -1.0
+                else:
+                    try:
+                        numeric_stock = float(stock_val)
+                    except ValueError:
+                        numeric_stock = 999999.0
+                        
+                return (is_progress, numeric_stock)
+
+            if not m_items.empty:
+                m_items['sort_score'] = m_items.apply(calculate_sort_score, axis=1)
+                m_items = m_items.sort_values(by='sort_score', ascending=True).drop(columns=['sort_score'])
         
         if stage == "칭량공정":
             if not m_items.empty:
@@ -363,7 +385,7 @@ if st.session_state.view == 'main':
                                                 if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M' ) - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "유형": row['유형'], "특이사항": row['특이사항'], "설비": nm_clean}).execute()
-                                                    supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                                    supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "so요시간": dur}).eq("id", row['Row']).execute()
                                                     st.rerun()
                                     else:
                                         if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
