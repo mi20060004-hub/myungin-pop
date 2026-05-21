@@ -6,9 +6,13 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (버튼 초슬림 압착 및 스타일 레이어 완벽 유지) ---
+# --- 2. CSS 스타일 (버튼 초슬림 압착, 스타일 레이어 및 스크롤 동작 완벽 유지) ---
 st.markdown("""
 <style>
+/* 부드러운 스크롤 이동 효과 적용 */
+html {
+    scroll-behavior: smooth;
+}
 .fixed-header {
     position: fixed; top: 0; left: 0; right: 0; height: 66px; 
     background-color: #1e3a8a; z-index: 999998; 
@@ -21,7 +25,9 @@ st.markdown("""
 }
 .main .block-container { padding-top: 100px !important; }
 
+/* 자동 스크롤 시 헤더에 가려지지 않도록 상단 여백 보정 */
 .stage-bar {
+    scroll-margin-top: 80px;
     color: white; padding: 8px 13px; border-radius: 6px; 
     font-size: 18px; font-weight: 700; margin-top: 20px; margin-bottom: 10px; 
     background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
@@ -223,6 +229,16 @@ with st.sidebar:
             st.session_state.pending_lots = []; st.rerun()
 
     st.divider()
+    
+    # 🆕 공정 자동 스크롤 전용 사이드바 링크 내비게이션 메뉴판 탑재
+    if st.session_state.view == 'main':
+        st.write("🎯 **공정 바로가기 (클릭 시 이동)**")
+        for stage in TARGET_STAGES:
+            stage_id = stage.replace(" ", "")
+            # HTML 앵커 기능을 초슬림 버튼 스타일로 디자인하여 레이아웃 무너짐 방지
+            st.markdown(f'<a href="#{stage_id}" target="_self" style="text-decoration:none;"><button style="width:100%; padding:3px; margin:2px 0; font-size:12px; font-weight:bold; cursor:pointer; background-color:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; color:#1e293b;">{stage}</button></a>', unsafe_allow_html=True)
+        st.write("---")
+
     total_active_count = len(curr_df) if not curr_df.empty else 0
     st.write(f"**가동 건수 (총 {total_active_count}건)**")
     for stage in TARGET_STAGES:
@@ -240,7 +256,10 @@ with st.sidebar:
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
-        st.markdown(f'<div class="stage-bar">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
+        
+        # 🆕 공정 바 레이아웃 태그 내부에 id 속성을 부여하여 앵커 타겟으로 지정
+        stage_id = stage.replace(" ", "")
+        st.markdown(f'<div id="{stage_id}" class="stage-bar">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
         
         m_items = pd.DataFrame()
         if not curr_df.empty:
@@ -416,7 +435,7 @@ if st.session_state.view == 'main':
                                         st.markdown(f"<p class='stock-green'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
-                                if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
+                                if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<div class='info-text-10px'>📝 {row['특이사항']}</div>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
                                 
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
@@ -439,16 +458,14 @@ if st.session_state.view == 'main':
                                         supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                         st.rerun()
                                     
-                                    # 🆕 핵심 수정 구역: 현재 공정이 '혼합공정'일 때는 다음 마스터를 조회하지 않고, 무조건 반제품창고로 강제 유도합니다!
+                                    # 혼합공정 완료 시 반제품창고 강제 유도 시스템 완벽 탑재
                                     if stage == "혼합공정":
                                         if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                            # 반제품창고는 설비명이 없으므로 빈값("") 전송
                                             supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "반제품창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
                                             supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                             st.rerun()
                                     else:
-                                        # 혼합공정 이외의 기존 자동 공정 건너뛰기 로직 보존
                                         n_stg = None
                                         for i in range(idx_stage + 1, len(TARGET_STAGES)):
                                             check_stage = TARGET_STAGES[i].strip()
