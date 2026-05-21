@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (버튼 디자인 완전 고정 + 독점 시선 암전 카드 전면 지배 레이어 추가) ---
+# --- 2. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 + 검색 하이라이트 클래스 추가) ---
 st.markdown("""
 <style>
 /* 부드러운 스크롤 이동 효과 적용 */
@@ -89,26 +89,16 @@ div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height
     margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 
-/* 🌟 [개선 완료] 카드 외부 컨테이너 스케일 및 선명도 극대화 튜닝 */
-.master-card-wrapper {
-    padding: 6px;
-    border-radius: 8px;
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    transition: all 0.25s ease-in-out;
-}
+/* 🌟 검색 하이라이트 CSS 스타일 강제 주입 */
 .search-highlighted {
-    border: 4px solid #ff4500 !important;
-    box-shadow: 0 0 25px rgba(255, 69, 0, 1) !important;
-    transform: scale(1.05) !important;
-    background-color: #fff9f2 !important;
-    z-index: 9999 !important;
-    position: relative;
+    border: 3px solid #ff6b00 !important;
+    box-shadow: 0 0 15px rgba(255, 107, 0, 0.8) !important;
+    transform: scale(1.02);
+    transition: all 0.2s ease-in-out;
 }
 .search-dimmed {
-    opacity: 0.08 !important;
-    filter: blur(1px) grayscale(95%) !important;
-    pointer-events: none;
+    opacity: 0.4 !important;
+    transition: opacity 0.2s ease-in-out;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -259,10 +249,10 @@ with st.sidebar:
 
     st.divider()
     
-    # 현황판 제품 위치 추적 검색창
+    # 🌟 [신규 추가] 실시간 현황판 제품 위치 추적 검색창
     search_keyword = ""
     if st.session_state.view == 'main':
-        st.markdown("<div style='font-size:16px; font-weight:800; color:#ff5500; margin-bottom:5px;'>🔍 현황판 제품 위치 추적</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:16px; font-weight:800; color:#ff6b00; margin-bottom:5px;'>🔍 현황판 제품 위치 추적</div>", unsafe_allow_html=True)
         search_keyword = st.text_input("검색어 입력 (제품명 또는 Lot)", placeholder="예: 돌비스정 또는 26001", key="live_search_box").strip()
         st.divider()
 
@@ -360,6 +350,7 @@ if st.session_state.view == 'main':
                     cols = st.columns(10)
                     for idx, (_, row) in enumerate(chunk_df.iterrows()):
                         with cols[idx]:
+                            # 🌟 [신규 추가] 실시간 검색 매칭 로직 판별
                             prod_name = str(row['제품']).strip()
                             lot_num = str(row['Lot']).strip()
                             
@@ -370,9 +361,9 @@ if st.session_state.view == 'main':
                                 else:
                                     border_class = "search-dimmed"
                                     
-                            # 🌟 [튜닝 핵심] HTML 레이아웃 바깥 감싸기로 암전 전면 지배 효과 구현
-                            st.markdown(f"<div class='master-card-wrapper {border_class}'>", unsafe_allow_html=True)
-                            with st.container():
+                            with st.container(border=True):
+                                # HTML Wrapper 주입하여 테두리 이중 지배 해결
+                                st.markdown(f"<div class='{border_class}'>", unsafe_allow_html=True)
                                 st.markdown(f"<p class='card-text-10px'>{prod_name}</p>", unsafe_allow_html=True)
                                 st.markdown(f"<p class='card-text-l-10px'>{lot_num}</p>", unsafe_allow_html=True)
                                 
@@ -468,7 +459,7 @@ if st.session_state.view == 'main':
                                         if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
                                             st.rerun()
-                            st.markdown("</div>", unsafe_allow_html=True)
+                                st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.caption(f"대기 중인 {stage} 작업이 없습니다.")
 
@@ -485,6 +476,7 @@ if st.session_state.view == 'main':
                             m_specific_items = m_items[m_items['설비'].str.strip().str.upper() == m_clean.upper()]
                         
                         for _, row in m_specific_items.iterrows():
+                            # 🌟 [신규 추가] 실시간 검색 매칭 로직 판별
                             prod_name = str(row['제품']).strip()
                             lot_num = str(row['Lot']).strip()
                             
@@ -495,9 +487,8 @@ if st.session_state.view == 'main':
                                 else:
                                     border_class = "search-dimmed"
                                     
-                            # 🌟 [튜닝 핵심] 설비형(기계 배치) 카드 외부 컨테이너 전면 하이라이팅 지배구조 조립
-                            st.markdown(f"<div class='master-card-wrapper {border_class}'>", unsafe_allow_html=True)
-                            with st.container():
+                            with st.container(border=True):
+                                st.markdown(f"<div class='{border_class}'>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='card-text-10px'>{prod_name}</div>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='card-text-l-10px'>{lot_num}</div>", unsafe_allow_html=True)
                                 
@@ -575,7 +566,7 @@ if st.session_state.view == 'main':
                                     if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
                                         supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
                                         st.rerun()
-                            st.markdown("</div>", unsafe_allow_html=True)
+                                st.markdown("</div>", unsafe_allow_html=True)
                 else:
                     with cols[idx]:
                         st.write("") 
@@ -600,7 +591,7 @@ else:
             with filter_cols[2]:
                 raw_types = display_df['유형'].dropna().unique().tolist()
                 clean_types = sorted([str(t).strip() for t in raw_types if str(t).strip() and str(t).upper() != "NONE"])
-                sel_type = st.selectbox("📌 유형 검색", ["전체 보기"] + clean_types, key="filter_all_type")
+                sel_type = Math = st.selectbox("📌 유형 검색", ["전체 보기"] + clean_types, key="filter_all_type")
             with filter_cols[3]:
                 st.write("") 
                 st.write("") 
