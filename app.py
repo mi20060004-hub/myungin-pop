@@ -44,7 +44,7 @@ html {
 .card-text-date { font-size: 12px !important; color: #64748b; font-weight: 700; text-align: center; margin: 1px 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
 
-/* 재고 상태별 3단 분리 클래스 */
+/* 재고 및 재공 월수 클래스 세분화 */
 .stock-red { font-size: 12px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .stock-green { font-size: 12px !important; color: #004d40 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .stock-black { font-size: 12px !important; color: #1e293b !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
@@ -53,12 +53,7 @@ html {
 .wip-black { font-size: 12px !important; color: #475569 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 
 .lot-type-highlight { font-size: 15px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
-
-/* 상태 표시 막대 스타일 (높이 및 패딩 일관성 부여) */
-.status-bar { 
-    font-size: 11px; font-weight: 800; color: white; text-align: center; 
-    padding: 3px 0; border-radius: 4px; margin-bottom: 4px; display: block; width: 100%;
-}
+.status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 2px 0; border-radius: 3px; margin-bottom: 3px; }
 .bg-waiting { background-color: #3b82f6; }
 .bg-progress { background-color: #ef4444; }
 .bg-paused { background-color: #f59e0b; }
@@ -69,15 +64,29 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
 div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
 
-/* 변경/공정이동 팝오버용 간극 슬림 제어 시스템 보완 */
+/* 버튼 및 팝오버 상위 컨테이너 슬림 압착 고정 */
 .main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
+.main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child,
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] data-inline-label {
-    min-height: 18px !important; height: 18px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
+    min-height: 16px !important; height: 16px !important; max-height: 16px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button {
-    padding: 2px !important; height: 18px !important; min-height: 18px !important; font-size: 11px !important; font-weight: 800 !important;
+
+/* 시작, 대기, 완료 버튼 패딩 제로화 및 16px 반토막 고정 */
+.main div[data-testid="stVerticalBlock"] button,
+.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
+.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
+.main div[data-testid="stVerticalBlock"] div.stButton > button {
+    padding-top: 0px !important; padding-bottom: 0px !important; padding-left: 2px !important; padding-right: 2px !important;
+    margin: 0px !important; font-size: 11px !important; font-weight: 800 !important; 
+    height: 16px !important; min-height: 16px !important; max-height: 16px !important; 
+    line-height: 16px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
+    box-sizing: border-box !important; width: 100% !important; border-radius: 4px !important;
+}
+
+.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
+    margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -149,6 +158,7 @@ def load_data():
                 stage_map[s] = machines
         master_dict[p_name] = stage_map
 
+    # 🆕 재고 월수 및 재공 월수 복합 연동 딕셔너리 구조 개편
     stock_dict = {}
     try:
         s_data = supabase.table("product_stock").select("적요, \"재고 월수\", \"재공 월수\"").order("id", desc=True).execute()
@@ -257,10 +267,12 @@ with st.sidebar:
 # --- 7. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
     prod_clean = prod_name.replace(" ", "")
+    # 다중 딕셔너리 정보 안전 추출
     stock_info = stock_dict.get(prod_clean, {"재고": "정보없음", "재공": "정보없음"})
     s_val = stock_info["재고"]
     w_val = stock_info["재공"]
     
+    # 1. 완제품 재고 월수 레이아웃 바인딩
     if s_val == "정보없음" or s_val == "None" or not s_val:
         html_str = "<p class='stock-black'>재고: 정보없음</p>"
     else:
@@ -269,6 +281,7 @@ def render_stock_and_wip_html(prod_name):
             else: html_str = f"<p class='stock-green'>재고: {s_val}개월</p>"
         except ValueError: html_str = f"<p class='stock-green'>재고: {s_val}</p>"
         
+    # 2. 🆕 공정생산중 반제품 합산 재공 월수 레이아웃 추가 바인딩
     if w_val == "정보없음" or w_val == "None" or not w_val:
         html_str += "<p class='wip-black'>재공: 정보없음</p>"
     else:
@@ -279,61 +292,6 @@ def render_stock_and_wip_html(prod_name):
 
 # --- 8. 메인 콘텐츠 및 현황판 렌더링 ---
 if st.session_state.view == 'main':
-    query_params = st.query_params
-    if "action" in query_params and "row_id" in query_params:
-        act = query_params["action"]
-        rid = query_params["row_id"]
-        
-        if act == "start":
-            supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", rid).execute()
-        elif act == "pause":
-            supabase.table("product_history").update({"상태": "지연"}).eq("id", rid).execute()
-        elif act == "resume":
-            supabase.table("product_history").update({"상태": "진행중"}).eq("id", rid).execute()
-        elif act == "end_direct":
-            r_lot = query_params.get("lot", "")
-            r_prod = query_params.get("prod", "")
-            r_stg = query_params.get("next_stg", "")
-            r_mach = query_params.get("next_mach", "")
-            r_start = query_params.get("start_time", get_now_kst())
-            r_c_stg = query_params.get("curr_stg", "")
-            
-            try: dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(r_start, '%Y-%m-%d %H:%M'))
-            except: dur = "0:00:00"
-            
-            if "외관선별" in r_stg: final_status = "1팀종료"
-            else: final_status = "완료"
-            
-            if r_stg:
-                supabase.table("product_history").insert({"Lot": r_lot, "제품": r_prod, "공정": r_stg, "상태": "대기", "제조일자": query_params.get("dt", ""), "유형": query_params.get("ty", ""), "특이사항": query_params.get("nt", ""), "설비": r_mach}).execute()
-            supabase.table("product_history").update({"상태": final_status, "종료시간": get_now_kst(), "소요시간": dur}).eq("id", rid).execute()
-            
-        elif act == "end_warehouse":
-            r_lot = query_params.get("lot", "")
-            r_prod = query_params.get("prod", "")
-            r_target = query_params.get("target_wh", "")
-            r_start = query_params.get("start_time", get_now_kst())
-            
-            try: dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(r_start, '%Y-%m-%d %H:%M'))
-            except: dur = "0:00:00"
-            
-            supabase.table("product_history").insert({"Lot": r_lot, "제품": r_prod, "공정": r_target, "상태": "대기", "제조일자": query_params.get("dt", ""), "유형": query_params.get("ty", ""), "특이사항": query_params.get("nt", ""), "설비": ""}).execute()
-            supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", rid).execute()
-            
-        elif act == "end_skip":
-            r_lot = query_params.get("lot", "")
-            r_prod = query_params.get("prod", "")
-            r_start = query_params.get("start_time", get_now_kst())
-            
-            try: dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(r_start, '%Y-%m-%d %H:%M'))
-            except: dur = "0:00:00"
-            
-            supabase.table("product_history").insert({"Lot": r_lot, "제품": r_prod, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": query_params.get("dt", ""), "유형": query_params.get("ty", ""), "특이사항": query_params.get("nt", ""), "설비": ""}).execute()
-            supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-            
-        st.query_params.clear()
-        st.rerun()
-
     for idx_stage, stage in enumerate(TARGET_STAGES):
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         
@@ -387,17 +345,18 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<p class='card-text-date'>{p_date}{elapsed_suffix}</p>", unsafe_allow_html=True)
                                 
+                                # 🆕 완제품 재고 월수 및 반제품 재공 월수 병렬 전수 출력
                                 st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
+                                st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
                                 
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
                                 c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
                                 c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
                                 
                                 if stage == "정립혼합대기창고":
-                                    st.markdown("<div class='status-bar bg-waiting'>대기</div>", unsafe_allow_html=True)
                                     pop_machines = master_dict.get(prod_name, {}).get("정립공정", [])
                                     with st.popover("공정이동", use_container_width=True):
                                         if pop_machines:
@@ -415,7 +374,6 @@ if st.session_state.view == 'main':
                                                 st.rerun()
 
                                 elif stage == "반제품창고":
-                                    st.markdown("<div class='status-bar bg-waiting'>대기</div>", unsafe_allow_html=True)
                                     next_pop_stage = None
                                     for target_next in ["타정공정", "캡슐공정"]:
                                         if master_dict.get(prod_name, {}).get(target_next):
@@ -442,25 +400,39 @@ if st.session_state.view == 'main':
                                                 st.rerun()
                                 else:
                                     if row['상태'] == '대기':
-                                        st.markdown(f"<a href='?action=start&row_id={row['Row']}' target='_self' style='text-decoration:none;'><div class='status-bar bg-waiting' style='cursor:pointer;'>시작</div></a>", unsafe_allow_html=True)
+                                        if st.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
+                                            supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
+                                            st.rerun()
                                     elif row['상태'] == '진행중':
-                                        has_granule = bool(master_dict.get(prod_name, {}).get("과립공정", []))
-                                        has_dry = bool(master_dict.get(prod_name, {}).get("건조공정", []))
+                                        if st.button("대기", key=f"pause_act_{row['Row']}", use_container_width=True): 
+                                            supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
+                                            st.rerun()
                                         
-                                        if not has_granule and not has_dry:
-                                            st.markdown(f"<a href='?action=end_skip&row_id={row['Row']}&lot={row['Lot']}&prod={prod_name}&start_time={row['시작시간']}&dt={c_date_val}&ty={c_type}&nt={c_note}' target='_self' style='text-decoration:none;'><div class='status-bar bg-progress' style='cursor:pointer;'>완료</div></a>", unsafe_allow_html=True)
-                                        else:
-                                            n_stg = None
-                                            for i in range(idx_stage + 1, len(TARGET_STAGES)):
-                                                if master_dict.get(prod_name, {}).get(TARGET_STAGES[i].strip()):
-                                                    n_stg = TARGET_STAGES[i].strip()
-                                                    break
-                                            next_m = master_dict.get(prod_name, {}).get(n_stg, [])[0].strip() if (n_stg and master_dict.get(prod_name, {}).get(n_stg, [])) else ""
-                                            st.markdown(f"<a href='?action=end_direct&row_id={row['Row']}&lot={row['Lot']}&prod={prod_name}&next_stg={n_stg}&next_mach={next_m}&start_time={row['시작시간']}&dt={c_date_val}&ty={c_type}&nt={c_note}' target='_self' style='text-decoration:none;'><div class='status-bar bg-progress' style='cursor:pointer;'>완료</div></a>", unsafe_allow_html=True)
-                                        
-                                        st.markdown(f"<a href='?action=pause&row_id={row['Row']}' target='_self' style='text-decoration:none;'><div class='status-bar bg-paused' style='margin-top:2px; cursor:pointer;'>대기</div></a>", unsafe_allow_html=True)
+                                        if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
+                                            dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                            
+                                            has_granule = bool(master_dict.get(prod_name, {}).get("과립공정", []))
+                                            has_dry = bool(master_dict.get(prod_name, {}).get("건조공정", []))
+                                            
+                                            if not has_granule and not has_dry:
+                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
+                                            else:
+                                                n_stg = None
+                                                for i in range(idx_stage + 1, len(TARGET_STAGES)):
+                                                    check_stage = TARGET_STAGES[i].strip()
+                                                    if master_dict.get(prod_name, {}).get(check_stage):
+                                                        n_stg = check_stage
+                                                        break
+                                                next_m = master_dict.get(prod_name, {}).get(n_stg, [])[0].strip() if (n_stg and master_dict.get(prod_name, {}).get(n_stg, [])) else ""
+                                                if n_stg:
+                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m}).execute()
+                                            
+                                            supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                            st.rerun()
                                     elif row['상태'] == '지연':
-                                        st.markdown(f"<a href='?action=resume&row_id={row['Row']}' target='_self' style='text-decoration:none;'><div class='status-bar bg-paused' style='cursor:pointer;'>재시작</div></a>", unsafe_allow_html=True)
+                                        if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
+                                            supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
+                                            st.rerun()
             else:
                 st.caption(f"대기 중인 {stage} 작업이 없습니다.")
 
@@ -487,17 +459,21 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<div class='machine-title' style='display:none;'></div><div class='card-text-date'>{p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
                                 
+                                # 🆕 완제품 재고 월수 및 반제품 재공 월수 병렬 전수 출력
                                 st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<div class='info-text-10px'>📝 {row['특이사항']}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
                                 
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
                                 c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
                                 c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
                                 
                                 if row['상태'] == '대기':
-                                    st.markdown(f"<a href='?action=start&row_id={row['Row']}' target='_self' style='text-decoration:none;'><div class='status-bar bg-waiting' style='cursor:pointer;'>시작</div></a>", unsafe_allow_html=True)
+                                    if st.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
+                                        supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
+                                        st.rerun()
                                     with st.popover("변경", use_container_width=True):
                                         valid_machines = master_dict.get(prod_name, {}).get(stage, [])
                                         for nm in valid_machines:
@@ -506,15 +482,28 @@ if st.session_state.view == 'main':
                                                 supabase.table("product_history").update({"설비": nm_clean}).eq("id", row['Row']).execute()
                                                 st.rerun()
                                 elif row['상태'] == '진행중':
+                                    if st.button("대기", key=f"pause_act_{row['Row']}", use_container_width=True): 
+                                        supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
+                                        st.rerun()
+                                    
                                     if stage == "건조공정":
-                                        st.markdown(f"<a href='?action=end_warehouse&row_id={row['Row']}&lot={row['Lot']}&prod={prod_name}&target_wh=정립혼합대기창고&start_time={row['시작시간']}&dt={c_date_val}&ty={c_type}&nt={c_note}' target='_self' style='text-decoration:none;'><div class='status-bar bg-progress' style='cursor:pointer;'>완료</div></a>", unsafe_allow_html=True)
+                                        if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
+                                            dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
+                                            supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                            st.rerun()
                                     elif stage == "혼합공정":
-                                        st.markdown(f"<a href='?action=end_warehouse&row_id={row['Row']}&lot={row['Lot']}&prod={prod_name}&target_wh=반제품창고&start_time={row['시작시간']}&dt={c_date_val}&ty={c_type}&nt={c_note}' target='_self' style='text-decoration:none;'><div class='status-bar bg-progress' style='cursor:pointer;'>완료</div></a>", unsafe_allow_html=True)
+                                        if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
+                                            dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "반제품창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
+                                            supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                            st.rerun()
                                     else:
                                         n_stg = None
                                         for i in range(idx_stage + 1, len(TARGET_STAGES)):
-                                            if master_dict.get(prod_name, {}).get(TARGET_STAGES[i].strip()):
-                                                n_stg = TARGET_STAGES[i].strip()
+                                            check_stage = TARGET_STAGES[i].strip()
+                                            if master_dict.get(prod_name, {}).get(check_stage):
+                                                n_stg = check_stage
                                                 break
                                                 
                                         n_machines = master_dict.get(prod_name, {}).get(n_stg, []) if n_stg else []
@@ -528,12 +517,18 @@ if st.session_state.view == 'main':
                                                         supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                         st.rerun()
                                         else:
-                                            next_m = n_machines[0].strip() if n_machines else ""
-                                            st.markdown(f"<a href='?action=end_direct&row_id={row['Row']}&lot={row['Lot']}&prod={prod_name}&next_stg={n_stg if n_stg else ''}&next_mach={next_m}&start_time={row['시작시간']}&dt={c_date_val}&ty={c_type}&nt={c_note}' target='_self' style='text-decoration:none;'><div class='status-bar bg-progress' style='cursor:pointer;'>완료</div></a>", unsafe_allow_html=True)
-                                            
-                                    st.markdown(f"<a href='?action=pause&row_id={row['Row']}' target='_self' style='text-decoration:none;'><div class='status-bar bg-paused' style='margin-top:2px; cursor:pointer;'>대기</div></a>", unsafe_allow_html=True)
+                                            if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
+                                                dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                                if n_stg: 
+                                                    next_m = n_machines[0].strip() if n_machines else ""
+                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m}).execute()
+                                                supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                                st.rerun()
+                                                
                                 elif row['상태'] == '지연':
-                                    st.markdown(f"<a href='?action=resume&row_id={row['Row']}' target='_self' style='text-decoration:none;'><div class='status-bar bg-progress' style='cursor:pointer;'>재시작</div></a>", unsafe_allow_html=True)
+                                    if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
+                                        supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
+                                        st.rerun()
                 else:
                     with cols[idx]:
                         st.write("") 
@@ -549,25 +544,20 @@ else:
         display_df = all_raw_df.copy() if not all_raw_df.empty else pd.DataFrame()
     
     if not display_df.empty:
-        # 🆕 '모든 공정 이력 확인' 탭에만 다중 교차 필터 적용
         if st.session_state.view == 'all_history':
-            filter_cols = st.columns(3)
+            filter_cols = st.columns([6, 4])
             with filter_cols[0]:
-                sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key="filter_all_prod")
+                sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
             with filter_cols[1]:
-                sel_stage = st.selectbox("⚙️ 공정 검색", ["전체 보기"] + TARGET_STAGES, key="filter_all_stage")
-            with filter_cols[2]:
-                raw_types = display_df['유형'].dropna().unique().tolist()
-                clean_types = sorted([str(t).strip() for t in raw_types if str(t).strip() and str(t).upper() != "NONE"])
-                sel_type = st.selectbox("📌 유형 검색", ["전체 보기"] + clean_types, key="filter_all_type")
+                st.write("") 
+                only_live = st.toggle("⚡ 현재 실시간 현황판에 있는 로트만 보기", value=False)
             
-            # 다중 교차 필터링 처리 연산
             if sel_filter != "전체 보기": 
                 display_df = display_df[display_df['제품'] == sel_filter]
-            if sel_stage != "전체 보기":
-                display_df = display_df[display_df['공정'] == sel_stage]
-            if sel_type != "전체 보기":
-                display_df = display_df[display_df['유형'].str.strip() == sel_type]
+                
+            if only_live and not curr_df.empty:
+                live_stage_combos = (curr_df['제품'].str.strip() + "_" + curr_df['Lot'].str.strip() + "_" + curr_df['공정'].str.strip()).unique().tolist()
+                display_df = display_df[(display_df['제품'].str.strip() + "_" + display_df['Lot'].str.strip() + "_" + display_df['공정'].str.strip()).isin(live_stage_combos)]
         else:
             sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
             if sel_filter != "전체 보기": 
