@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 완벽 유지) ---
+# --- 2. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 + 검색 하이라이트 클래스 추가) ---
 st.markdown("""
 <style>
 /* 부드러운 스크롤 이동 효과 적용 */
@@ -88,6 +88,18 @@ div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
     margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
+
+/* 🌟 검색 하이라이트 CSS 스타일 강제 주입 */
+.search-highlighted {
+    border: 3px solid #ff6b00 !important;
+    box-shadow: 0 0 15px rgba(255, 107, 0, 0.8) !important;
+    transform: scale(1.02);
+    transition: all 0.2s ease-in-out;
+}
+.search-dimmed {
+    opacity: 0.4 !important;
+    transition: opacity 0.2s ease-in-out;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -104,7 +116,7 @@ except Exception as e:
     st.error(f"🔗 데이터베이스 연결 실패: {e}")
     st.stop()
 
-# --- 4. 데이터 로직 (질량선별공정에 세종질량선별기 기계 장치 추가) ---
+# --- 4. 데이터 로직 ---
 MACHINE_MAP = {
     "칭량공정": [], 
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
@@ -237,6 +249,13 @@ with st.sidebar:
 
     st.divider()
     
+    # 🌟 [신규 추가] 실시간 현황판 제품 위치 추적 검색창
+    search_keyword = ""
+    if st.session_state.view == 'main':
+        st.markdown("<div style='font-size:16px; font-weight:800; color:#ff6b00; margin-bottom:5px;'>🔍 현황판 제품 위치 추적</div>", unsafe_allow_html=True)
+        search_keyword = st.text_input("검색어 입력 (제품명 또는 Lot)", placeholder="예: 돌비스정 또는 26001", key="live_search_box").strip()
+        st.divider()
+
     if st.session_state.view == 'main':
         total_active_count = len(curr_df) if not curr_df.empty else 0
         st.markdown(f"<div style='font-size:16px; font-weight:800; color:#1e3a8a; margin-bottom:5px;'>실시간 가동 건수 (총 {total_active_count}건)</div>", unsafe_allow_html=True)
@@ -331,10 +350,22 @@ if st.session_state.view == 'main':
                     cols = st.columns(10)
                     for idx, (_, row) in enumerate(chunk_df.iterrows()):
                         with cols[idx]:
+                            # 🌟 [신규 추가] 실시간 검색 매칭 로직 판별
+                            prod_name = str(row['제품']).strip()
+                            lot_num = str(row['Lot']).strip()
+                            
+                            border_class = ""
+                            if search_keyword:
+                                if search_keyword.lower() in prod_name.lower() or search_keyword.lower() in lot_num.lower():
+                                    border_class = "search-highlighted"
+                                else:
+                                    border_class = "search-dimmed"
+                                    
                             with st.container(border=True):
-                                prod_name = str(row['제품']).strip()
+                                # HTML Wrapper 주입하여 테두리 이중 지배 해결
+                                st.markdown(f"<div class='{border_class}'>", unsafe_allow_html=True)
                                 st.markdown(f"<p class='card-text-10px'>{prod_name}</p>", unsafe_allow_html=True)
-                                st.markdown(f"<p class='card-text-l-10px'>{row['Lot']}</p>", unsafe_allow_html=True)
+                                st.markdown(f"<p class='card-text-l-10px'>{lot_num}</p>", unsafe_allow_html=True)
                                 
                                 p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
                                 if p_date and p_date.upper() != "NONE" and p_date != "-":
@@ -428,6 +459,7 @@ if st.session_state.view == 'main':
                                         if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
                                             st.rerun()
+                                st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.caption(f"대기 중인 {stage} 작업이 없습니다.")
 
@@ -444,10 +476,21 @@ if st.session_state.view == 'main':
                             m_specific_items = m_items[m_items['설비'].str.strip().str.upper() == m_clean.upper()]
                         
                         for _, row in m_specific_items.iterrows():
+                            # 🌟 [신규 추가] 실시간 검색 매칭 로직 판별
+                            prod_name = str(row['제품']).strip()
+                            lot_num = str(row['Lot']).strip()
+                            
+                            border_class = ""
+                            if search_keyword:
+                                if search_keyword.lower() in prod_name.lower() or search_keyword.lower() in lot_num.lower():
+                                    border_class = "search-highlighted"
+                                else:
+                                    border_class = "search-dimmed"
+                                    
                             with st.container(border=True):
-                                prod_name = str(row['제품']).strip()
+                                st.markdown(f"<div class='{border_class}'>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='card-text-10px'>{prod_name}</div>", unsafe_allow_html=True)
-                                st.markdown(f"<div class='card-text-l-10px'>{row['Lot']}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div class='card-text-l-10px'>{lot_num}</div>", unsafe_allow_html=True)
                                 
                                 p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
                                 if p_date and p_date.upper() != "NONE" and p_date != "-":
@@ -523,6 +566,7 @@ if st.session_state.view == 'main':
                                     if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
                                         supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
                                         st.rerun()
+                                st.markdown("</div>", unsafe_allow_html=True)
                 else:
                     with cols[idx]:
                         st.write("") 
@@ -538,7 +582,6 @@ else:
         display_df = all_raw_df.copy() if not all_raw_df.empty else pd.DataFrame()
     
     if not display_df.empty:
-        # 모든 공정 이력 확인 탭의 다중 교차 검색 필터 유지
         if st.session_state.view == 'all_history':
             filter_cols = st.columns([4, 3, 3, 2])
             with filter_cols[0]:
@@ -548,7 +591,7 @@ else:
             with filter_cols[2]:
                 raw_types = display_df['유형'].dropna().unique().tolist()
                 clean_types = sorted([str(t).strip() for t in raw_types if str(t).strip() and str(t).upper() != "NONE"])
-                sel_type = st.selectbox("📌 유형 검색", ["전체 보기"] + clean_types, key="filter_all_type")
+                sel_type = Math = st.selectbox("📌 유형 검색", ["전체 보기"] + clean_types, key="filter_all_type")
             with filter_cols[3]:
                 st.write("") 
                 st.write("") 
