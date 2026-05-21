@@ -61,7 +61,7 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
 div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
 
-/* 버튼 및 팝오버 상위 컨테이너 슬림 압착 고정 */
+/* 버튼 및 팝오버 상위 컨테이너 슬림 압착 고정 --- */
 .main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
@@ -230,19 +230,26 @@ with st.sidebar:
 
     st.divider()
     
-    # 🎯 공정 자동 스크롤 + 실시간 수량 완벽 결합 메뉴판
+    # 🆕 아이콘 전면 제거 및 글자 크기/건수 배지를 시원하게 키운 바로가기 메뉴판
     if st.session_state.view == 'main':
         total_active_count = len(curr_df) if not curr_df.empty else 0
-        st.markdown(f"🔥 **실시간 가동 건수 (총 {total_active_count}건)**")
-        st.write("🎯 **공정 바로가기 (클릭 시 이동)**")
+        # 이모지 삭제 및 상단 수량 텍스트 크기 강화
+        st.markdown(f"<div style='font-size:16px; font-weight:800; color:#1e3a8a; margin-bottom:5px;'>실시간 가동 건수 (총 {total_active_count}건)</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:14px; font-weight:700; color:#475569; margin-bottom:8px;'>공정 바로가기 (클릭 시 이동)</div>", unsafe_allow_html=True)
         
         for stage in TARGET_STAGES:
             stage_id = stage.replace(" ", "")
-            # 각 공정별 실시간 수량 계산
             single_stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
             
-            # 버튼 안에 공정 이름과 실시간 수량(0건) 정보를 함께 표기
-            st.markdown(f'<a href="#{stage_id}" target="_self" style="text-decoration:none;"><button style="width:100%; padding:4px; margin:2px 0; font-size:12px; font-weight:bold; cursor:pointer; background-color:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; color:#1e293b; display:flex; justify-content:space-between; align-items:center;"><span>📍 {stage}</span> <span style="background-color:#3b82f6; color:white; padding:1px 5px; border-radius:10px; font-size:10px;">{single_stage_count}건</span></button></a>', unsafe_allow_html=True)
+            # 버튼 내 글자 크기를 14px로, 숫자 배지 크기를 12px 및 여백을 넉넉하게 키운 HTML 템플릿
+            st.markdown(f"""
+            <a href="#{stage_id}" target="_self" style="text-decoration:none;">
+                <button style="width:100%; padding:6px 10px; margin:3px 0; font-size:14px; font-weight:800; cursor:pointer; background-color:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; color:#0f172a; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                    <span>{stage}</span> 
+                    <span style="background-color:#1e3a8a; color:white; padding:2px 8px; border-radius:12px; font-size:12px; font-weight:800; min-width:35px; text-align:center;">{single_stage_count}건</span>
+                </button>
+            </a>
+            """, unsafe_allow_html=True)
         st.write("---")
 
     with st.popover("🔒 데이터 초기화", use_container_width=True):
