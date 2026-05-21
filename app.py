@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 + 독점 시선 암전 클래스 반영) ---
+# --- 2. CSS 스타일 (버튼 디자인 완전 고정 + 독점 시선 암전 카드 전면 지배 레이어 추가) ---
 st.markdown("""
 <style>
 /* 부드러운 스크롤 이동 효과 적용 */
@@ -89,18 +89,26 @@ div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height
     margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 
-/* 독점 시선 암전(Blackout) 스타일 CSS */
-.search-highlighted {
-    border: 3px solid #ff5500 !important;
-    box-shadow: 0 0 18px rgba(255, 85, 0, 0.9) !important;
-    transform: scale(1.03);
-    background-color: #fffaf0 !important;
+/* 🌟 [개선 완료] 카드 외부 컨테이너 스케일 및 선명도 극대화 튜닝 */
+.master-card-wrapper {
+    padding: 6px;
+    border-radius: 8px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
     transition: all 0.25s ease-in-out;
 }
+.search-highlighted {
+    border: 4px solid #ff4500 !important;
+    box-shadow: 0 0 25px rgba(255, 69, 0, 1) !important;
+    transform: scale(1.05) !important;
+    background-color: #fff9f2 !important;
+    z-index: 9999 !important;
+    position: relative;
+}
 .search-dimmed {
-    opacity: 0.12 !important;
-    filter: blur(0.5px) grayscale(80%);
-    transition: all 0.25s ease-in-out;
+    opacity: 0.08 !important;
+    filter: blur(1px) grayscale(95%) !important;
+    pointer-events: none;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -362,8 +370,9 @@ if st.session_state.view == 'main':
                                 else:
                                     border_class = "search-dimmed"
                                     
-                            with st.container(border=True):
-                                st.markdown(f"<div class='{border_class}'>", unsafe_allow_html=True)
+                            # 🌟 [튜닝 핵심] HTML 레이아웃 바깥 감싸기로 암전 전면 지배 효과 구현
+                            st.markdown(f"<div class='master-card-wrapper {border_class}'>", unsafe_allow_html=True)
+                            with st.container():
                                 st.markdown(f"<p class='card-text-10px'>{prod_name}</p>", unsafe_allow_html=True)
                                 st.markdown(f"<p class='card-text-l-10px'>{lot_num}</p>", unsafe_allow_html=True)
                                 
@@ -386,7 +395,6 @@ if st.session_state.view == 'main':
                                     pop_machines = master_dict.get(prod_name, {}).get("정립공정", [])
                                     with st.popover("공정이동", use_container_width=True):
                                         if pop_machines:
-                                            # 🌟 [390번째 줄 중복 구문 완벽 제거 교정]
                                             for pm in pop_machines:
                                                 pm_clean = pm.strip()
                                                 if st.button(pm_clean, key=f"wh_wh_move_{row['Row']}_{pm_clean}", use_container_width=True):
@@ -460,7 +468,7 @@ if st.session_state.view == 'main':
                                         if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
                                             st.rerun()
-                                st.markdown("</div>", unsafe_allow_html=True)
+                            st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.caption(f"대기 중인 {stage} 작업이 없습니다.")
 
@@ -487,8 +495,9 @@ if st.session_state.view == 'main':
                                 else:
                                     border_class = "search-dimmed"
                                     
-                            with st.container(border=True):
-                                st.markdown(f"<div class='{border_class}'>", unsafe_allow_html=True)
+                            # 🌟 [튜닝 핵심] 설비형(기계 배치) 카드 외부 컨테이너 전면 하이라이팅 지배구조 조립
+                            st.markdown(f"<div class='master-card-wrapper {border_class}'>", unsafe_allow_html=True)
+                            with st.container():
                                 st.markdown(f"<div class='card-text-10px'>{prod_name}</div>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='card-text-l-10px'>{lot_num}</div>", unsafe_allow_html=True)
                                 
@@ -566,7 +575,7 @@ if st.session_state.view == 'main':
                                     if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
                                         supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
                                         st.rerun()
-                                st.markdown("</div>", unsafe_allow_html=True)
+                            st.markdown("</div>", unsafe_allow_html=True)
                 else:
                     with cols[idx]:
                         st.write("") 
