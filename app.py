@@ -230,21 +230,21 @@ with st.sidebar:
 
     st.divider()
     
-    # 🆕 공정 자동 스크롤 전용 사이드바 링크 내비게이션 메뉴판 탑재
+    # 🎯 공정 자동 스크롤 + 실시간 수량 완벽 결합 메뉴판
     if st.session_state.view == 'main':
+        total_active_count = len(curr_df) if not curr_df.empty else 0
+        st.markdown(f"🔥 **실시간 가동 건수 (총 {total_active_count}건)**")
         st.write("🎯 **공정 바로가기 (클릭 시 이동)**")
+        
         for stage in TARGET_STAGES:
             stage_id = stage.replace(" ", "")
-            # HTML 앵커 기능을 초슬림 버튼 스타일로 디자인하여 레이아웃 무너짐 방지
-            st.markdown(f'<a href="#{stage_id}" target="_self" style="text-decoration:none;"><button style="width:100%; padding:3px; margin:2px 0; font-size:12px; font-weight:bold; cursor:pointer; background-color:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; color:#1e293b;">{stage}</button></a>', unsafe_allow_html=True)
+            # 각 공정별 실시간 수량 계산
+            single_stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
+            
+            # 버튼 안에 공정 이름과 실시간 수량(0건) 정보를 함께 표기
+            st.markdown(f'<a href="#{stage_id}" target="_self" style="text-decoration:none;"><button style="width:100%; padding:4px; margin:2px 0; font-size:12px; font-weight:bold; cursor:pointer; background-color:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; color:#1e293b; display:flex; justify-content:space-between; align-items:center;"><span>📍 {stage}</span> <span style="background-color:#3b82f6; color:white; padding:1px 5px; border-radius:10px; font-size:10px;">{single_stage_count}건</span></button></a>', unsafe_allow_html=True)
         st.write("---")
 
-    total_active_count = len(curr_df) if not curr_df.empty else 0
-    st.write(f"**가동 건수 (총 {total_active_count}건)**")
-    for stage in TARGET_STAGES:
-        st.write(f"- {stage}: {len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0}건")
-
-    st.write("---")
     with st.popover("🔒 데이터 초기화", use_container_width=True):
         input_pwd = st.text_input("비밀번호 입력", type="password")
         if st.button("🚨 초기화 실행", type="primary", use_container_width=True):
@@ -257,7 +257,6 @@ if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         
-        # 🆕 공정 바 레이아웃 태그 내부에 id 속성을 부여하여 앵커 타겟으로 지정
         stage_id = stage.replace(" ", "")
         st.markdown(f'<div id="{stage_id}" class="stage-bar">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
         
@@ -418,7 +417,7 @@ if st.session_state.view == 'main':
                                 p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
                                 if p_date and p_date.upper() != "NONE" and p_date != "-":
                                     elapsed_suffix = get_elapsed_days_str(p_date)
-                                    st.markdown(f"<div class='card-text-date'>{p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
+                                    st.markdown(f"<div class='machine-title' style='display:none;'></div><div class='card-text-date'>{p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
                                 
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
@@ -458,7 +457,6 @@ if st.session_state.view == 'main':
                                         supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                         st.rerun()
                                     
-                                    # 혼합공정 완료 시 반제품창고 강제 유도 시스템 완벽 탑재
                                     if stage == "혼합공정":
                                         if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
