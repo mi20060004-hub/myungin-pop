@@ -70,7 +70,7 @@ div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height
     min-height: 16px !important; height: 16px !important; max-height: 16px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
 
-/* 시작, 대기, 완료 버튼 패딩 제로화 및 16px 반토막 고정 */
+/* 시작, 대기, 완료 버튼 패딩 제로화 및 16px 고정 */
 .main div[data-testid="stVerticalBlock"] button,
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
@@ -101,11 +101,12 @@ except Exception as e:
     st.error(f"🔗 데이터베이스 연결 실패: {e}")
     st.stop()
 
-# --- 4. 데이터 로직 ---
+# --- 4. 데이터 로직 (정립혼합대기창고 라인 추가) ---
 MACHINE_MAP = {
     "칭량공정": [], 
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
     "건조공정": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
+    "정립혼합대기창고": [], # 신설 창고공정 (설비 없음)
     "정립공정": ["Comil0112", "Comil0212", "Comil0312", "파워밀"],
     "혼합공정": ["PM1000", "PM2000", "드럼혼합기"],
     "반제품창고": [],  
@@ -230,10 +231,8 @@ with st.sidebar:
 
     st.divider()
     
-    # 🆕 아이콘 전면 제거 및 글자 크기/건수 배지를 시원하게 키운 바로가기 메뉴판
     if st.session_state.view == 'main':
         total_active_count = len(curr_df) if not curr_df.empty else 0
-        # 이모지 삭제 및 상단 수량 텍스트 크기 강화
         st.markdown(f"<div style='font-size:16px; font-weight:800; color:#1e3a8a; margin-bottom:5px;'>실시간 가동 건수 (총 {total_active_count}건)</div>", unsafe_allow_html=True)
         st.markdown("<div style='font-size:14px; font-weight:700; color:#475569; margin-bottom:8px;'>공정 바로가기 (클릭 시 이동)</div>", unsafe_allow_html=True)
         
@@ -241,7 +240,6 @@ with st.sidebar:
             stage_id = stage.replace(" ", "")
             single_stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
             
-            # 버튼 내 글자 크기를 14px로, 숫자 배지 크기를 12px 및 여백을 넉넉하게 키운 HTML 템플릿
             st.markdown(f"""
             <a href="#{stage_id}" target="_self" style="text-decoration:none;">
                 <button style="width:100%; padding:6px 10px; margin:3px 0; font-size:14px; font-weight:800; cursor:pointer; background-color:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; color:#0f172a; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
@@ -296,7 +294,8 @@ if st.session_state.view == 'main':
                 m_items['sort_score'] = m_items.apply(calculate_sort_score, axis=1)
                 m_items = m_items.sort_values(by='sort_score', ascending=True).drop(columns=['sort_score'])
         
-        if stage in ["칭량공정", "반제품창고"]:
+        # 가상창고 계열 (칭량공정, 정립혼합대기창고, 반제품창고) 렌더링 블록
+        if stage in ["칭량공정", "정립혼합대기창고", "반제품창고"]:
             if not m_items.empty:
                 total_items = len(m_items)
                 for chunk_idx in range(0, total_items, 10):
@@ -336,7 +335,25 @@ if st.session_state.view == 'main':
                                 c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
                                 c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
                                 
-                                if stage == "반제품창고":
+                                # 신설: 정립혼합대기창고 제어 로직 (출고 시 다음 정립공정 설비 바인딩)
+                                if stage == "정립혼합대기창고":
+                                    pop_machines = master_dict.get(prod_name, {}).get("정립공정", [])
+                                    with st.popover("공정이동", use_container_width=True):
+                                        if pop_machines:
+                                            for pm in pop_machines:
+                                                pm_clean = pm.strip()
+                                                if st.button(pm_clean, key=f"wh_wh_move_{row['Row']}_{pm_clean}", use_container_width=True):
+                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립공정", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": pm_clean}).execute()
+                                                    supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": "대기창고출고"}).eq("id", row['Row']).execute()
+                                                    st.rerun()
+                                        else:
+                                            st.caption("정립 설비 없음")
+                                            if st.button("강제 정립공정 이동", key=f"wh_wh_force_{row['Row']}", use_container_width=True):
+                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립공정", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
+                                                supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": "강제출고"}).eq("id", row['Row']).execute()
+                                                st.rerun()
+
+                                elif stage == "반제품창고":
                                     next_pop_stage = None
                                     for target_next in ["타정공정", "캡슐공정"]:
                                         if master_dict.get(prod_name, {}).get(target_next):
@@ -362,6 +379,7 @@ if st.session_state.view == 'main':
                                                 supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": "강제출고"}).eq("id", row['Row']).execute()
                                                 st.rerun()
                                 else:
+                                    # 칭량공정 완료 시 예외도약 판단 규칙 적용
                                     if row['상태'] == '대기':
                                         if st.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
@@ -371,31 +389,30 @@ if st.session_state.view == 'main':
                                             supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                             st.rerun()
                                         
-                                        n_stg = None
-                                        for i in range(idx_stage + 1, len(TARGET_STAGES)):
-                                            check_stage = TARGET_STAGES[i].strip()
-                                            if master_dict.get(prod_name, {}).get(check_stage):
-                                                n_stg = check_stage
-                                                break
-                                                
-                                        n_machines = master_dict.get(prod_name, {}).get(n_stg, []) if n_stg else []
-                                        if len(n_machines) > 1:
-                                            with st.popover("완료", use_container_width=True):
-                                                for nm in n_machines:
-                                                    nm_clean = nm.strip()
-                                                    if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
-                                                        dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                        supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": nm_clean}).execute()
-                                                        supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                                        st.rerun()
-                                        else:
-                                            if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
-                                                dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                next_m = n_machines[0].strip() if n_machines else ""
+                                        if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
+                                            dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                            
+                                            # 과립공정과 건조공정이 모두 없는 직타/타정형 제품 판단
+                                            has_granule = bool(master_dict.get(prod_name, {}).get("과립공정", []))
+                                            has_dry = bool(master_dict.get(prod_name, {}).get("건조공정", []))
+                                            
+                                            if not has_granule and not has_dry:
+                                                # 곧바로 정립혼합대기창고로 퀀텀 점프!
+                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
+                                            else:
+                                                # 정상적인 다음 단계 추적 이동
+                                                n_stg = None
+                                                for i in range(idx_stage + 1, len(TARGET_STAGES)):
+                                                    check_stage = TARGET_STAGES[i].strip()
+                                                    if master_dict.get(prod_name, {}).get(check_stage):
+                                                        n_stg = check_stage
+                                                        break
+                                                next_m = master_dict.get(prod_name, {}).get(n_stg, [])[0].strip() if (n_stg and master_dict.get(prod_name, {}).get(n_stg, [])) else ""
                                                 if n_stg:
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m}).execute()
-                                                supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                                st.rerun()
+                                            
+                                            supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                            st.rerun()
                                     elif row['상태'] == '지연':
                                         if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
@@ -464,7 +481,14 @@ if st.session_state.view == 'main':
                                         supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                         st.rerun()
                                     
-                                    if stage == "혼합공정":
+                                    # 건조공정이 끝나면 무조건 새 가상창고인 '정립혼합대기창고'로 연동 이송
+                                    if stage == "건조공정":
+                                        if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
+                                            dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
+                                            supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                            st.rerun()
+                                    elif stage == "혼합공정":
                                         if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                             supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "반제품창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
