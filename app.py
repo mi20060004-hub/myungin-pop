@@ -117,7 +117,6 @@ def get_now_kst():
 def get_today_date_kst():
     return datetime.now(timezone(timedelta(hours=9))).date()
 
-# 🆕 제조일자 기준 경과일수 문자열 계산기 함수
 def get_elapsed_days_str(date_val):
     if pd.isna(date_val):
         return ""
@@ -125,7 +124,6 @@ def get_elapsed_days_str(date_val):
     if not date_str or date_str.upper() == "NONE" or date_str == "-":
         return ""
     try:
-        # yyyy-mm-dd 파싱
         target_dt = datetime.strptime(date_str[:10], '%Y-%m-%d').date()
         today_dt = get_today_date_kst()
         delta_days = (today_dt - target_dt).days
@@ -285,11 +283,10 @@ if st.session_state.view == 'main':
                                 st.markdown(f"<p class='card-text-10px'>{prod_name}</p>", unsafe_allow_html=True)
                                 st.markdown(f"<p class='card-text-l-10px'>{row['Lot']}</p>", unsafe_allow_html=True)
                                 
-                                # 🆕 [칭량공정] 제조일자 및 경과일수 (X일째) 통합 연동 표출
                                 p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
                                 if p_date and p_date.upper() != "NONE" and p_date != "-":
                                     elapsed_suffix = get_elapsed_days_str(p_date)
-                                    st.markdown(f"<p class='card-text-date'>📆 {p_date}{elapsed_suffix}</p>", unsafe_allow_html=True)
+                                    st.markdown(f"<p class='card-text-date'>{p_date}{elapsed_suffix}</p>", unsafe_allow_html=True)
                                 
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
@@ -322,10 +319,11 @@ if st.session_state.view == 'main':
                                         supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                         st.rerun()
                                     
+                                    # 🛠️ [보정 핵심 부근] 마스터에 스펙(설비)이 비어있으면 해당 공정은 패스하고 넘어갑니다.
                                     n_stg = None
                                     for i in range(idx_stage + 1, len(TARGET_STAGES)):
                                         check_stage = TARGET_STAGES[i].strip()
-                                        if master_dict.get(prod_name, {}).get(check_stage) or check_stage in ["과립공정"]:
+                                        if master_dict.get(prod_name, {}).get(check_stage):
                                             n_stg = check_stage
                                             break
                                             
@@ -372,11 +370,10 @@ if st.session_state.view == 'main':
                                 st.markdown(f"<div class='card-text-10px'>{prod_name}</div>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='card-text-l-10px'>{row['Lot']}</div>", unsafe_allow_html=True)
                                 
-                                # 🆕 [일반 후공정] 제조일자 및 경과일수 (X일째) 통합 연동 표출
                                 p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
                                 if p_date and p_date.upper() != "NONE" and p_date != "-":
                                     elapsed_suffix = get_elapsed_days_str(p_date)
-                                    st.markdown(f"<div class='card-text-date'>📆 {p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
+                                    st.markdown(f"<div class='card-text-date'>{p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
                                 
                                 prod_clean_key = prod_name.replace(" ", "")
                                 current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
