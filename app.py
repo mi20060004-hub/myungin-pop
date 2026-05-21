@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (버튼 초초슬림 압착 스펙 반영 및 기존 레이아웃 완벽 유지) ---
+# --- 2. CSS 스타일 (버튼 초초초슬림 압착 및 기존 레이어 완벽 유지) ---
 st.markdown("""
 <style>
 /* 부드러운 스크롤 이동 효과 적용 */
@@ -64,30 +64,32 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
 div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
 
-/* --- 🆕 버튼 및 팝오버 상위 컨테이너 절반 수준 초슬림 압착 (16px -> 11px) --- */
+/* --- 🆕 [완벽해결] Streamlit 컨테이너 및 팝오버 틀 강제 최소화 장치 (8px 수준으로 극단적 압착) --- */
 .main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child,
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] data-inline-label {
-    min-height: 11px !important; height: 11px !important; max-height: 11px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
+    min-height: 8px !important; height: 8px !important; max-height: 12px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
 
-/* --- 🆕 시작, 대기, 완료 버튼 본체 높이 절반 압착 및 폰트 크기 최적화 (16px -> 11px) --- */
+/* --- 🆕 [완벽해결] 버튼의 기본 패딩, 테두리 높이, 강제 제약 조건을 철저하게 분쇄하여 기존의 절반으로 축소 --- */
 .main div[data-testid="stVerticalBlock"] button,
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
 .main div[data-testid="stVerticalBlock"] div.stButton > button {
     padding-top: 0px !important; padding-bottom: 0px !important; padding-left: 2px !important; padding-right: 2px !important;
     margin: 0px !important; font-size: 10px !important; font-weight: 800 !important; 
-    height: 11px !important; min-height: 11px !important; max-height: 11px !important; 
-    line-height: 11px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
+    height: 8px !important; min-height: 8px !important; max-height: 12px !important; 
+    line-height: 8px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
     box-sizing: border-box !important; width: 100% !important; border-radius: 3px !important;
+    border: 1px solid #cbd5e1 !important;
 }
 
-/* --- 🆕 팝오버 내부 p 태그 라인 정렬 보정 --- */
+/* --- 🆕 [완벽해결] 버튼 내부의 Streamlit 고유 p 태그 높이 및 자식 요소 정렬까지 논스톱 압착 --- */
+.main div[data-testid="stVerticalBlock"] button p,
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
-    margin: 0px !important; padding: 0px !important; line-height: 11px !important; font-size: 10px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
+    margin: 0px !important; padding: 0px !important; line-height: 8px !important; height: 8px !important; font-size: 10px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 </style>
 """, unsafe_allow_html=True)
