@@ -549,9 +549,9 @@ else:
         display_df = all_raw_df.copy() if not all_raw_df.empty else pd.DataFrame()
     
     if not display_df.empty:
-        # 🆕 '모든 공정 이력 확인' 탭 전용 가로형 3단 입체 교차 필터 배치
+        # 🆕 '모든 공정 이력 확인' 탭에만 다중 교차 필터 적용
         if st.session_state.view == 'all_history':
-            filter_cols = st.columns([4, 3, 3, 2])
+            filter_cols = st.columns(3)
             with filter_cols[0]:
                 sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key="filter_all_prod")
             with filter_cols[1]:
@@ -560,22 +560,14 @@ else:
                 raw_types = display_df['유형'].dropna().unique().tolist()
                 clean_types = sorted([str(t).strip() for t in raw_types if str(t).strip() and str(t).upper() != "NONE"])
                 sel_type = st.selectbox("📌 유형 검색", ["전체 보기"] + clean_types, key="filter_all_type")
-            with filter_cols[3]:
-                st.write("") 
-                st.write("") 
-                only_live = st.toggle("⚡ 현재 실시간 현황판 로트만 보기", value=False)
             
-            # 다중 교차 필터링 로직 순차 적용
+            # 다중 교차 필터링 처리 연산
             if sel_filter != "전체 보기": 
                 display_df = display_df[display_df['제품'] == sel_filter]
             if sel_stage != "전체 보기":
                 display_df = display_df[display_df['공정'] == sel_stage]
             if sel_type != "전체 보기":
                 display_df = display_df[display_df['유형'].str.strip() == sel_type]
-                
-            if only_live and not curr_df.empty:
-                live_stage_combos = (curr_df['제품'].str.strip() + "_" + curr_df['Lot'].str.strip() + "_" + curr_df['공정'].str.strip()).unique().tolist()
-                display_df = display_df[(display_df['제품'].str.strip() + "_" + display_df['Lot'].str.strip() + "_" + display_df['공정'].str.strip()).isin(live_stage_combos)]
         else:
             sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
             if sel_filter != "전체 보기": 
