@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (버튼 초슬림 압착, 스타일 레이어 및 스크롤 동작 완벽 유지) ---
+# --- 2. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 완벽 유지) ---
 st.markdown("""
 <style>
 /* 부드러운 스크롤 이동 효과 적용 */
@@ -44,10 +44,13 @@ html {
 .card-text-date { font-size: 12px !important; color: #64748b; font-weight: 700; text-align: center; margin: 1px 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
 
-/* 재고 상태별 3단 분리 클래스 */
-.stock-red { font-size: 13px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
-.stock-green { font-size: 13px !important; color: #004d40 !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
-.stock-black { font-size: 13px !important; color: #1e293b !important; font-weight: 800 !important; text-align: center; margin: 2px 0; line-height: 1.2; }
+/* 재고 및 재공 월수 클래스 세분화 */
+.stock-red { font-size: 12px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
+.stock-green { font-size: 12px !important; color: #004d40 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
+.stock-black { font-size: 12px !important; color: #1e293b !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
+
+.wip-blue { font-size: 12px !important; color: #2563eb !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
+.wip-black { font-size: 12px !important; color: #475569 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 
 .lot-type-highlight { font-size: 15px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .status-bar { font-size: 10px; font-weight: 800; color: white; text-align: center; padding: 2px 0; border-radius: 3px; margin-bottom: 3px; }
@@ -61,7 +64,7 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
 div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
 
-/* 버튼 및 팝오버 상위 컨테이너 슬림 압착 고정 --- */
+/* 버튼 및 팝오버 상위 컨테이너 슬림 압착 고정 */
 .main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
@@ -70,7 +73,7 @@ div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height
     min-height: 16px !important; height: 16px !important; max-height: 16px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
 
-/* 시작, 대기, 완료 버튼 패딩 제로화 및 16px 고정 */
+/* 시작, 대기, 완료 버튼 패딩 제로화 및 16px 반토막 고정 */
 .main div[data-testid="stVerticalBlock"] button,
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
@@ -101,12 +104,12 @@ except Exception as e:
     st.error(f"🔗 데이터베이스 연결 실패: {e}")
     st.stop()
 
-# --- 4. 데이터 로직 (정립혼합대기창고 라인 추가) ---
+# --- 4. 데이터 로직 ---
 MACHINE_MAP = {
     "칭량공정": [], 
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
     "건조공정": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
-    "정립혼합대기창고": [], # 신설 창고공정 (설비 없음)
+    "정립혼합대기창고": [],
     "정립공정": ["Comil0112", "Comil0212", "Comil0312", "파워밀"],
     "혼합공정": ["PM1000", "PM2000", "드럼혼합기"],
     "반제품창고": [],  
@@ -155,15 +158,19 @@ def load_data():
                 stage_map[s] = machines
         master_dict[p_name] = stage_map
 
+    # 🆕 재고 월수 및 재공 월수 복합 연동 딕셔너리 구조 개편
     stock_dict = {}
     try:
-        s_data = supabase.table("product_stock").select("적요, \"재고 월수\"").order("id", desc=True).execute()
+        s_data = supabase.table("product_stock").select("적요, \"재고 월수\", \"재공 월수\"").order("id", desc=True).execute()
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
             s_df = s_df.drop_duplicates(subset=['적요'], keep='first')
             for _, s_row in s_df.iterrows():
                 clean_stock_p = str(s_row['적요']).replace(" ", "").strip()
-                stock_dict[clean_stock_p] = str(s_row['재고 월수']).strip()
+                stock_dict[clean_stock_p] = {
+                    "재고": str(s_row.get('재고 월수', '정보없음')).strip(),
+                    "재공": str(s_row.get('재공 월수', '정보없음')).strip()
+                }
     except Exception:
         pass
 
@@ -257,7 +264,33 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-# --- 7. 메인 콘텐츠 및 현황판 렌더링 ---
+# --- 7. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
+def render_stock_and_wip_html(prod_name):
+    prod_clean = prod_name.replace(" ", "")
+    # 다중 딕셔너리 정보 안전 추출
+    stock_info = stock_dict.get(prod_clean, {"재고": "정보없음", "재공": "정보없음"})
+    s_val = stock_info["재고"]
+    w_val = stock_info["재공"]
+    
+    # 1. 완제품 재고 월수 레이아웃 바인딩
+    if s_val == "정보없음" or s_val == "None" or not s_val:
+        html_str = "<p class='stock-black'>재고: 정보없음</p>"
+    else:
+        try:
+            if float(s_val) <= 1.0: html_str = f"<p class='stock-red'>재고: {s_val}개월</p>"
+            else: html_str = f"<p class='stock-green'>재고: {s_val}개월</p>"
+        except ValueError: html_str = f"<p class='stock-green'>재고: {s_val}</p>"
+        
+    # 2. 🆕 공정생산중 반제품 합산 재공 월수 레이아웃 추가 바인딩
+    if w_val == "정보없음" or w_val == "None" or not w_val:
+        html_str += "<p class='wip-black'>재공: 정보없음</p>"
+    else:
+        try: html_str += f"<p class='wip-blue'>재공(합산): {w_val}개월</p>"
+        except ValueError: html_str += f"<p class='wip-blue'>재공(합산): {w_val}</p>"
+        
+    return html_str
+
+# --- 8. 메인 콘텐츠 및 현황판 렌더링 ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
@@ -271,14 +304,14 @@ if st.session_state.view == 'main':
             
             def calculate_sort_score(row):
                 p_clean = str(row['제품']).replace(" ", "").strip()
-                stock_val = stock_dict.get(p_clean, "정보없음")
+                s_val = stock_dict.get(p_clean, {"재고": "정보없음"})["재고"]
                 is_progress = 0 if str(row['상태']).strip() == "진행중" else 1
                 
-                if stock_val == "정보없음":
+                if s_val == "정보없음":
                     numeric_stock = -1.0
                 else:
                     try:
-                        numeric_stock = float(stock_val)
+                        numeric_stock = float(s_val)
                     except ValueError:
                         numeric_stock = 999999.0
                 
@@ -294,7 +327,6 @@ if st.session_state.view == 'main':
                 m_items['sort_score'] = m_items.apply(calculate_sort_score, axis=1)
                 m_items = m_items.sort_values(by='sort_score', ascending=True).drop(columns=['sort_score'])
         
-        # 가상창고 계열 (칭량공정, 정립혼합대기창고, 반제품창고) 렌더링 블록
         if stage in ["칭량공정", "정립혼합대기창고", "반제품창고"]:
             if not m_items.empty:
                 total_items = len(m_items)
@@ -313,19 +345,8 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<p class='card-text-date'>{p_date}{elapsed_suffix}</p>", unsafe_allow_html=True)
                                 
-                                prod_clean_key = prod_name.replace(" ", "")
-                                current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
-                                
-                                if current_stock_val == "정보없음":
-                                    st.markdown("<p class='stock-black'>재고: 정보없음</p>", unsafe_allow_html=True)
-                                else:
-                                    try:
-                                        if float(current_stock_val) <= 1.0:
-                                            st.markdown(f"<p class='stock-red'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
-                                        else:
-                                            st.markdown(f"<p class='stock-green'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
-                                    except ValueError:
-                                        st.markdown(f"<p class='stock-green'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                # 🆕 완제품 재고 월수 및 반제품 재공 월수 병렬 전수 출력
+                                st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
@@ -335,7 +356,6 @@ if st.session_state.view == 'main':
                                 c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
                                 c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
                                 
-                                # 신설: 정립혼합대기창고 제어 로직 (출고 시 다음 정립공정 설비 바인딩)
                                 if stage == "정립혼합대기창고":
                                     pop_machines = master_dict.get(prod_name, {}).get("정립공정", [])
                                     with st.popover("공정이동", use_container_width=True):
@@ -379,7 +399,6 @@ if st.session_state.view == 'main':
                                                 supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": "강제출고"}).eq("id", row['Row']).execute()
                                                 st.rerun()
                                 else:
-                                    # 칭량공정 완료 시 예외도약 판단 규칙 적용
                                     if row['상태'] == '대기':
                                         if st.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
@@ -392,15 +411,12 @@ if st.session_state.view == 'main':
                                         if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                             
-                                            # 과립공정과 건조공정이 모두 없는 직타/타정형 제품 판단
                                             has_granule = bool(master_dict.get(prod_name, {}).get("과립공정", []))
                                             has_dry = bool(master_dict.get(prod_name, {}).get("건조공정", []))
                                             
                                             if not has_granule and not has_dry:
-                                                # 곧바로 정립혼합대기창고로 퀀텀 점프!
                                                 supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
                                             else:
-                                                # 정상적인 다음 단계 추적 이동
                                                 n_stg = None
                                                 for i in range(idx_stage + 1, len(TARGET_STAGES)):
                                                     check_stage = TARGET_STAGES[i].strip()
@@ -443,19 +459,8 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<div class='machine-title' style='display:none;'></div><div class='card-text-date'>{p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
                                 
-                                prod_clean_key = prod_name.replace(" ", "")
-                                current_stock_val = stock_dict.get(prod_clean_key, "정보없음")
-                                
-                                if current_stock_val == "정보없음":
-                                    st.markdown("<p class='stock-black'>재고: 정보없음</p>", unsafe_allow_html=True)
-                                else:
-                                    try:
-                                        if float(current_stock_val) <= 1.0:
-                                            st.markdown(f"<p class='stock-red'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
-                                        else:
-                                            st.markdown(f"<p class='stock-green'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
-                                    except ValueError:
-                                        st.markdown(f"<p class='stock-green'>재고: {current_stock_val}</p>", unsafe_allow_html=True)
+                                # 🆕 완제품 재고 월수 및 반제품 재공 월수 병렬 전수 출력
+                                st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<div class='info-text-10px'>📝 {row['특이사항']}</div>", unsafe_allow_html=True)
@@ -481,7 +486,6 @@ if st.session_state.view == 'main':
                                         supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
                                         st.rerun()
                                     
-                                    # 건조공정이 끝나면 무조건 새 가상창고인 '정립혼합대기창고'로 연동 이송
                                     if stage == "건조공정":
                                         if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
