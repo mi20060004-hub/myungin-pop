@@ -44,7 +44,7 @@ html {
 .card-text-date { font-size: 12px !important; color: #64748b; font-weight: 700; text-align: center; margin: 1px 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
 
-/* 재고 및 재공 월수 클래스 세분화 */
+/* 재고 상태별 3단 분리 클래스 */
 .stock-red { font-size: 12px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .stock-green { font-size: 12px !important; color: #004d40 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .stock-black { font-size: 12px !important; color: #1e293b !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
@@ -64,7 +64,7 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
 div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
 
-/* 버튼 및 팝오버 상위 컨테이너 슬림 압착 고정 */
+/* 버튼 및 팝오버 상위 컨테이너 슬림 압착 고정 --- */
 .main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
@@ -73,7 +73,7 @@ div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height
     min-height: 16px !important; height: 16px !important; max-height: 16px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
 
-/* 시작, 대기, 완료 버튼 패딩 제로화 및 16px 반토막 고정 */
+/* 시작, 대기, 완료 버튼 패딩 제로화 및 16px 고정 */
 .main div[data-testid="stVerticalBlock"] button,
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
@@ -158,7 +158,6 @@ def load_data():
                 stage_map[s] = machines
         master_dict[p_name] = stage_map
 
-    # 🆕 재고 월수 및 재공 월수 복합 연동 딕셔너리 구조 개편
     stock_dict = {}
     try:
         s_data = supabase.table("product_stock").select("적요, \"재고 월수\", \"재공 월수\"").order("id", desc=True).execute()
@@ -267,12 +266,10 @@ with st.sidebar:
 # --- 7. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
     prod_clean = prod_name.replace(" ", "")
-    # 다중 딕셔너리 정보 안전 추출
     stock_info = stock_dict.get(prod_clean, {"재고": "정보없음", "재공": "정보없음"})
     s_val = stock_info["재고"]
     w_val = stock_info["재공"]
     
-    # 1. 완제품 재고 월수 레이아웃 바인딩
     if s_val == "정보없음" or s_val == "None" or not s_val:
         html_str = "<p class='stock-black'>재고: 정보없음</p>"
     else:
@@ -281,7 +278,6 @@ def render_stock_and_wip_html(prod_name):
             else: html_str = f"<p class='stock-green'>재고: {s_val}개월</p>"
         except ValueError: html_str = f"<p class='stock-green'>재고: {s_val}</p>"
         
-    # 2. 🆕 공정생산중 반제품 합산 재공 월수 레이아웃 추가 바인딩
     if w_val == "정보없음" or w_val == "None" or not w_val:
         html_str += "<p class='wip-black'>재공: 정보없음</p>"
     else:
@@ -345,7 +341,6 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<p class='card-text-date'>{p_date}{elapsed_suffix}</p>", unsafe_allow_html=True)
                                 
-                                # 🆕 완제품 재고 월수 및 반제품 재공 월수 병렬 전수 출력
                                 st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
@@ -459,7 +454,6 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<div class='machine-title' style='display:none;'></div><div class='card-text-date'>{p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
                                 
-                                # 🆕 완제품 재고 월수 및 반제품 재공 월수 병렬 전수 출력
                                 st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
@@ -544,16 +538,29 @@ else:
         display_df = all_raw_df.copy() if not all_raw_df.empty else pd.DataFrame()
     
     if not display_df.empty:
+        # 🆕 오직 '모든 공정 이력 확인' 탭 내부에만 순수하게 교차 검색 장치 추가 조립 (기존 디자인 무손상 원칙)
         if st.session_state.view == 'all_history':
-            filter_cols = st.columns([6, 4])
+            filter_cols = st.columns([4, 3, 3, 2])
             with filter_cols[0]:
-                sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
+                sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key="filter_all_prod")
             with filter_cols[1]:
+                sel_stage = st.selectbox("⚙️ 공정 검색", ["전체 보기"] + TARGET_STAGES, key="filter_all_stage")
+            with filter_cols[2]:
+                raw_types = display_df['유형'].dropna().unique().tolist()
+                clean_types = sorted([str(t).strip() for t in raw_types if str(t).strip() and str(t).upper() != "NONE"])
+                sel_type = st.selectbox("📌 유형 검색", ["전체 보기"] + clean_types, key="filter_all_type")
+            with filter_cols[3]:
                 st.write("") 
-                only_live = st.toggle("⚡ 현재 실시간 현황판에 있는 로트만 보기", value=False)
+                st.write("") 
+                only_live = st.toggle("⚡ 현재 실시간 현황판 로트만 보기", value=False)
             
+            # 교차 데이터 가공 연산
             if sel_filter != "전체 보기": 
                 display_df = display_df[display_df['제품'] == sel_filter]
+            if sel_stage != "전체 보기":
+                display_df = display_df[display_df['공정'] == sel_stage]
+            if sel_type != "전체 보기":
+                display_df = display_df[display_df['유형'].str.strip() == sel_type]
                 
             if only_live and not curr_df.empty:
                 live_stage_combos = (curr_df['제품'].str.strip() + "_" + curr_df['Lot'].str.strip() + "_" + curr_df['공정'].str.strip()).unique().tolist()
