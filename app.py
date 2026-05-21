@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 + 검색 하이라이트 클래스 추가) ---
+# --- 2. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 + 독점 시선 암전 클래스 반영) ---
 st.markdown("""
 <style>
 /* 부드러운 스크롤 이동 효과 적용 */
@@ -89,16 +89,18 @@ div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height
     margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 
-/* 🌟 검색 하이라이트 CSS 스타일 강제 주입 */
+/* 🌟 [방법 3 반영] 독점 시선 암전(Blackout) 스타일 CSS */
 .search-highlighted {
-    border: 3px solid #ff6b00 !important;
-    box-shadow: 0 0 15px rgba(255, 107, 0, 0.8) !important;
-    transform: scale(1.02);
-    transition: all 0.2s ease-in-out;
+    border: 3px solid #ff5500 !important;
+    box-shadow: 0 0 18px rgba(255, 85, 0, 0.9) !important;
+    transform: scale(1.03);
+    background-color: #fffaf0 !important;
+    transition: all 0.25s ease-in-out;
 }
 .search-dimmed {
-    opacity: 0.4 !important;
-    transition: opacity 0.2s ease-in-out;
+    opacity: 0.12 !important;
+    filter: blur(0.5px) grayscale(80%);
+    transition: all 0.25s ease-in-out;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -227,7 +229,7 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
-    is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'].str.strip() == sel_p.strip())).any()) or any(p['Lot'] == lot_in and p['제품'].strip() == sel_p.strip() for p in st.session_state.pending_lots))
+    is_duplicate = lot_in and ((not curr_df.empty bogged and ((curr_df['Lot'] == lot_in) & (curr_df['제품'].str.strip() == sel_p.strip())).any()) or any(p['Lot'] == lot_in and p['제품'].strip() == sel_p.strip() for p in st.session_state.pending_lots))
     
     if lot_in and is_duplicate: st.error("⚠️ 중복 데이터")
     elif lot_in:
@@ -249,10 +251,10 @@ with st.sidebar:
 
     st.divider()
     
-    # 🌟 [신규 추가] 실시간 현황판 제품 위치 추적 검색창
+    # 현황판 제품 위치 추적 검색창
     search_keyword = ""
     if st.session_state.view == 'main':
-        st.markdown("<div style='font-size:16px; font-weight:800; color:#ff6b00; margin-bottom:5px;'>🔍 현황판 제품 위치 추적</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:16px; font-weight:800; color:#ff5500; margin-bottom:5px;'>🔍 현황판 제품 위치 추적</div>", unsafe_allow_html=True)
         search_keyword = st.text_input("검색어 입력 (제품명 또는 Lot)", placeholder="예: 돌비스정 또는 26001", key="live_search_box").strip()
         st.divider()
 
@@ -350,7 +352,6 @@ if st.session_state.view == 'main':
                     cols = st.columns(10)
                     for idx, (_, row) in enumerate(chunk_df.iterrows()):
                         with cols[idx]:
-                            # 🌟 [신규 추가] 실시간 검색 매칭 로직 판별
                             prod_name = str(row['제품']).strip()
                             lot_num = str(row['Lot']).strip()
                             
@@ -362,7 +363,6 @@ if st.session_state.view == 'main':
                                     border_class = "search-dimmed"
                                     
                             with st.container(border=True):
-                                # HTML Wrapper 주입하여 테두리 이중 지배 해결
                                 st.markdown(f"<div class='{border_class}'>", unsafe_allow_html=True)
                                 st.markdown(f"<p class='card-text-10px'>{prod_name}</p>", unsafe_allow_html=True)
                                 st.markdown(f"<p class='card-text-l-10px'>{lot_num}</p>", unsafe_allow_html=True)
@@ -476,7 +476,6 @@ if st.session_state.view == 'main':
                             m_specific_items = m_items[m_items['설비'].str.strip().str.upper() == m_clean.upper()]
                         
                         for _, row in m_specific_items.iterrows():
-                            # 🌟 [신규 추가] 실시간 검색 매칭 로직 판별
                             prod_name = str(row['제품']).strip()
                             lot_num = str(row['Lot']).strip()
                             
@@ -591,7 +590,7 @@ else:
             with filter_cols[2]:
                 raw_types = display_df['유형'].dropna().unique().tolist()
                 clean_types = sorted([str(t).strip() for t in raw_types if str(t).strip() and str(t).upper() != "NONE"])
-                sel_type = Math = st.selectbox("📌 유형 검색", ["전체 보기"] + clean_types, key="filter_all_type")
+                sel_type = st.selectbox("📌 유형 검색", ["전체 보기"] + clean_types, key="filter_all_type")
             with filter_cols[3]:
                 st.write("") 
                 st.write("") 
