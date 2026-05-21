@@ -6,7 +6,7 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 완벽 유지) ---
+# --- 2. CSS 스타일 (버튼 초초슬림 압착 스펙 반영 및 기존 레이아웃 완벽 유지) ---
 st.markdown("""
 <style>
 /* 부드러운 스크롤 이동 효과 적용 */
@@ -44,7 +44,7 @@ html {
 .card-text-date { font-size: 12px !important; color: #64748b; font-weight: 700; text-align: center; margin: 1px 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #475569; margin: 1px 0; text-align: center; line-height: 1.2; }
 
-/* 재고 및 재공 월수 클래스 세분화 */
+/* 재고 상태별 3단 분리 클래스 */
 .stock-red { font-size: 12px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .stock-green { font-size: 12px !important; color: #004d40 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .stock-black { font-size: 12px !important; color: #1e293b !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
@@ -64,29 +64,30 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
 div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
 
-/* 버튼 및 팝오버 상위 컨테이너 슬림 압착 고정 */
+/* --- 🆕 버튼 및 팝오버 상위 컨테이너 절반 수준 초슬림 압착 (16px -> 11px) --- */
 .main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child,
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] data-inline-label {
-    min-height: 16px !important; height: 16px !important; max-height: 16px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
+    min-height: 11px !important; height: 11px !important; max-height: 11px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
 
-/* 시작, 대기, 완료 버튼 패딩 제로화 및 16px 반토막 고정 */
+/* --- 🆕 시작, 대기, 완료 버튼 본체 높이 절반 압착 및 폰트 크기 최적화 (16px -> 11px) --- */
 .main div[data-testid="stVerticalBlock"] button,
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
 .main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
 .main div[data-testid="stVerticalBlock"] div.stButton > button {
     padding-top: 0px !important; padding-bottom: 0px !important; padding-left: 2px !important; padding-right: 2px !important;
-    margin: 0px !important; font-size: 11px !important; font-weight: 800 !important; 
-    height: 16px !important; min-height: 16px !important; max-height: 16px !important; 
-    line-height: 16px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
-    box-sizing: border-box !important; width: 100% !important; border-radius: 4px !important;
+    margin: 0px !important; font-size: 10px !important; font-weight: 800 !important; 
+    height: 11px !important; min-height: 11px !important; max-height: 11px !important; 
+    line-height: 11px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
+    box-sizing: border-box !important; width: 100% !important; border-radius: 3px !important;
 }
 
+/* --- 🆕 팝오버 내부 p 태그 라인 정렬 보정 --- */
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
-    margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
+    margin: 0px !important; padding: 0px !important; line-height: 11px !important; font-size: 10px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -158,7 +159,6 @@ def load_data():
                 stage_map[s] = machines
         master_dict[p_name] = stage_map
 
-    # 🆕 재고 월수 및 재공 월수 복합 연동 딕셔너리 구조 개편
     stock_dict = {}
     try:
         s_data = supabase.table("product_stock").select("적요, \"재고 월수\", \"재공 월수\"").order("id", desc=True).execute()
@@ -267,12 +267,10 @@ with st.sidebar:
 # --- 7. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
     prod_clean = prod_name.replace(" ", "")
-    # 다중 딕셔너리 정보 안전 추출
     stock_info = stock_dict.get(prod_clean, {"재고": "정보없음", "재공": "정보없음"})
     s_val = stock_info["재고"]
     w_val = stock_info["재공"]
     
-    # 1. 완제품 재고 월수 레이아웃 바인딩
     if s_val == "정보없음" or s_val == "None" or not s_val:
         html_str = "<p class='stock-black'>재고: 정보없음</p>"
     else:
@@ -281,7 +279,6 @@ def render_stock_and_wip_html(prod_name):
             else: html_str = f"<p class='stock-green'>재고: {s_val}개월</p>"
         except ValueError: html_str = f"<p class='stock-green'>재고: {s_val}</p>"
         
-    # 2. 🆕 공정생산중 반제품 합산 재공 월수 레이아웃 추가 바인딩
     if w_val == "정보없음" or w_val == "None" or not w_val:
         html_str += "<p class='wip-black'>재공: 정보없음</p>"
     else:
@@ -345,7 +342,6 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<p class='card-text-date'>{p_date}{elapsed_suffix}</p>", unsafe_allow_html=True)
                                 
-                                # 🆕 완제품 재고 월수 및 반제품 재공 월수 병렬 전수 출력
                                 st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
@@ -459,7 +455,6 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<div class='machine-title' style='display:none;'></div><div class='card-text-date'>{p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
                                 
-                                # 🆕 완제품 재고 월수 및 반제품 재공 월수 병렬 전수 출력
                                 st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
