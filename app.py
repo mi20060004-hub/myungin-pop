@@ -229,7 +229,6 @@ with st.sidebar:
     lot_type = st.selectbox("로트 유형 선택", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], key="lot_type_widget")
     note_in = st.text_area("공정 특이사항 입력", key="note_in_widget", value=st.session_state.reset_note)
     
-    # 🌟 [오타 교정 완료] 'bogged' 단어 깔끔하게 제거
     is_duplicate = lot_in and ((not curr_df.empty and ((curr_df['Lot'] == lot_in) & (curr_df['제품'].str.strip() == sel_p.strip())).any()) or any(p['Lot'] == lot_in and p['제품'].strip() == sel_p.strip() for p in st.session_state.pending_lots))
     
     if lot_in and is_duplicate: st.error("⚠️ 중복 데이터")
@@ -387,7 +386,8 @@ if st.session_state.view == 'main':
                                     pop_machines = master_dict.get(prod_name, {}).get("정립공정", [])
                                     with st.popover("공정이동", use_container_width=True):
                                         if pop_machines:
-                                            for pm in pm_clean = pm.strip() for pm in pop_machines:
+                                            # 🌟 [390번째 줄 중복 구문 완벽 제거 교정]
+                                            for pm in pop_machines:
                                                 pm_clean = pm.strip()
                                                 if st.button(pm_clean, key=f"wh_wh_move_{row['Row']}_{pm_clean}", use_container_width=True):
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립공정", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": pm_clean}).execute()
