@@ -104,7 +104,7 @@ except Exception as e:
     st.error(f"🔗 데이터베이스 연결 실패: {e}")
     st.stop()
 
-# --- 4. 데이터 로직 ---
+# --- 4. 데이터 로직 (질량선별공정에 세종질량선별기 기계 장치 추가) ---
 MACHINE_MAP = {
     "칭량공정": [], 
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
@@ -115,7 +115,7 @@ MACHINE_MAP = {
     "반제품창고": [],  
     "타정공정": ["킬리안", "63S-3", "41S", "63S-1", "PR1023", "MRC45", "45S", "63S-2", "31S", "PH300"],
     "캡슐공정": ["SF150N", "보쉬충전기", "PTK충전기", "SF35"],
-    "질량선별공정": ["CWI150"],
+    "질량선별공정": ["CWI150", "세종질량선별기"],
     "코팅공정": ["SFC150FH", "SFC170FH", "SFC170FSH", "SFC130FSH", "V150", "SFC80", "수동코팅기"],
     "인쇄공정": ["정제인쇄기"],
     "외관선별공정": ["비즈윌구형", "비즈윌신형", "엔클로니구형", "엔클로니신형", "수동선별기", "캡슐외관선별기"]
@@ -538,7 +538,7 @@ else:
         display_df = all_raw_df.copy() if not all_raw_df.empty else pd.DataFrame()
     
     if not display_df.empty:
-        # 🆕 오직 '모든 공정 이력 확인' 탭 내부에만 순수하게 교차 검색 장치 추가 조립 (기존 디자인 무손상 원칙)
+        # 모든 공정 이력 확인 탭의 다중 교차 검색 필터 유지
         if st.session_state.view == 'all_history':
             filter_cols = st.columns([4, 3, 3, 2])
             with filter_cols[0]:
@@ -554,7 +554,6 @@ else:
                 st.write("") 
                 only_live = st.toggle("⚡ 현재 실시간 현황판 로트만 보기", value=False)
             
-            # 교차 데이터 가공 연산
             if sel_filter != "전체 보기": 
                 display_df = display_df[display_df['제품'] == sel_filter]
             if sel_stage != "전체 보기":
