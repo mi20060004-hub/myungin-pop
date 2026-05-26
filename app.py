@@ -383,19 +383,26 @@ if st.session_state.view == 'main':
                                 c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
                                 
                                 if stage == "정립혼합대기창고":
+                                    # 1순위: 정립공정, 2순위: 혼합공정 탐색
                                     pop_machines = master_dict.get(prod_name, {}).get("정립공정", [])
+                                    target_stage = "정립공정"
+                                    
+                                    if not pop_machines:
+                                        pop_machines = master_dict.get(prod_name, {}).get("혼합공정", [])
+                                        target_stage = "혼합공정"
+                                    
                                     with st.popover("공정이동", use_container_width=True):
                                         if pop_machines:
                                             for pm in pop_machines:
                                                 pm_clean = pm.strip()
                                                 if st.button(pm_clean, key=f"wh_wh_move_{row['Row']}_{pm_clean}", use_container_width=True):
-                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립공정", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": pm_clean}).execute()
-                                                    supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": "대기창고출고"}).eq("id", row['Row']).execute()
+                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": target_stage, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": pm_clean}).execute()
+                                                    supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": "창고출고"}).eq("id", row['Row']).execute()
                                                     st.rerun()
                                         else:
-                                            st.caption("정립 설비 없음")
-                                            if st.button("강제 정립공정 이동", key=f"wh_wh_force_{row['Row']}", use_container_width=True):
-                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립공정", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
+                                            st.caption(f"{target_stage} 설비 없음")
+                                            if st.button(f"강제 {target_stage} 이동", key=f"wh_wh_force_{row['Row']}", use_container_width=True):
+                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": target_stage, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
                                                 supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": "강제출고"}).eq("id", row['Row']).execute()
                                                 st.rerun()
 
