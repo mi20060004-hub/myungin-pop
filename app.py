@@ -275,7 +275,7 @@ with st.sidebar:
             """, unsafe_allow_html=True)
     st.divider()
         
-        if not match_df.empty:
+    if not match_df.empty:
             target_stage_id = str(match_df.iloc[0]['공정']).replace(" ", "")
             # 스크롤 위치 보정(헤더 높이 고려) 및 즉시 이동
             st.markdown(f"""
