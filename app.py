@@ -274,7 +274,7 @@ with st.sidebar:
             """, unsafe_allow_html=True)
     st.divider()
         
-        if not match_df.empty:
+    if not match_df.empty:
             target_stage_id = str(match_df.iloc[0]['공정']).replace(" ", "")
             st.markdown(f"""
                 <script>
