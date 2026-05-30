@@ -258,6 +258,24 @@ with st.sidebar:
         
         if not match_df.empty:
             target_stage_id = str(match_df.iloc[0]['공정']).replace(" ", "")
+            # 스크롤 위치 보정(헤더 높이 고려) 및 즉시 이동
+            st.markdown(f"""
+                <script>
+                    setTimeout(function() {{
+                        var element = document.getElementById("{target_stage_id}");
+                        if (element) {{
+                            var headerOffset = 100;
+                            var elementPosition = element.getBoundingClientRect().top;
+                            var offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                            window.scrollTo({{ top: offsetPosition, behavior: "smooth" }});
+                        }}
+                    }}, 200);
+                </script>
+            """, unsafe_allow_html=True)
+    st.divider()
+        
+        if not match_df.empty:
+            target_stage_id = str(match_df.iloc[0]['공정']).replace(" ", "")
             st.markdown(f"""
                 <script>
                     var element = document.getElementById("{target_stage_id}");
