@@ -249,12 +249,24 @@ with st.sidebar:
 
     st.divider()
     
-    # 🌟 [신규 추가] 실시간 현황판 제품 위치 추적 검색창
-    search_keyword = ""
-    if st.session_state.view == 'main':
-        st.markdown("<div style='font-size:16px; font-weight:800; color:#ff6b00; margin-bottom:5px;'>🔍 현황판 제품 위치 추적</div>", unsafe_allow_html=True)
-        search_keyword = st.text_input("검색어 입력 (제품명 또는 Lot)", placeholder="예: 돌비스정 또는 26001", key="live_search_box").strip()
-        st.divider()
+# 🌟 [신규 추가] 실시간 현황판 제품 위치 추적 (스크롤 기능 포함)
+    search_keyword = st.text_input("🔍 현황판 제품 위치 추적 (제품명 또는 Lot)", placeholder="예: 톨비스정 또는 26001", key="live_search_box").strip()
+    
+    if search_keyword and st.session_state.view == 'main':
+        match_df = curr_df[curr_df['제품'].str.contains(search_keyword, case=False) | 
+                           curr_df['Lot'].str.contains(search_keyword, case=False)]
+        
+        if not match_df.empty:
+            target_stage_id = str(match_df.iloc[0]['공정']).replace(" ", "")
+            st.markdown(f"""
+                <script>
+                    var element = document.getElementById("{target_stage_id}");
+                    if (element) {{
+                        element.scrollIntoView({{behavior: 'smooth', block: 'start'}});
+                    }}
+                </script>
+            """, unsafe_allow_html=True)
+    st.divider()
 
     if st.session_state.view == 'main':
         total_active_count = len(curr_df) if not curr_df.empty else 0
@@ -311,7 +323,7 @@ if st.session_state.view == 'main':
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         
         stage_id = stage.replace(" ", "")
-        st.markdown(f'<div id="{stage_id}" class="stage-bar">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div id="{stage.replace(" ", "")}" class="stage-bar">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
         
         m_items = pd.DataFrame()
         if not curr_df.empty:
