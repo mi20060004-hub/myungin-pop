@@ -249,12 +249,31 @@ with st.sidebar:
 
     st.divider()
     
-# 🌟 [신규 추가] 실시간 현황판 제품 위치 추적 (스크롤 기능 포함)
+# 🔍 현황판 제품 위치 추적 (스크롤 기능 강화)
     search_keyword = st.text_input("🔍 현황판 제품 위치 추적 (제품명 또는 Lot)", placeholder="예: 톨비스정 또는 26001", key="live_search_box").strip()
     
     if search_keyword and st.session_state.view == 'main':
         match_df = curr_df[curr_df['제품'].str.contains(search_keyword, case=False) | 
                            curr_df['Lot'].str.contains(search_keyword, case=False)]
+        
+        if not match_df.empty:
+            # 1. 공정 이름에서 공백 제거 (HTML ID와 일치시키기 위해)
+            target_stage_id = str(match_df.iloc[0]['공정']).replace(" ", "")
+            
+            # 2. 안전한 자바스크립트 실행
+            st.markdown(f"""
+                <script>
+                    (function() {{
+                        var el = document.getElementById("{target_stage_id}");
+                        if (el) {{
+                            el.scrollIntoView({{behavior: 'smooth', block: 'start'}});
+                        }} else {{
+                            console.warn("Target element '{target_stage_id}' not found.");
+                        }}
+                    }})();
+                </script>
+            """, unsafe_allow_html=True)
+    st.divider()
         
         if not match_df.empty:
             target_stage_id = str(match_df.iloc[0]['공정']).replace(" ", "")
