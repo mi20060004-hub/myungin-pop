@@ -253,11 +253,13 @@ with st.sidebar:
     search_keyword = st.text_input("🔍 현황판 제품 위치 추적", placeholder="예: 톨비스정 또는 26001", key="live_search_box").strip()
     
     if search_keyword and st.session_state.view == 'main':
+        # 로트 및 제품 검색
         match_df = curr_df[curr_df['제품'].str.contains(search_keyword, case=False) | 
                            curr_df['Lot'].str.contains(search_keyword, case=False)]
         
         if not match_df.empty:
             target_id = str(match_df.iloc[0]['공정']).replace(" ", "")
+            # 스크롤 이동 스크립트
             st.markdown(f"""
                 <script>
                     setTimeout(function() {{
