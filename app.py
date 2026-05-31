@@ -191,7 +191,7 @@ def load_data():
     all_raw_df = pd.DataFrame(h_data.data)
     if 'id' in all_raw_df.columns: all_raw_df['Row'] = all_raw_df['id']
     
-    curr_df = all_raw_df[~all_raw_df['상태'].isin(['완료', '1팀종료'])].copy()
+    curr_df = all_raw_df[~all_raw_df['상태'].isin(['완료', '1팀종료', '폐기'])].copy()
     log_df = all_raw_df[all_raw_df['상태'].isin(['완료', '1팀종료'])].copy()
     return master_dict, stock_dict, curr_df, log_df, all_raw_df
 
