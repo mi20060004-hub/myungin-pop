@@ -318,19 +318,25 @@ if st.session_state.view == 'main':
             m_items = curr_df[curr_df['공정'] == stage].copy()
             
             def calculate_sort_score(row):
-                # 1. 긴급 로직: is_urgent가 True면 -1, False면 0
-                urgency_score = -1 if row.get('is_urgent', False) else 0
-                
-                # 2. 기존 정렬 기준
                 p_clean = str(row['제품']).replace(" ", "").strip()
                 s_val = stock_dict.get(p_clean, {"재고": "정보없음"})["재고"]
                 is_progress = 0 if str(row['상태']).strip() == "진행중" else 1
                 
-                numeric_stock = float(s_val) if s_val != "정보없음" else -1.0
-                try: numeric_lot = float(str(row['Lot']).strip())
-                except: numeric_lot = 999999.0
-                                    
-                return (urgency_score, is_progress, numeric_stock, numeric_lot)
+                if s_val == "정보없음":
+                    numeric_stock = -1.0
+                else:
+                    try:
+                        numeric_stock = float(s_val)
+                    except ValueError:
+                        numeric_stock = 999999.0
+                
+                lot_str = str(row['Lot']).strip()
+                try:
+                    numeric_lot = float(lot_str)
+                except ValueError:
+                    numeric_lot = 999999.0
+                        
+                return (is_progress, numeric_stock, numeric_lot)
 
             if not m_items.empty:
                 m_items['sort_score'] = m_items.apply(calculate_sort_score, axis=1)
@@ -570,13 +576,6 @@ if st.session_state.view == 'main':
                                     if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
                                         supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
                                         st.rerun()
-
-                                # 긴급 설정 버튼 추가
-                                is_urgent = row.get('is_urgent', False)
-                                btn_label = "🔥 긴급해제" if is_urgent else "🚨 긴급설정"
-                                if st.button(btn_label, key=f"urgent_{row['Row']}", use_container_width=True):
-                                    supabase.table("product_history").update({"is_urgent": not is_urgent}).eq("id", row['Row']).execute()
-                                    st.rerun()
                                 st.markdown("</div>", unsafe_allow_html=True)
                 else:
                     with cols[idx]:
