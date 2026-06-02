@@ -320,8 +320,16 @@ if st.session_state.view == 'main':
             current_note = notes_dict.get(stage, "")
             new_note = st.text_area(f"{stage} 메모", value=current_note, key=f"note_{stage}")
             if st.button("메모 저장", key=f"save_{stage}"):
-                supabase.table("stage_notes").upsert({"stage_name": stage, "note": new_note}).execute()
-                st.rerun()
+                existing = supabase.table("stage_notes").select("id").eq("stage_name", stage).execute()
+
+                if existing.data:
+                    # 이미 메모가 있다면 업데이트
+                    supabase.table("stage_notes").update({"note": new_note}).eq("stage_name", stage).execute()
+                else:
+                    # 메모가 없다면 새로 생성
+                    supabase.table("stage_notes").insert({"stage_name": stage, "note": new_note}).execute()
+                
+                st.rerun() # 저장 후 새로고침
         
         m_items = pd.DataFrame()
         if not curr_df.empty:
