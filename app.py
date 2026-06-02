@@ -193,12 +193,9 @@ def load_data():
     
     curr_df = all_raw_df[~all_raw_df['상태'].isin(['완료', '1팀종료', '폐기'])].copy()
     log_df = all_raw_df[all_raw_df['상태'].isin(['완료', '1팀종료'])].copy()
-    n_data = supabase.table("stage_notes").select("*").execute()
-    notes_dict = {n['stage_name']: n['note'] for n in n_data.data} if n_data.data else {}
+    return master_dict, stock_dict, curr_df, log_df, all_raw_df
 
-    return master_dict, stock_dict, curr_df, log_df, all_raw_df, notes_dict
-
-master_dict, stock_dict, curr_df, log_df, all_raw_df, notes_dict = load_data()
+master_dict, stock_dict, curr_df, log_df, all_raw_df = load_data()
 
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
 if 'view' not in st.session_state: st.session_state.view = 'main'
@@ -315,17 +312,6 @@ if st.session_state.view == 'main':
         
         stage_id = stage.replace(" ", "")
         st.markdown(f'<div id="{stage_id}" class="stage-bar">▶ {stage} ({stage_count}건)</div>', unsafe_allow_html=True)
-        
-        with st.expander("📝 공정 공지/메모"):
-            current_note = notes_dict.get(stage, "")
-            new_note = st.text_area(f"{stage} 메모", value=current_note, key=f"note_{stage}")
-            if st.button("메모 저장", key=f"save_{stage}"):
-                supabase.table("stage_notes").upsert(
-                    {"stage_name": stage, "note": new_note}, 
-                    on_conflict="stage_name"
-                ).execute()
-                
-                st.rerun()
         
         m_items = pd.DataFrame()
         if not curr_df.empty:
