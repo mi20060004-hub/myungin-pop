@@ -163,10 +163,6 @@ def load_data():
         stage_map = {}
         for s in TARGET_STAGES:
             raw_val = str(r.get(s, "")).strip()
-
-            if p_name == "트라린정100mg": # 특정 제품만 딱 찍어서 확인
-                st.write(f"DEBUG -> 제품: {p_name} | 공정: {s} | 읽은 값: '{raw_val}'")
-        
             if not raw_val or raw_val.upper() == "NONE" or raw_val == "-":
                 stage_map[s] = []
             else:
