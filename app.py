@@ -592,33 +592,39 @@ else:
         display_df = all_raw_df.copy() if not all_raw_df.empty else pd.DataFrame()
     
     if not display_df.empty:
+        # 데이터 정제: 모든 컬럼의 값을 문자열로 변환하고 공백 제거 (필터 오류 방지)
+        for col in ['제품', '공정', '유형']:
+            if col in display_df.columns:
+                display_df[col] = display_df[col].astype(str).str.strip()
+        
+        # 필터링용 유니크 리스트 생성 (None 제거)
+        prod_list = sorted([p for p in display_df['제품'].unique() if p and p != 'nan'])
+        
         if st.session_state.view == 'all_history':
             filter_cols = st.columns([4, 3, 3, 2])
             with filter_cols[0]:
-                sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key="filter_all_prod")
+                sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + prod_list, key="filter_all_prod")
             with filter_cols[1]:
                 sel_stage = st.selectbox("⚙️ 공정 검색", ["전체 보기"] + TARGET_STAGES, key="filter_all_stage")
             with filter_cols[2]:
                 raw_types = display_df['유형'].dropna().unique().tolist()
-                clean_types = sorted([str(t).strip() for t in raw_types if str(t).strip() and str(t).upper() != "NONE"])
-                sel_type = Math = st.selectbox("📌 유형 검색", ["전체 보기"] + clean_types, key="filter_all_type")
+                clean_types = sorted([t for t in raw_types if t and t != 'nan' and t.upper() != "NONE"])
+                sel_type = st.selectbox("📌 유형 검색", ["전체 보기"] + clean_types, key="filter_all_type")
             with filter_cols[3]:
-                st.write("") 
-                st.write("") 
                 only_live = st.toggle("⚡ 현재 실시간 현황판 로트만 보기", value=False)
             
-            if sel_filter != "전체 보기": 
-                display_df = display_df[display_df['제품'] == sel_filter]
-            if sel_stage != "전체 보기":
-                display_df = display_df[display_df['공정'] == sel_stage]
-            if sel_type != "전체 보기":
-                display_df = display_df[display_df['유형'].str.strip() == sel_type]
+            # 필터링 적용
+            if sel_filter != "전체 보기": display_df = display_df[display_df['제품'] == sel_filter]
+            if sel_stage != "전체 보기": display_df = display_df[display_df['공정'] == sel_stage]
+            if sel_type != "전체 보기": display_df = display_df[display_df['유형'] == sel_type]
                 
             if only_live and not curr_df.empty:
-                live_stage_combos = (curr_df['제품'].str.strip() + "_" + curr_df['Lot'].str.strip() + "_" + curr_df['공정'].str.strip()).unique().tolist()
-                display_df = display_df[(display_df['제품'].str.strip() + "_" + display_df['Lot'].str.strip() + "_" + display_df['공정'].str.strip()).isin(live_stage_combos)]
+                # 안전한 실시간 매칭
+                live_combos = (curr_df['제품'].astype(str).str.strip() + "_" + curr_df['Lot'].astype(str).str.strip() + "_" + curr_df['공정'].astype(str).str.strip()).unique().tolist()
+                df_combos = (display_df['제품'] + "_" + display_df['Lot'].astype(str).str.strip() + "_" + display_df['공정'])
+                display_df = display_df[df_combos.isin(live_combos)]
         else:
-            sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + sorted(display_df['제품'].unique().tolist()), key=f"filter_{st.session_state.view}")
+            sel_filter = st.selectbox("🔍 제품명 검색", ["전체 보기"] + prod_list, key=f"filter_{st.session_state.view}")
             if sel_filter != "전체 보기": 
                 display_df = display_df[display_df['제품'] == sel_filter]
                 
