@@ -185,7 +185,7 @@ def load_data():
     except Exception:
         pass
 
-    h_data = supabase.table("product_history").select("*").order("id", desc=True).execute()
+    h_data = supabase.table("product_history").select("*", count='exact').order("id", desc=True).range(0, 4999).execute()
     if not h_data.data:
         return master_dict, stock_dict, pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     all_raw_df = pd.DataFrame(h_data.data)
