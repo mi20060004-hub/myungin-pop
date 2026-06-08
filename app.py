@@ -185,10 +185,21 @@ def load_data():
     except Exception:
         pass
 
-    h_data = supabase.table("product_history").select("*", count='exact').order("id", desc=True).range(0, 4999).execute()
-    if not h_data.data:
+    # [수정됨] 1000건 제한을 피하기 위해 전체 데이터를 루프를 돌며 모두 가져옴
+    count_res = supabase.table("product_history").select("id", count='exact').range(0, 0).execute()
+    total_count = count_res.count if count_res.count else 0
+    
+    all_data = []
+    # 1000건씩 나누어 순차적으로 데이터를 가져와 병합
+    for i in range(0, total_count, 1000):
+        res = supabase.table("product_history").select("*").order("id", desc=True).range(i, i + 999).execute()
+        if res.data:
+            all_data.extend(res.data)
+            
+    if not all_data:
         return master_dict, stock_dict, pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-    all_raw_df = pd.DataFrame(h_data.data)
+        
+    all_raw_df = pd.DataFrame(all_data)
     if 'id' in all_raw_df.columns: all_raw_df['Row'] = all_raw_df['id']
     
     curr_df = all_raw_df[~all_raw_df['상태'].isin(['완료', '1팀종료', '폐기'])].copy()
