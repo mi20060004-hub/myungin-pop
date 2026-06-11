@@ -73,6 +73,17 @@ div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height
     min-height: 16px !important; height: 16px !important; max-height: 16px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
 
+/* 시작, 대기, 완료 버튼 패딩 제로화 및 16px 고정 */
+.main div[data-testid="stVerticalBlock"] button,
+.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
+.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
+.main div[data-testid="stVerticalBlock"] div.stButton > button {
+    padding-top: 0px !important; padding-bottom: 0px !important; padding-left: 2px !important; padding-right: 2px !important;
+    margin: 0px !important; font-size: 11px !important; font-weight: 800 !important; 
+    height: 16px !important; min-height: 16px !important; max-height: 16px !important; 
+    line-height: 16px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
+    box-sizing: border-box !important; width: 100% !important; border-radius: 4px !important;
+}
 
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
     margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
@@ -440,34 +451,12 @@ if st.session_state.view == 'main':
                                             supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
                                             st.rerun()
                                     elif row['상태'] == '진행중':
-                                        # 버튼을 2개로 나누어 가로로 배치
-                                        c1, c2 = st.columns([1, 1]) 
-                                        with c1:
-                                            if st.button("대기", key=f"pause_act_{row['Row']}"): 
-                                                supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
-                                                st.rerun()
-                                        with c2:
-                                            if st.button("완료", key=f"end_act_{row['Row']}"):
-                                                dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                
-                                                has_granule = bool(master_dict.get(prod_name, {}).get("과립공정", []))
-                                                has_dry = bool(master_dict.get(prod_name, {}).get("건조공정", []))
-                                                
-                                                if not has_granule and not has_dry:
-                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
-                                                else:
-                                                    n_stg = None
-                                                    for i in range(idx_stage + 1, len(TARGET_STAGES)):
-                                                        check_stage = TARGET_STAGES[i].strip()
-                                                        if master_dict.get(prod_name, {}).get(check_stage):
-                                                            n_stg = check_stage
-                                                            break
-                                                    next_m = master_dict.get(prod_name, {}).get(n_stg, [])[0].strip() if (n_stg and master_dict.get(prod_name, {}).get(n_stg, [])) else ""
-                                                    if n_stg:
-                                                        supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m}).execute()
-                                                
-                                                supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                                st.rerun()
+                                        if st.button("대기", key=f"pause_act_{row['Row']}", use_container_width=True): 
+                                            supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
+                                            st.rerun()
+                                        
+                                        if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
+                                            dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                             
                                             has_granule = bool(master_dict.get(prod_name, {}).get("과립공정", []))
                                             has_dry = bool(master_dict.get(prod_name, {}).get("건조공정", []))
