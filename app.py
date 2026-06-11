@@ -73,23 +73,6 @@ div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height
     min-height: 16px !important; height: 16px !important; max-height: 16px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
 }
 
-/* 시작, 대기, 완료 버튼 패딩 제로화 및 16px 고정 */
-.main div[data-testid="stVerticalBlock"] button,
-.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
-.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
-.main div[data-testid="stVerticalBlock"] div.stButton > button {
-    padding: 0px 4px !important; /* 패딩을 좌우만 최소화 */
-    margin: 1px !important;
-    font-size: 10px !important; /* 폰트 사이즈를 조금 더 줄여서 여백 확보 */
-    font-weight: 600 !important; 
-    height: 20px !important;     /* 16px은 너무 작을 수 있어 20px 정도로 조정 */
-    min-height: 20px !important;
-    width: auto !important;      /* 고정 width: 100%를 제거하여 텍스트 크기에 맞게 */
-    border-radius: 3px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
 
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
     margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
