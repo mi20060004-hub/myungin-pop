@@ -64,27 +64,6 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
 div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
 
-/* 버튼 및 팝오버 상위 컨테이너 슬림 압착 고정 --- */
-.main div[data-testid="stVerticalBlock"] [data-testid="stElementContainer"],
-.main div[data-testid="stVerticalBlock"] div[data-testid="stButton"],
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"],
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] > div:first-child,
-.main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] data-inline-label {
-    min-height: 16px !important; height: 16px !important; max-height: 16px !important; margin: 0px 0px 2px 0px !important; padding: 0px !important; display: flex !important; align-items: center !important;
-}
-
-/* 시작, 대기, 완료 버튼 패딩 제로화 및 16px 고정 */
-.main div[data-testid="stVerticalBlock"] button,
-.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-secondary"],
-.main div[data-testid="stVerticalBlock"] button[data-testid="stBaseButton-element"],
-.main div[data-testid="stVerticalBlock"] div.stButton > button {
-    padding-top: 0px !important; padding-bottom: 0px !important; padding-left: 2px !important; padding-right: 2px !important;
-    margin: 0px !important; font-size: 11px !important; font-weight: 800 !important; 
-    height: 16px !important; min-height: 16px !important; max-height: 16px !important; 
-    line-height: 16px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; 
-    box-sizing: border-box !important; width: 100% !important; border-radius: 4px !important;
-}
-
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
     margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
