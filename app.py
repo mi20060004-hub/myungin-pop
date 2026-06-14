@@ -66,7 +66,7 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 
 /* 🌟 검색 하이라이트 CSS 스타일 강제 주입 */
 .search-highlighted {
-    border: 3px solid #ef4444 !important;
+    border: 10px solid #ef4444 !important;
     box-shadow: 0 0 15px rgba(255, 107, 0, 0.8) !important;
     transform: scale(1.02);
     transition: all 0.2s ease-in-out;
