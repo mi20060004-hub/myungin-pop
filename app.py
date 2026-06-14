@@ -192,7 +192,7 @@ if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리</p></div>', unsafe_allow_html=True)
 nav_cols = st.columns(4) 
 with nav_cols[0]:
-    if st.button("🏭 실시간 현황판", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
+    if st.button("📋 실시간 현황판", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
 with nav_cols[1]:
     if st.button("✅ 완료된 공정 확인(1팀)", key="nav_2", use_container_width=True): st.session_state.view = 'history'; st.rerun()
 with nav_cols[2]:
