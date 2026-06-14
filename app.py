@@ -60,10 +60,6 @@ html {
 
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
-/* 컴포넌트 사이 레이아웃 여백 제거 */
-div[data-testid="stVerticalBlock"] > div { margin-bottom: 0px !important; padding-bottom: 0px !important; margin-top: 0px !important; padding-top: 0px !important; }
-div[data-testid="stVerticalBlock"] > div[style*="min-height: 1rem"] { min-height: 0px !important; height: 0px !important; margin: 0px !important; padding: 0px !important; display: none !important; }
-
 .main div[data-testid="stVerticalBlock"] div[data-testid="stPopover"] button p {
     margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
