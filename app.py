@@ -427,7 +427,7 @@ if st.session_state.view == 'main':
                                                 st.cache_data.clear()
                                                 st.rerun()
                                 else:
-                                if row['상태'] == '대기':
+                                  if row['상태'] == '대기':
                                     c1, c2 = st.columns(2)
                                     with c1:
                                         if st.button("시작", key=f"start_act_{row['Row']}_{m_clean}"): 
