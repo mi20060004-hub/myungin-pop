@@ -66,10 +66,10 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 
 /* 🌟 검색 하이라이트 CSS 스타일 강제 주입 */
 .search-highlighted {
-    background-color: #fffbeb !important; /* 연한 노란색 배경 */
-    border: 2px solid #f59e0b !important; /* 주황색 테두리 */
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.3) !important;
-    transition: all 0.3s ease;
+    border: 3px solid #ff6b00 !important;
+    box-shadow: 0 0 15px rgba(255, 107, 0, 0.8) !important;
+    transform: scale(1.02);
+    transition: all 0.2s ease-in-out;
 }
 .search-dimmed {
     opacity: 0.4 !important;
