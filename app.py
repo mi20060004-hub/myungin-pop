@@ -194,7 +194,7 @@ nav_cols = st.columns(4)
 with nav_cols[0]:
     if st.button("실시간 현황판", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
 with nav_cols[1]:
-    if st.button("완료된 공정 확인", key="nav_2", use_container_width=True): st.session_state.view = 'history'; st.rerun()
+    if st.button("완료된 공정 확인(1팀)", key="nav_2", use_container_width=True): st.session_state.view = 'history'; st.rerun()
 with nav_cols[2]:
     if st.button("완료된 공정 확인(선별)", key="nav_3", use_container_width=True): st.session_state.view = 'selection'; st.rerun()
 with nav_cols[3]:
