@@ -434,10 +434,18 @@ if st.session_state.view == 'main':
                                                 supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
                                                 st.cache_data.clear()
                                                 st.rerun()
-                                        with c2:
-                                            with st.popover("변경"): # 팝오버는 기본적으로 작습니다
-                                    elif row['상태'] == '진행중':
-                                        c1, c2 = st.columns(2) 
+                                         with c2:
+                                             with st.popover("변경"): # 팝오버 내용물 시작
+                                                 # 아래에 기존의 변경 로직(버튼들)을 넣어주세요
+                                                 valid_machines = master_dict.get(prod_name, {}).get(stage, [])
+                                                 for nm in valid_machines:
+                                                     if nm.strip().upper() != str(row['설비']).strip().upper() and st.button(nm.strip(), key=f"ch_act_{row['Row']}_{nm}"): 
+                                                         supabase.table("product_history").update({"설비": nm.strip()}).eq("id", row['Row']).execute()
+                                                         st.cache_data.clear()
+                                                         st.rerun()
+
+                                     elif row['상태'] == '진행중': # <-- 이제 밖으로 나와서 정상입니다
+                                         c1, c2 = st.columns(2)
                                         with c1:
                                             if st.button("대기", key=f"pause_act_{row['Row']}"): 
                                                 supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
