@@ -68,6 +68,7 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 .search-highlighted {
     border: 10px solid #ff6b00 !important;
     box-shadow: 0 0 15px rgba(255, 107, 0, 0.8) !important;
+    animation: blink-orange 0.8s infinite;
 }
 .search-dimmed {
     opacity: 0.4 !important;
