@@ -66,15 +66,8 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 
 /* 🌟 검색 하이라이트 CSS 스타일 강제 주입 */
 .search-highlighted {
-    border: 10px solid #ff6b00 !important;
+    border: 7px solid #ff6b00 !important;
     box-shadow: 0 0 15px rgba(255, 107, 0, 0.8) !important;
-    animation: blink-orange 0.8s infinite;
-}
-
-@keyframes blink-orange {
-    0% { border-color: #ff6b00; box-shadow: 0 0 15px rgba(255, 107, 0, 0.8); }
-    50% { border-color: transparent; box-shadow: 0 0 5px rgba(255, 107, 0, 0.2); }
-    100% { border-color: #ff6b00; box-shadow: 0 0 15px rgba(255, 107, 0, 0.8); }
 }
 
 .search-dimmed {
