@@ -427,66 +427,80 @@ if st.session_state.view == 'main':
                                                 st.cache_data.clear()
                                                 st.rerun()
                                 else:
-                                    if row['상태'] == '대기':
-                                        if st.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
+                                if row['상태'] == '대기':
+                                    c1, c2 = st.columns(2)
+                                    with c1:
+                                        if st.button("시작", key=f"start_act_{row['Row']}_{m_clean}"): 
                                             supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
                                             st.cache_data.clear()
                                             st.rerun()
-                                    elif row['상태'] == '진행중':
-                                        c1, c2 = st.columns(2) 
-                                        with c1:
-                                            if st.button("대기", key=f"pause_act_{row['Row']}"): 
-                                                supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
-                                                st.cache_data.clear()
-                                                st.rerun()
-                                        with c2:
-                                            if st.button("완료", key=f"end_act_{row['Row']}"):
+                                    with c2:
+                                        with st.popover("변경"):
+                                            valid_machines = master_dict.get(prod_name, {}).get(stage, [])
+                                            for nm in valid_machines:
+                                                nm_clean = nm.strip()
+                                                if nm_clean.upper() != str(row['설비']).strip().upper() and st.button(nm_clean, key=f"ch_act_{row['Row']}_{m_clean}_{nm_clean}"): 
+                                                    supabase.table("product_history").update({"설비": nm_clean}).eq("id", row['Row']).execute()
+                                                    st.cache_data.clear()
+                                                    st.rerun()
+
+                                # --- 2. 진행중 상태: 대기, 완료(가로 정렬) ---
+                                elif row['상태'] == '진행중':
+                                    c1, c2 = st.columns(2)
+                                    with c1:
+                                        if st.button("대기", key=f"pause_act_{row['Row']}_{m_clean}"): 
+                                            supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
+                                            st.cache_data.clear()
+                                            st.rerun()
+                                    with c2:
+                                        if stage == "건조공정":
+                                            if st.button("완료", key=f"end_act_{row['Row']}_{m_clean}"):
                                                 dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                has_granule = bool(master_dict.get(prod_name, {}).get("과립공정", []))
-                                                has_dry = bool(master_dict.get(prod_name, {}).get("건조공정", []))
-                                                if not has_granule and not has_dry:
-                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
-                                                else:
-                                                    n_stg = None
-                                                    for i in range(idx_stage + 1, len(TARGET_STAGES)):
-                                                        check_stage = TARGET_STAGES[i].strip()
-                                                        if master_dict.get(prod_name, {}).get(check_stage):
-                                                            n_stg = check_stage
-                                                            break
-                                                    next_m = master_dict.get(prod_name, {}).get(n_stg, [])[0].strip() if (n_stg and master_dict.get(prod_name, {}).get(n_stg, [])) else ""
-                                                    if n_stg:
-                                                        supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m}).execute()
+                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
                                                 supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                 st.cache_data.clear()
                                                 st.rerun()
-                                        
-                                        if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
-                                            dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                            
-                                            has_granule = bool(master_dict.get(prod_name, {}).get("과립공정", []))
-                                            has_dry = bool(master_dict.get(prod_name, {}).get("건조공정", []))
-                                            
-                                            if not has_granule and not has_dry:
-                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
+                                        elif stage == "혼합공정":
+                                            if st.button("완료", key=f"end_act_{row['Row']}_{m_clean}"):
+                                                dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "반제품창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
+                                                supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                                st.cache_data.clear()
+                                                st.rerun()
+                                        else:
+                                            n_stg = None
+                                            for i in range(idx_stage + 1, len(TARGET_STAGES)):
+                                                check_stage = TARGET_STAGES[i].strip()
+                                                if master_dict.get(prod_name, {}).get(check_stage):
+                                                    n_stg = check_stage
+                                                    break
+                                            n_machines = master_dict.get(prod_name, {}).get(n_stg, []) if n_stg else []
+                                            if len(n_machines) > 1:
+                                                with st.popover("완료"):
+                                                    for nm in n_machines:
+                                                        nm_clean = nm.strip()
+                                                        if st.button(nm_clean, key=f"next_act_{row['Row']}_{m_clean}_{nm_clean}"):
+                                                            dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": nm_clean}).execute()
+                                                            supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                                            st.cache_data.clear()
+                                                            st.rerun()
                                             else:
-                                                n_stg = None
-                                                for i in range(idx_stage + 1, len(TARGET_STAGES)):
-                                                    check_stage = TARGET_STAGES[i].strip()
-                                                    if master_dict.get(prod_name, {}).get(check_stage):
-                                                        n_stg = check_stage
-                                                        break
-                                                next_m = master_dict.get(prod_name, {}).get(n_stg, [])[0].strip() if (n_stg and master_dict.get(prod_name, {}).get(n_stg, [])) else ""
-                                                if n_stg:
-                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m}).execute()
-                                            
-                                            supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                            st.cache_data.clear()
-                                            st.rerun()
-                                    elif row['상태'] == '지연':
-                                        if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
-                                            supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
-                                            st.cache_data.clear()
-                                            st.rerun()
+                                                if st.button("완료", key=f"end_act_{row['Row']}_{m_clean}"):
+                                                    dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                                    if n_stg: 
+                                                        next_m = n_machines[0].strip() if n_machines else ""
+                                                        supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m}).execute()
+                                                    supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                                    st.cache_data.clear()
+                                                    st.rerun()
+                                
+                                # --- 3. 지연 상태일 때 ---
+                                elif row['상태'] == '지연':
+                                    if st.button("재시작", key=f"resume_act_{row['Row']}_{m_clean}"): 
+                                        supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
+                                        st.cache_data.clear()
+                                        st.rerun()
                                 st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.caption(f"대기 중인 {stage} 작업이 없습니다.")
