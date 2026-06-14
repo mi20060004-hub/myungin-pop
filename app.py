@@ -70,6 +70,13 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
     box-shadow: 0 0 15px rgba(255, 107, 0, 0.8) !important;
     animation: blink-orange 0.8s infinite;
 }
+
+@keyframes blink-orange {
+    0% { border-color: #ff6b00; box-shadow: 0 0 15px rgba(255, 107, 0, 0.8); }
+    50% { border-color: transparent; box-shadow: 0 0 5px rgba(255, 107, 0, 0.2); }
+    100% { border-color: #ff6b00; box-shadow: 0 0 15px rgba(255, 107, 0, 0.8); }
+}
+
 .search-dimmed {
     opacity: 0.4 !important;
     transition: opacity 0.2s ease-in-out;
