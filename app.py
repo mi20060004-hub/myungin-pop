@@ -30,7 +30,7 @@ html {
     scroll-margin-top: 80px;
     color: white; padding: 8px 13px; border-radius: 6px; 
     font-size: 18px; font-weight: 700; margin-top: 20px; margin-bottom: 10px; 
-    background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
+    background: linear-gradient(90deg, #065f46 0%, #10b981 100%);
 }
 .machine-title {
     background: #f1f5f9; text-align: center; font-size: 16px !important; 
