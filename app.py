@@ -183,16 +183,17 @@ def load_data():
 master_dict, stock_dict, curr_df, log_df, all_raw_df = load_data()
 
 def update_priority(row, direction, df_in_stage):
-    # 같은 공정 내의 아이템들을 현재 정렬 방식(상태, priority)으로 가져옴
-    stage_df = df_in_stage[df_in_stage['공정'] == row['공정']].sort_values(by=['상태', 'priority'], ascending=[False, False])
+    # 같은 공정 내의 아이템들을 정렬할 때 priority가 같으면 id(생성순)로 정렬하여 순서 고정
+    stage_df = df_in_stage[df_in_stage['공정'] == row['공정']].sort_values(
+        by=['상태', 'priority', 'id'], 
+        ascending=[False, False, False]
+    )
     
-    # 리스트로 변환하여 순서 파악
     items = stage_df.to_dict('records')
     idx = next((i for i, item in enumerate(items) if item['Row'] == row['Row']), -1)
     
     if idx == -1: return
 
-    # 이동 대상(위/아래) 인덱스 설정
     target_idx = idx - 1 if direction == "up" else idx + 1
     
     if 0 <= target_idx < len(items):
@@ -201,13 +202,16 @@ def update_priority(row, direction, df_in_stage):
         # '진행중'인 항목과는 자리를 바꿀 수 없도록 방어
         if str(target_item['상태']).strip() == "진행중": return
 
-        # 서로의 priority 값을 교환 (Swap)
-        old_p = row.get('priority', 0) if row.get('priority') is not None else 0
-        target_p = target_item.get('priority', 0) if target_item.get('priority') is not None else 0
+        # Swap 로직 (priority가 없으면 0으로 간주)
+        old_p = row.get('priority', 0) if pd.notna(row.get('priority')) else 0
+        target_p = target_item.get('priority', 0) if pd.notna(target_item.get('priority')) else 0
         
-        # DB 업데이트 (서로의 값을 바꿔치기)
-        supabase.table("product_history").update({"priority": target_p}).eq("id", row['Row']).execute()
-        supabase.table("product_history").update({"priority": old_p}).eq("id", target_item['Row']).execute()
+        # 값을 서로 맞교환 (0이면 다른 값으로 밀어내기 위해 값을 지정)
+        new_old_p = target_p if target_p != old_p else old_p + 1
+        new_target_p = old_p if target_p != old_p else target_p - 1
+
+        supabase.table("product_history").update({"priority": new_old_p}).eq("id", row['Row']).execute()
+        supabase.table("product_history").update({"priority": new_target_p}).eq("id", target_item['Row']).execute()
         
         st.rerun()
 
