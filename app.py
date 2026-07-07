@@ -166,7 +166,7 @@ def load_data():
     all_data = []
     # 1000건씩 나누어 순차적으로 데이터를 가져와 병합
     for i in range(0, total_count, 1000):
-        res = supabase.table("product_history").select("*").order("id", desc=True).range(i, i + 999).execute()
+        res = supabase.table("product_history").select("*").order("priority", desc=True).order("id", desc=True).range(i, i + 999).execute()
         if res.data:
             all_data.extend(res.data)
             
@@ -181,6 +181,12 @@ def load_data():
     return master_dict, stock_dict, curr_df, log_df, all_raw_df
 
 master_dict, stock_dict, curr_df, log_df, all_raw_df = load_data()
+
+def update_priority(row_id, current_priority, direction):
+    # 위로 이동(▲)하면 숫자를 +1, 아래로 이동(▼)하면 -1
+    new_priority = (current_priority if current_priority is not None else 0) + (1 if direction == "up" else -1)
+    supabase.table("product_history").update({"priority": new_priority}).eq("id", row_id).execute()
+    st.rerun()
 
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
 if 'view' not in st.session_state: st.session_state.view = 'main'
@@ -303,31 +309,9 @@ if st.session_state.view == 'main':
         m_items = pd.DataFrame()
         if not curr_df.empty:
             m_items = curr_df[curr_df['공정'] == stage].copy()
-            
-            def calculate_sort_score(row):
-                p_clean = str(row['제품']).replace(" ", "").strip()
-                s_val = stock_dict.get(p_clean, {"재고": "정보없음"})["재고"]
-                is_progress = 0 if str(row['상태']).strip() == "진행중" else 1
-                
-                if s_val == "정보없음":
-                    numeric_stock = -1.0
-                else:
-                    try:
-                        numeric_stock = float(s_val)
-                    except ValueError:
-                        numeric_stock = 999999.0
-                
-                lot_str = str(row['Lot']).strip()
-                try:
-                    numeric_lot = float(lot_str)
-                except ValueError:
-                    numeric_lot = 999999.0
-                        
-                return (is_progress, numeric_stock, numeric_lot)
 
             if not m_items.empty:
-                m_items['sort_score'] = m_items.apply(calculate_sort_score, axis=1)
-                m_items = m_items.sort_values(by='sort_score', ascending=True).drop(columns=['sort_score'])
+                m_items = m_items.sort_values(by=['상태', 'priority'], ascending=[False, False])
         
         if stage in ["칭량공정", "정립혼합대기창고", "반제품창고"]:
             if not m_items.empty:
@@ -364,7 +348,15 @@ if st.session_state.view == 'main':
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
-                                
+
+                                c_move1, c_move2 = st.columns(2)
+                                with c_move1:
+                                    if st.button("▲", key=f"up_{row['Row']}"):
+                                        update_priority(row['Row'], row.get('priority', 0), "up")
+                                with c_move2:
+                                    if st.button("▼", key=f"down_{row['Row']}"):
+                                        update_priority(row['Row'], row.get('priority', 0), "down")
+                                        
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
                                 c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
                                 c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
@@ -499,6 +491,14 @@ if st.session_state.view == 'main':
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
                                 if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<div class='info-text-10px'>📝 {row['특이사항']}</div>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
+                                
+                                c_move1, c_move2 = st.columns(2)
+                                with c_move1:
+                                    if st.button("▲", key=f"up_eq_{row['Row']}"):
+                                        update_priority(row['Row'], row.get('priority', 0), "up")
+                                with c_move2:
+                                    if st.button("▼", key=f"down_eq_{row['Row']}"):
+                                        update_priority(row['Row'], row.get('priority', 0), "down")
                                 
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
                                 c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
