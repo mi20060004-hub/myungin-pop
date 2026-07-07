@@ -182,11 +182,34 @@ def load_data():
 
 master_dict, stock_dict, curr_df, log_df, all_raw_df = load_data()
 
-def update_priority(row_id, current_priority, direction):
-    # 위로 이동(▲)하면 숫자를 +1, 아래로 이동(▼)하면 -1
-    new_priority = (current_priority if current_priority is not None else 0) + (1 if direction == "up" else -1)
-    supabase.table("product_history").update({"priority": new_priority}).eq("id", row_id).execute()
-    st.rerun()
+def update_priority(row, direction, df_in_stage):
+    # 같은 공정 내의 아이템들을 현재 정렬 방식(상태, priority)으로 가져옴
+    stage_df = df_in_stage[df_in_stage['공정'] == row['공정']].sort_values(by=['상태', 'priority'], ascending=[False, False])
+    
+    # 리스트로 변환하여 순서 파악
+    items = stage_df.to_dict('records')
+    idx = next((i for i, item in enumerate(items) if item['Row'] == row['Row']), -1)
+    
+    if idx == -1: return
+
+    # 이동 대상(위/아래) 인덱스 설정
+    target_idx = idx - 1 if direction == "up" else idx + 1
+    
+    if 0 <= target_idx < len(items):
+        target_item = items[target_idx]
+        
+        # '진행중'인 항목과는 자리를 바꿀 수 없도록 방어
+        if str(target_item['상태']).strip() == "진행중": return
+
+        # 서로의 priority 값을 교환 (Swap)
+        old_p = row.get('priority', 0) if row.get('priority') is not None else 0
+        target_p = target_item.get('priority', 0) if target_item.get('priority') is not None else 0
+        
+        # DB 업데이트 (서로의 값을 바꿔치기)
+        supabase.table("product_history").update({"priority": target_p}).eq("id", row['Row']).execute()
+        supabase.table("product_history").update({"priority": old_p}).eq("id", target_item['Row']).execute()
+        
+        st.rerun()
 
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
 if 'view' not in st.session_state: st.session_state.view = 'main'
@@ -352,10 +375,10 @@ if st.session_state.view == 'main':
                                 c_move1, c_move2 = st.columns(2)
                                 with c_move1:
                                     if st.button("▲", key=f"up_{row['Row']}"):
-                                        update_priority(row['Row'], row.get('priority', 0), "up")
+                                        update_priority(row, "up", m_items)
                                 with c_move2:
                                     if st.button("▼", key=f"down_{row['Row']}"):
-                                        update_priority(row['Row'], row.get('priority', 0), "down")
+                                        update_priority(row, "down", m_items)
                                         
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
                                 c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
@@ -495,10 +518,10 @@ if st.session_state.view == 'main':
                                 c_move1, c_move2 = st.columns(2)
                                 with c_move1:
                                     if st.button("▲", key=f"up_eq_{row['Row']}"):
-                                        update_priority(row['Row'], row.get('priority', 0), "up")
+                                        update_priority(row, "up", m_specific_items)
                                 with c_move2:
                                     if st.button("▼", key=f"down_eq_{row['Row']}"):
-                                        update_priority(row['Row'], row.get('priority', 0), "down")
+                                        update_priority(row, "down", m_specific_items)
                                 
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
                                 c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
