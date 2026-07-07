@@ -392,13 +392,13 @@ if st.session_state.view == 'main':
 
                                 c_move1, c_move2, c_move3 = st.columns(3)
                                 with c_move1:
-                                    if st.button("⬆️", key=f"up_{row['Row']}"):
+                                    if st.button("위", key=f"up_{row['Row']}"):
                                         update_priority(row, "up", m_items)
                                 with c_move2:
-                                    if st.button("⬇️", key=f"down_{row['Row']}"):
+                                    if st.button("아래", key=f"down_{row['Row']}"):
                                         update_priority(row, "down", m_items)
                                 with c_move3:
-                                    if st.button("🔝", key=f"top_{row['Row']}"):
+                                    if st.button("맨위", key=f"top_{row['Row']}"):
                                         update_priority(row, "top", m_items)
                                         
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
@@ -538,13 +538,13 @@ if st.session_state.view == 'main':
                                 
                                 c_move1, c_move2, c_move3 = st.columns(3)
                                 with c_move1:
-                                    if st.button("⬆️", key=f"up_eq_{row['Row']}"):
+                                    if st.button("위", key=f"up_eq_{row['Row']}"):
                                         update_priority(row, "up", m_specific_items)
                                 with c_move2:
-                                    if st.button("⬇️", key=f"down_eq_{row['Row']}"):
+                                    if st.button("아래", key=f"down_eq_{row['Row']}"):
                                         update_priority(row, "down", m_specific_items)
                                 with c_move3:
-                                    if st.button("🔝", key=f"top_eq_{row['Row']}"):
+                                    if st.button("맨위", key=f"top_eq_{row['Row']}"):
                                         update_priority(row, "top", m_specific_items)
                                 
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
