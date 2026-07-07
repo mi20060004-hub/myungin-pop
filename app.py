@@ -459,7 +459,7 @@ if st.session_state.view == 'main':
                                                 st.rerun()
                                 else:
                                     if row['상태'] == '대기':
-                                    c1, c2 = st.columns(2)
+                                     c1, c2 = st.columns(2)
                                     with c1:
                                         if st.button("▶", key=f"start_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
