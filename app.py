@@ -183,36 +183,39 @@ def load_data():
 master_dict, stock_dict, curr_df, log_df, all_raw_df = load_data()
 
 def update_priority(row, direction, df_in_stage):
-    # 같은 공정 내의 아이템들을 정렬할 때 priority가 같으면 id(생성순)로 정렬하여 순서 고정
+    # 정렬 기준
     stage_df = df_in_stage[df_in_stage['공정'] == row['공정']].sort_values(
         by=['상태', 'priority', 'id'], 
         ascending=[False, False, False]
     )
-    
     items = stage_df.to_dict('records')
     idx = next((i for i, item in enumerate(items) if item['Row'] == row['Row']), -1)
     
     if idx == -1: return
 
-    target_idx = idx - 1 if direction == "up" else idx + 1
-    
+    # 이동 로직
+    if direction == "up":
+        target_idx = idx - 1
+    elif direction == "down":
+        target_idx = idx + 1
+    elif direction == "top":
+        # '진행중'이 아닌 가장 첫 번째 위치를 찾음 (상태가 '진행중'인 항목들을 건너뜀)
+        non_progress_items = [i for i, item in enumerate(items) if str(item['상태']).strip() != "진행중"]
+        if not non_progress_items: return
+        target_idx = non_progress_items[0]
+        if target_idx == idx: return # 이미 맨 위면 종료
+
     if 0 <= target_idx < len(items):
         target_item = items[target_idx]
-        
-        # '진행중'인 항목과는 자리를 바꿀 수 없도록 방어
-        if str(target_item['상태']).strip() == "진행중": return
+        if str(target_item['상태']).strip() == "진행중" and direction != "top": return
 
-        # Swap 로직 (priority가 없으면 0으로 간주)
+        # Swap 로직 (priority 값을 가져와서 서로 교환)
         old_p = row.get('priority', 0) if pd.notna(row.get('priority')) else 0
         target_p = target_item.get('priority', 0) if pd.notna(target_item.get('priority')) else 0
         
-        # 값을 서로 맞교환 (0이면 다른 값으로 밀어내기 위해 값을 지정)
-        new_old_p = target_p if target_p != old_p else old_p + 1
-        new_target_p = old_p if target_p != old_p else target_p - 1
-
-        supabase.table("product_history").update({"priority": new_old_p}).eq("id", row['Row']).execute()
-        supabase.table("product_history").update({"priority": new_target_p}).eq("id", target_item['Row']).execute()
-        
+        # 값을 업데이트
+        supabase.table("product_history").update({"priority": target_p}).eq("id", row['Row']).execute()
+        supabase.table("product_history").update({"priority": old_p}).eq("id", target_item['Row']).execute()
         st.rerun()
 
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
@@ -376,13 +379,16 @@ if st.session_state.view == 'main':
                                 if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<p class='info-text-10px'>📝 {row['특이사항']}</p>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
 
-                                c_move1, c_move2 = st.columns(2)
+                                c_move1, c_move2, c_move3 = st.columns(3)
                                 with c_move1:
-                                    if st.button("▲", key=f"up_{row['Row']}"):
+                                    if st.button("⬆️", key=f"up_{row['Row']}"):
                                         update_priority(row, "up", m_items)
                                 with c_move2:
-                                    if st.button("▼", key=f"down_{row['Row']}"):
+                                    if st.button("⬇️", key=f"down_{row['Row']}"):
                                         update_priority(row, "down", m_items)
+                                with c_move3:
+                                    if st.button("🔝", key=f"top_{row['Row']}"):
+                                        update_priority(row, "top", m_items)
                                         
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
                                 c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
@@ -519,13 +525,16 @@ if st.session_state.view == 'main':
                                 if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<div class='info-text-10px'>📝 {row['특이사항']}</div>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
                                 
-                                c_move1, c_move2 = st.columns(2)
+                                c_move1, c_move2, c_move3 = st.columns(3)
                                 with c_move1:
-                                    if st.button("▲", key=f"up_eq_{row['Row']}"):
+                                    if st.button("⬆️", key=f"up_eq_{row['Row']}"):
                                         update_priority(row, "up", m_specific_items)
                                 with c_move2:
-                                    if st.button("▼", key=f"down_eq_{row['Row']}"):
+                                    if st.button("⬇️", key=f"down_eq_{row['Row']}"):
                                         update_priority(row, "down", m_specific_items)
+                                with c_move3:
+                                    if st.button("🔝", key=f"top_eq_{row['Row']}"):
+                                        update_priority(row, "top", m_specific_items)
                                 
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
                                 c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
