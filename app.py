@@ -183,7 +183,7 @@ def load_data():
 master_dict, stock_dict, curr_df, log_df, all_raw_df = load_data()
 
 def update_priority(row, direction, df_in_stage):
-    # 같은 공정 내 정렬
+    # 같은 공정 내 정렬 (상태 > 우선순위 > 생성순)
     stage_df = df_in_stage[df_in_stage['공정'] == row['공정']].sort_values(
         by=['상태', 'priority', 'id'], 
         ascending=[False, False, False]
@@ -193,40 +193,44 @@ def update_priority(row, direction, df_in_stage):
     
     if idx == -1: return
 
+    # 방향별 타겟 인덱스 설정
     if direction == "up":
         target_idx = idx - 1
-        if 0 <= target_idx < len(items):
-            target_item = items[target_idx]
-            if str(target_item['상태']).strip() == "진행중": return
-            # Swap 로직 (기존과 동일)
-            old_p, target_p = row.get('priority', 0), target_item.get('priority', 0)
-            supabase.table("product_history").update({"priority": target_p}).eq("id", row['Row']).execute()
-            supabase.table("product_history").update({"priority": old_p}).eq("id", target_item['Row']).execute()
-            st.rerun()
-
     elif direction == "down":
         target_idx = idx + 1
-        if 0 <= target_idx < len(items):
-            target_item = items[target_idx]
-            # Swap 로직 (기존과 동일)
-            old_p, target_p = row.get('priority', 0), target_item.get('priority', 0)
-            supabase.table("product_history").update({"priority": target_p}).eq("id", row['Row']).execute()
-            supabase.table("product_history").update({"priority": old_p}).eq("id", target_item['Row']).execute()
-            st.rerun()
-
     elif direction == "top":
-        # 맨 위(진행중이 아닌 첫번째)의 priority를 가져옴
+        # 맨 위(진행중이 아닌 첫번째)의 위치를 찾음
         non_progress = [i for i, item in enumerate(items) if str(item['상태']).strip() != "진행중"]
         if not non_progress: return
+        target_idx = non_progress[0]
+        if target_idx == idx: return # 이미 맨 위면 중단
+    else:
+        return
+
+    # 타겟 블록과 값 교체 (핵심 로직)
+    if 0 <= target_idx < len(items) and target_idx != idx:
+        target_item = items[target_idx]
         
-        top_idx = non_progress[0]
-        if top_idx == idx: return # 이미 맨 위면 중단
-        
-        top_item = items[top_idx]
-        # 맨 위 항목의 priority + 1을 부여하여 강제로 가장 위로 올림
-        new_priority = (top_item.get('priority', 0) if top_item.get('priority') is not None else 0) + 1
-        
-        supabase.table("product_history").update({"priority": new_priority}).eq("id", row['Row']).execute()
+        # '진행중'인 블록은 Top을 제외하고는 건드릴 수 없음
+        if str(target_item['상태']).strip() == "진행중" and direction != "top": return
+
+        # None 값일 경우 0으로 처리
+        old_p = row.get('priority', 0) if pd.notna(row.get('priority')) else 0
+        target_p = target_item.get('priority', 0) if pd.notna(target_item.get('priority')) else 0
+
+        if direction in ["up", "down"]:
+            # 🌟 [수정된 부분] 두 값이 똑같으면 강제로 +1, -1 차이를 만들어 줌
+            new_old_p = target_p if target_p != old_p else old_p + 1
+            new_target_p = old_p if target_p != old_p else target_p - 1
+            
+            supabase.table("product_history").update({"priority": new_old_p}).eq("id", row['Row']).execute()
+            supabase.table("product_history").update({"priority": new_target_p}).eq("id", target_item['Row']).execute()
+            
+        elif direction == "top":
+            # 맨 위 항목보다 무조건 +1 더 큰 값을 부여하여 최상단으로 끄집어 올림
+            new_priority = target_p + 1
+            supabase.table("product_history").update({"priority": new_priority}).eq("id", row['Row']).execute()
+
         st.rerun()
 
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
