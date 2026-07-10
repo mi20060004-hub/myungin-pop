@@ -467,31 +467,38 @@ if st.session_state.view == 'main':
                                             supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
                                             st.rerun()
                                     elif row['상태'] == '진행중':
-                                        if st.button("대기", key=f"pause_act_{row['Row']}", use_container_width=True): 
-                                            supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
-                                            st.rerun()
+                                    if st.button("대기", key=f"pause_act_{row['Row']}", use_container_width=True): 
+                                        supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
+                                        st.rerun()
+                                    
+                                    if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
+                                        dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
                                         
-                                        if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
-                                            dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                            
-                                            has_granule = bool(master_dict.get(prod_name, {}).get("과립공정", []))
-                                            has_dry = bool(master_dict.get(prod_name, {}).get("건조공정", []))
-                                            
-                                            if not has_granule and not has_dry:
-                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
-                                            else:
-                                                n_stg = None
-                                                for i in range(idx_stage + 1, len(TARGET_STAGES)):
-                                                    check_stage = TARGET_STAGES[i].strip()
-                                                    if master_dict.get(prod_name, {}).get(check_stage):
-                                                        n_stg = check_stage
-                                                        break
-                                                next_m = master_dict.get(prod_name, {}).get(n_stg, [])[0].strip() if (n_stg and master_dict.get(prod_name, {}).get(n_stg, [])) else ""
-                                                if n_stg:
-                                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m}).execute()
-                                            
-                                            supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                            st.rerun()
+                                        has_granule = bool(master_dict.get(prod_name, {}).get("과립공정", []))
+                                        has_dry = bool(master_dict.get(prod_name, {}).get("건조공정", []))
+                                        
+                                        if not has_granule and not has_dry:
+                                            sub_df = curr_df[curr_df['공정'] == "정립혼합대기창고"]
+                                            new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
+                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": "", "priority": new_p}).execute()
+                                        else:
+                                            n_stg = None
+                                            for i in range(idx_stage + 1, len(TARGET_STAGES)):
+                                                check_stage = TARGET_STAGES[i].strip()
+                                                if master_dict.get(prod_name, {}).get(check_stage):
+                                                    n_stg = check_stage
+                                                    break
+                                            next_m = master_dict.get(prod_name, {}).get(n_stg, [])[0].strip() if (n_stg and master_dict.get(prod_name, {}).get(n_stg, [])) else ""
+                                            if n_stg:
+                                                if next_m:
+                                                    sub_df = curr_df[(curr_df['공정'] == n_stg) & (curr_df['설비'].str.strip() == next_m.strip())]
+                                                else:
+                                                    sub_df = curr_df[curr_df['공정'] == n_stg]
+                                                new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
+                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m, "priority": new_p}).execute()
+                                        
+                                        supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                        st.rerun()
                                     elif row['상태'] == '지연':
                                         if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
@@ -579,13 +586,17 @@ if st.session_state.view == 'main':
                                         if stage == "건조공정":
                                             if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
                                                 dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
+                                                sub_df = curr_df[curr_df['공정'] == "정립혼합대기창고"]
+                                                new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
+                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": "", "priority": new_p}).execute()
                                                 supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                 st.rerun()
                                         elif stage == "혼합공정":
                                             if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
                                                 dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "반제품창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": ""}).execute()
+                                                sub_df = curr_df[curr_df['공정'] == "반제품창고"]
+                                                new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
+                                                supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "반제품창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": "", "priority": new_p}).execute()
                                                 supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                 st.rerun()
                                         else:
@@ -603,9 +614,21 @@ if st.session_state.view == 'main':
                                                         nm_clean = nm.strip()
                                                         if st.button(nm_clean, key=f"next_act_{row['Row']}_{nm_clean}", use_container_width=True):
                                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M' ) - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": nm_clean}).execute()
+                                                            sub_df = curr_df[(curr_df['공정'] == n_stg) & (curr_df['설비'].str.strip() == nm_clean)]
+                                                            new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
+                                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": nm_clean, "priority": new_p}).execute()
                                                             supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                             st.rerun()
+                                            else:
+                                                if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
+                                                    dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                                    if n_stg: 
+                                                        next_m = n_machines[0].strip() if n_machines else ""
+                                                        sub_df = curr_df[(curr_df['공정'] == n_stg) & (curr_df['설비'].str.strip() == next_m)]
+                                                        new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
+                                                        supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m, "priority": new_p}).execute()
+                                                    supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                                    st.rerun()
                                             else:
                                                 if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
                                                     dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
