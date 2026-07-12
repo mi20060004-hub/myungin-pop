@@ -584,7 +584,7 @@ if st.session_state.view == 'main':
                                                 if nm_clean.upper() != str(row['설비']).strip().upper() and st.button(nm_clean, key=f"ch_act_{row['Row']}_{nm_clean}", use_container_width=True): 
                                                     supabase.table("product_history").update({"설비": nm_clean}).eq("id", row['Row']).execute()
                                                     st.rerun()
-                               elif row['상태'] == '진행중':
+                                elif row['상태'] == '진행중':
                                     c1, c2 = st.columns(2)
                                     with c1:
                                         if st.button("대기", key=f"pause_act_{row['Row']}", use_container_width=True): 
