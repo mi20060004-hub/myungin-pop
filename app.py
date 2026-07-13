@@ -159,12 +159,10 @@ def load_data():
     except Exception:
         pass
 
-    # [수정됨] 1000건 제한을 피하기 위해 전체 데이터를 루프를 돌며 모두 가져옴
     count_res = supabase.table("product_history").select("id", count='exact').range(0, 0).execute()
     total_count = count_res.count if count_res.count else 0
     
     all_data = []
-    # 1000건씩 나누어 순차적으로 데이터를 가져와 병합
     for i in range(0, total_count, 1000):
         res = supabase.table("product_history").select("*").order("priority", desc=True).order("id", desc=True).range(i, i + 999).execute()
         if res.data:
@@ -183,7 +181,6 @@ def load_data():
 master_dict, stock_dict, curr_df, log_df, all_raw_df = load_data()
 
 def update_priority(row, direction, df_in_stage):
-    # 같은 공정 내 정렬 (상태 > 우선순위 > 생성순)
     stage_df = df_in_stage[df_in_stage['공정'] == row['공정']].sort_values(
         by=['상태', 'priority', 'id'], 
         ascending=[False, False, False]
@@ -193,33 +190,27 @@ def update_priority(row, direction, df_in_stage):
     
     if idx == -1: return
 
-    # 방향별 타겟 인덱스 설정
     if direction == "up":
         target_idx = idx - 1
     elif direction == "down":
         target_idx = idx + 1
     elif direction == "top":
-        # 맨 위(진행중이 아닌 첫번째)의 위치를 찾음
         non_progress = [i for i, item in enumerate(items) if str(item['상태']).strip() != "진행중"]
         if not non_progress: return
         target_idx = non_progress[0]
-        if target_idx == idx: return # 이미 맨 위면 중단
+        if target_idx == idx: return 
     else:
         return
 
-    # 타겟 블록과 값 교체 (핵심 로직)
     if 0 <= target_idx < len(items) and target_idx != idx:
         target_item = items[target_idx]
         
-        # '진행중'인 블록은 Top을 제외하고는 건드릴 수 없음
         if str(target_item['상태']).strip() == "진행중" and direction != "top": return
 
-        # None 값일 경우 0으로 처리
         old_p = row.get('priority', 0) if pd.notna(row.get('priority')) else 0
         target_p = target_item.get('priority', 0) if pd.notna(target_item.get('priority')) else 0
 
         if direction in ["up", "down"]:
-            # 🌟 [수정된 부분] 두 값이 똑같으면 강제로 +1, -1 차이를 만들어 줌
             new_old_p = target_p if target_p != old_p else old_p + 1
             new_target_p = old_p if target_p != old_p else target_p - 1
             
@@ -227,7 +218,6 @@ def update_priority(row, direction, df_in_stage):
             supabase.table("product_history").update({"priority": new_target_p}).eq("id", target_item['Row']).execute()
             
         elif direction == "top":
-            # 맨 위 항목보다 무조건 +1 더 큰 값을 부여하여 최상단으로 끄집어 올림
             new_priority = target_p + 1
             supabase.table("product_history").update({"priority": new_priority}).eq("id", row['Row']).execute()
 
@@ -287,7 +277,6 @@ with st.sidebar:
 
     st.divider()
     
-    # 🌟 [신규 추가] 실시간 현황판 제품 위치 추적 검색창
     search_keyword = ""
     if st.session_state.view == 'main':
         st.markdown("<div style='font-size:16px; font-weight:800; color:#ff6b00; margin-bottom:5px;'>🔍 현황판 제품 위치 추적</div>", unsafe_allow_html=True)
@@ -366,7 +355,6 @@ if st.session_state.view == 'main':
                     cols = st.columns(10)
                     for idx, (_, row) in enumerate(chunk_df.iterrows()):
                         with cols[idx]:
-                            # 🌟 [신규 추가] 실시간 검색 매칭 로직 판별
                             prod_name = str(row['제품']).strip()
                             lot_num = str(row['Lot']).strip()
                             
@@ -378,7 +366,6 @@ if st.session_state.view == 'main':
                                     border_class = "search-dimmed"
                                     
                             with st.container(border=True):
-                                # HTML Wrapper 주입하여 테두리 이중 지배 해결
                                 st.markdown(f"<div class='{border_class}'>", unsafe_allow_html=True)
                                 st.markdown(f"<p class='card-text-10px'>{prod_name}</p>", unsafe_allow_html=True)
                                 st.markdown(f"<p class='card-text-l-10px'>{lot_num}</p>", unsafe_allow_html=True)
@@ -410,7 +397,6 @@ if st.session_state.view == 'main':
                                 c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
                                 
                                 if stage == "정립혼합대기창고":
-                                    # 1순위: 정립, 2순위: 혼합, 3순위: 캡슐 탐색
                                     target_stage = None
                                     pop_machines = []
                                     
@@ -528,7 +514,6 @@ if st.session_state.view == 'main':
                             m_specific_items = m_items[m_items['설비'].str.strip().str.upper() == m_clean.upper()]
                         
                         for _, row in m_specific_items.iterrows():
-                            # 🌟 [신규 추가] 실시간 검색 매칭 로직 판별
                             prod_name = str(row['제품']).strip()
                             lot_num = str(row['Lot']).strip()
                             
@@ -697,6 +682,3 @@ else:
         st.dataframe(display_df[avail_cols].sort_index(ascending=False), use_container_width=True, height=600)
     else: 
         st.info("데이터가 없습니다.")
-
-
-
