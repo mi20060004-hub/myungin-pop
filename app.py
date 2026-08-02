@@ -54,7 +54,7 @@ if not st.session_state.authenticated:
         
         # 실제 입력창 (시각적 일체감을 위해 컨테이너 대신 카드 바로 아래 배치)
         with st.container():
-            st.markdown("<p style='font-weight: 700; color: #ffffff; margin-top: 15px; margin-bottom: 5px; font-size: 13px;'>🔒1공장 고형제 생산시점관리 접속</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-weight: 400; color: #ffffff; margin-top: 15px; margin-bottom: 5px; font-size: 15px;'>🔒 1공장 고형제 생산시점관리 접속</p>", unsafe_allow_html=True)
             input_pw = st.text_input("비밀번호 입력", type="password", label_visibility="collapsed", placeholder="비밀번호를 입력하세요")
             
             st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
