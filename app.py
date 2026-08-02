@@ -6,16 +6,21 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. 🔒 앱 접속 비밀번호 인증 및 커스텀 로그인 화면 로직 ---
+# --- 2. 🔒 URL 쿼리 파라미터 기반 새로고침 유지형 로그인 로직 ---
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
+
+# URL 주소창에 auth=success가 남아있다면 새로고침해도 인증 상태를 유지
+query_params = st.query_params
+if query_params.get("auth") == "success":
+    st.session_state.authenticated = True
 
 if not st.session_state.authenticated:
     # 화면 중앙 정렬 레이아웃
     col1, col2, col3 = st.columns([1, 1.2, 1])
     
     with col2:
-        st.markdown("<div style='height: 60px;'></div>", unsafe_allow_html=True) # 상단 여백
+        st.markdown("<div style='height: 60px;'></div>", unsafe_allow_html=True)
         
         # 디자인된 로그인 카드 타이틀 영역
         st.markdown("""
@@ -32,17 +37,18 @@ if not st.session_state.authenticated:
             
             st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
             if st.button("로그인", type="primary", use_container_width=True):
-                # secrets에 설정된 비밀번호와 비교 (기본값 "1234")
                 correct_pw = st.secrets.get("auth", {}).get("password", "1234")
                 if input_pw == correct_pw:
                     st.session_state.authenticated = True
+                    # URL 쿼리에 인증 토큰 심어주기 (F5 새로고침 대응)
+                    st.query_params["auth"] = "success"
                     st.rerun()
                 else:
                     st.error("❌ 비밀번호가 올바르지 않습니다.")
                     
         st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 25px;'>Developed by JK / Production Dept.</p>", unsafe_allow_html=True)
         
-    st.stop()  # 로그인 전에는 아래 대시보드 코드가 실행되지 않도록 여기서 완전히 차단
+    st.stop()
 
 # --- 3. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 + 검색 하이라이트 클래스 추가) ---
 st.markdown("""
