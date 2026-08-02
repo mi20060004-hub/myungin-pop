@@ -24,6 +24,14 @@ if not st.session_state.authenticated:
                     url('https://github.com/mi20060004-hub/myungin-pop/blob/main/%EB%AA%85%EC%9D%B8%EB%B0%94%ED%83%95_%EC%99%80%EC%9D%B4%EB%93%9C33.jpg?raw=true');
         background-size: cover; background-position: center; background-repeat: no-repeat;
     }
+    
+    /* 🌟 로그인 박스 배경을 깔끔한 흰색으로 강제 설정 */
+    div[data-testid="stMarkdownContainer"] > div > div.stContainer {
+        background-color: #ffffff !important;
+        padding: 30px !important;
+        border-radius: 12px !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2) !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
