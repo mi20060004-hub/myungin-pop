@@ -324,7 +324,7 @@ if 'reset_type' not in st.session_state: st.session_state.reset_type = "일반�
 if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 
 # --- 5. 헤더 및 상단 메뉴 바 ---
-st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리(MYUNG-IN Pharm POP System)</p></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리 (MYUNG-IN Pharm POP System)</p></div>', unsafe_allow_html=True)
 nav_cols = st.columns(5) 
 with nav_cols[0]:
     if st.button("📊 실시간 현황판", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
