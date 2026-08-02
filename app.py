@@ -310,6 +310,28 @@ with st.sidebar:
     if st.session_state.view == 'main':
         st.markdown("<div style='font-size:16px; font-weight:800; color:#ff6b00; margin-bottom:5px;'>🔍 현황판 제품 위치 추적</div>", unsafe_allow_html=True)
         search_keyword = st.text_input("검색어 입력 (제품명 또는 Lot)", placeholder="예: 톨비스정 또는 26001", key="live_search_box").strip()
+        
+        # 🌟 [신규 추가] 검색어 입력 시 현재 위치 팝업/안내 박스 표시
+        if search_keyword and not curr_df.empty:
+            kw = search_keyword.lower()
+            matched_search_df = curr_df[
+                curr_df['제품'].astype(str).str.lower().str.contains(kw) | 
+                curr_df['Lot'].astype(str).str.lower().str.contains(kw)
+            ]
+            
+            if not matched_search_df.empty:
+                st.markdown(f"<div style='background-color: #fff7ed; border: 1px solid #fdba74; padding: 8px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; color: #c2410c;'><b>📍 검색 결과 위치 안내 ({len(matched_search_df)}건)</b><br>", unsafe_allow_html=True)
+                for _, r in matched_search_df.iterrows():
+                    p_name = r.get('제품', '')
+                    l_num = r.get('Lot', '')
+                    st_name = r.get('공정', '')
+                    eq_name = str(r.get('설비', '')).strip()
+                    location_desc = f"{st_name} ({eq_name})" if eq_name and eq_name != 'nan' else st_name
+                    st.markdown(- `<b>{p_name}</b> (Lot: {l_num}) ➔ <span style='color: #0284c7; font-weight:700;'>{location_desc}</span>`, unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                st.markdown("<div style='background-color: #f1f5f9; padding: 6px; border-radius: 6px; font-size: 11px; margin-bottom: 10px; color: #64748b;'>일치하는 가동 랏이 없습니다.</div>", unsafe_allow_html=True)
+                
         st.divider()
 
     if st.session_state.view == 'main':
