@@ -16,7 +16,7 @@ if query_params.get("auth") == "success":
     st.session_state.authenticated = True
 
 if not st.session_state.authenticated:
-    # 🌟 배경 스타일 및 로그인 박스 순백색 지정 주입
+    # 🌟 완벽한 순백색 카드 디자인이 적용된 배경 스타일 주입
     st.markdown("""
     <style>
     .stApp {
@@ -25,12 +25,13 @@ if not st.session_state.authenticated:
         background-size: cover; background-position: center; background-repeat: no-repeat;
     }
     
-    /* 🌟 로그인 박스 배경을 깔끔한 순백색으로 강제 설정 */
-    div[data-testid="stMarkdownContainer"] > div > div.stContainer {
+    /* 🌟 순백색 커스텀 로그인 카드 디자인 클래스 */
+    .custom-login-box {
         background-color: #ffffff !important;
-        padding: 10px !important;
-        border-radius: 12px !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.3) !important;
+        padding: 35px !important;
+        border-radius: 16px !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+        border: 1px solid #e2e8f0;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -41,16 +42,19 @@ if not st.session_state.authenticated:
     with col2:
         st.markdown("<div style='height: 40px;'></div>", unsafe_allow_html=True)
         
-        # 🌟 타이틀부터 입력창까지 전체를 감싸는 하나의 통짜 흰색 카드 컨테이너
-        with st.container(border=True):
-            st.markdown("""
-            <div style='text-align: center; padding-top: 10px; padding-bottom: 20px;'>
+        # 🌟 HTML div를 직접 사용하여 투명함 없이 100% 순백색 카드 구현
+        st.markdown("""
+        <div class="custom-login-box">
+            <div style='text-align: center; padding-bottom: 15px;'>
                 <h2 style='color: #1e3a8a; font-weight: 800; margin-bottom: 5px;'>명인제약 생산시점관리</h2>
                 <p style='color: #64748b; font-size: 13px; margin: 0;'>비밀번호는 2026</p>
             </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("<p style='font-weight: 700; color: #1e293b; margin-bottom: 5px; font-size: 13px;'>🔐 시스템 접근 비밀번호</p>", unsafe_allow_html=True)
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 실제 입력창 (시각적 일체감을 위해 컨테이너 대신 카드 바로 아래 배치)
+        with st.container():
+            st.markdown("<p style='font-weight: 700; color: #1e293b; margin-top: 15px; margin-bottom: 5px; font-size: 13px;'>🔐 시스템 접근 비밀번호</p>", unsafe_allow_html=True)
             input_pw = st.text_input("비밀번호 입력", type="password", label_visibility="collapsed", placeholder="비밀번호를 입력하세요")
             
             st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
