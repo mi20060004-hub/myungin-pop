@@ -337,7 +337,7 @@ with st.sidebar:
             curr_df['목록표시'] = curr_df['제품'].astype(str).str.strip() + " | " + curr_df['Lot'].astype(str).str.strip() + " (" + curr_df['공정'].astype(str).str.strip() + ")"
             target_lot_options = curr_df['목록표시'].tolist()
             
-            selected_target_label = st.selectbox("수정할 랏 선택", ["선택하세요"] + target_lot_options, key="edit_note_select")
+            selected_target_label = st.selectbox("수정할 제품(LOT) 선택", ["선택하세요"] + target_lot_options, key="edit_note_select")
             
             if selected_target_label != "선택하세요":
                 selected_row = curr_df[curr_df['목록표시'] == selected_target_label].iloc[0]
