@@ -6,7 +6,45 @@ from supabase import create_client, Client
 # --- 1. 페이지 설정 ---
 st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리")
 
-# --- 2. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 + 검색 하이라이트 클래스 추가) ---
+# --- 2. 🔒 앱 접속 비밀번호 인증 및 커스텀 로그인 화면 로직 ---
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    # 화면 중앙 정렬 레이아웃
+    col1, col2, col3 = st.columns([1, 1.2, 1])
+    
+    with col2:
+        st.markdown("<div style='height: 60px;'></div>", unsafe_allow_html=True) # 상단 여백
+        
+        # 디자인된 로그인 카드 타이틀 영역
+        st.markdown("""
+        <div style='background-color: #ffffff; padding: 35px 35px 20px 35px; border-top-left-radius: 12px; border-top-right-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; border-bottom: none; text-align: center;'>
+            <h2 style='color: #1e3a8a; font-weight: 800; margin-bottom: 5px;'>🏭 명인제약</h2>
+            <p style='color: #64748b; font-size: 14px; margin: 0;'>생산 시점 관리 시스템 (POP)</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 비밀번호 입력 폼 컨테이너
+        with st.container(border=True):
+            st.markdown("<p style='font-weight: 700; color: #1e293b; margin-bottom: 5px; font-size: 13px;'>🔐 시스템 접근 비밀번호</p>", unsafe_allow_html=True)
+            input_pw = st.text_input("비밀번호 입력", type="password", label_visibility="collapsed", placeholder="비밀번호를 입력하세요")
+            
+            st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+            if st.button("로그인", type="primary", use_container_width=True):
+                # secrets에 설정된 비밀번호와 비교 (기본값 "1234")
+                correct_pw = st.secrets.get("auth", {}).get("password", "1234")
+                if input_pw == correct_pw:
+                    st.session_state.authenticated = True
+                    st.rerun()
+                else:
+                    st.error("❌ 비밀번호가 올바르지 않습니다.")
+                    
+        st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 25px;'>Developed by JK / Production Dept.</p>", unsafe_allow_html=True)
+        
+    st.stop()  # 로그인 전에는 아래 대시보드 코드가 실행되지 않도록 여기서 완전히 차단
+
+# --- 3. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 + 검색 하이라이트 클래스 추가) ---
 st.markdown("""
 <style>
 /* 부드러운 스크롤 이동 효과 적용 */
