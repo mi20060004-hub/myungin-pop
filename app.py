@@ -16,37 +16,32 @@ if query_params.get("auth") == "success":
     st.session_state.authenticated = True
 
 if not st.session_state.authenticated:
-# 🌟 로그인 전용 화사한 배경 스타일 주입 (여기 추가!)
+    # 🌟 배경 스타일 주입
     st.markdown(f"""
     <style>
     .stApp {{
         background: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), 
                     url('https://github.com/mi20060004-hub/myungin-pop/blob/main/%EB%AA%85%EC%9D%B8%EB%B0%94%ED%83%95_%EC%99%80%EC%9D%B4%EB%93%9C33.jpg?raw=true');
         background-size: cover; background-position: center; background-repeat: no-repeat;
-    }}
-    div[data-testid="stMarkdownContainer"] > div > div.stContainer {{
-        background-color: rgba(255, 255, 255, 0.95) !important; padding: 20px !important;
-        border-radius: 8px !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
-    }}
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# 화면 중앙 정렬 레이아웃 (양옆 빈 공간 비율을 키워 가운데 박스를 좁게 만듦)
+    # 화면 중앙 정렬 레이아웃 (폭을 좁게 유지)
     col1, col2, col3 = st.columns([1.5, 1, 1.5])
     
     with col2:
-        st.markdown("<div style='height: 60px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 40px;'></div>", unsafe_allow_html=True)
         
-        # 디자인된 로그인 카드 타이틀 영역
-        st.markdown("""
-        <div style='background-color: #ffffff; padding: 30px 30px 15px 30px; border-top-left-radius: 12px; border-top-right-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; border-bottom: none; text-align: center;'>
-            <h2 style='color: #1e3a8a; font-weight: 800; margin-bottom: 5px;'>명인제약 생산시점관리</h2>
-            <p style='color: #64748b; font-size: 13px; margin: 0;'>비밀번호는 2026</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 비밀번호 입력 폼 컨테이너
+        # 🌟 타이틀부터 입력창까지 전체를 감싸는 하나의 통짜 흰색 카드 컨테이너
         with st.container(border=True):
+            st.markdown("""
+            <div style='text-align: center; padding-top: 10px; padding-bottom: 20px;'>
+                <h2 style='color: #1e3a8a; font-weight: 800; margin-bottom: 5px;'>명인제약 생산시점관리</h2>
+                <p style='color: #64748b; font-size: 13px; margin: 0;'>비밀번호는 2026</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
             st.markdown("<p style='font-weight: 700; color: #1e293b; margin-bottom: 5px; font-size: 13px;'>🔐 시스템 접근 비밀번호</p>", unsafe_allow_html=True)
             input_pw = st.text_input("비밀번호 입력", type="password", label_visibility="collapsed", placeholder="비밀번호를 입력하세요")
             
@@ -55,13 +50,12 @@ if not st.session_state.authenticated:
                 correct_pw = st.secrets.get("auth", {}).get("password", "1234")
                 if input_pw == correct_pw:
                     st.session_state.authenticated = True
-                    # URL 쿼리에 인증 토큰 심어주기 (F5 새로고침 대응)
                     st.query_params["auth"] = "success"
                     st.rerun()
                 else:
                     st.error("❌ 비밀번호가 올바르지 않습니다.")
                     
-        st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 25px;'>Developed by JK / Production Dept.</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #ffffff; font-size: 12px; margin-top: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);'>Developed by JK / Production Dept.</p>", unsafe_allow_html=True)
         
     st.stop()
 
