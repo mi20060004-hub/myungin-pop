@@ -262,15 +262,15 @@ if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<<버튼 누르기 전 새로고침(F5)해주세요>></p></div>', unsafe_allow_html=True)
 nav_cols = st.columns(5) 
 with nav_cols[0]:
-    if st.button("📋 실시간 현황판", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
+    if st.button("📊 실시간 현황판", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
 with nav_cols[1]:
-    if st.button("✅ 완료된 공정 확인(1팀)", key="nav_2", use_container_width=True): st.session_state.view = 'history'; st.rerun()
+    if st.button("✅ 1팀 공정 완료", key="nav_2", use_container_width=True): st.session_state.view = 'history'; st.rerun()
 with nav_cols[2]:
-    if st.button("🏷️ 완료된 공정 확인(선별)", key="nav_3", use_container_width=True): st.session_state.view = 'selection'; st.rerun()
+    if st.button("🏷️ 선별 공정 완료", key="nav_3", use_container_width=True): st.session_state.view = 'selection'; st.rerun()
 with nav_cols[3]:
-    if st.button("🗃️ 모든 공정 이력 확인", key="nav_4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
+    if st.button("🗃️ 전체 공정 이력", key="nav_4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
 with nav_cols[4]:
-    st.link_button("🌐일일재고/재공현황", "https://myungin-pp.appsmith.com/app/untitled-application-1/page1-6a27d4bd9e8e4df7ae2343bf?environment=production", use_container_width=True)
+    st.link_button("🌐 일일 재고/재공", "https://myungin-pp.appsmith.com/app/untitled-application-1/page1-6a27d4bd9e8e4df7ae2343bf?environment=production", use_container_width=True)
 
 # --- 6. 사이드바 ---
 with st.sidebar:
