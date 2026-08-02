@@ -71,6 +71,31 @@ if not st.session_state.authenticated:
         
     st.stop()
 
+# --- 🌟 업데이트 안내 팝업 (st.dialog 활용) ---
+@st.dialog("✨ [시스템 업데이트 안내] 새로운 기능이 추가되었습니다!")
+def show_update_dialog():
+    st.markdown("""
+    ### 🚀 이번 업데이트 주요 기능
+    1. **회사 사진 로그인 배경 적용**: 로그인 화면에 전경 이미지가 적용되었습니다.
+    2. **순백색 로그인 카드 UI**: 가독성을 높인 모던한 디자인으로 개편되었습니다.
+    3. **실시간 위치 추적 강화**: 검색 시 대상 랏의 현재 위치를 한눈에 확인할 수 있습니다.
+    """)
+    
+    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+    
+    # 확인 버튼을 누르면 팝업이 닫히고 다시 뜨지 않음
+    if st.button("확인 (팝업 닫기)", type="primary", use_container_width=True):
+        st.session_state.update_dialog_shown = True
+        st.rerun()
+
+# 2️⃣ 로그인 성공 직후 및 세션 체크 시 최초 1회만 팝업 실행
+if "update_dialog_shown" not in st.session_state:
+    st.session_state.update_dialog_shown = False
+
+# 사용자가 로그인 상태이고, 아직 팝업을 확인하지 않았다면 창 띄우기
+if st.session_state.authenticated and not st.session_state.update_dialog_shown:
+    show_update_dialog()
+
 # --- 3. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 + 검색 하이라이트 클래스 추가) ---
 st.markdown("""
 <style>
