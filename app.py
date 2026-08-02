@@ -47,7 +47,7 @@ if not st.session_state.authenticated:
         <div class="custom-login-box">
             <div style='text-align: center; padding-bottom: 15px;'>
                 <h2 style='color: #1e3a8a; font-weight: 800; margin-bottom: 5px;'>명인제약 생산시점관리</h2>
-                <p style='color: #64748b; font-size: 13px; margin: 0;'>비밀번호는 2026</p>
+                <p style='color: #64748b; font-size: 15px; margin: 0;'>비밀번호는 "2026"입니다.</p>
             </div>
         </div>
         """, unsafe_allow_html=True)
