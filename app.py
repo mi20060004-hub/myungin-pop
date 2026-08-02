@@ -356,8 +356,8 @@ def render_stock_and_wip_html(prod_name):
     if w_val == "정보없음" or w_val == "None" or not w_val:
         html_str += "<p class='wip-black'>재공: 정보없음</p>"
     else:
-        try: html_str += f"<p class='wip-blue'>재공(합산): {w_val}개월</p>"
-        except ValueError: html_str += f"<p class='wip-blue'>재공(합산): {w_val}</p>"
+        try: html_str += f"<p class='wip-blue'>재공: {w_val}개월</p>"
+        except ValueError: html_str += f"<p class='wip-blue'>재공: {w_val}</p>"
         
     return html_str
 
