@@ -40,8 +40,8 @@ if not st.session_state.authenticated:
         # 디자인된 로그인 카드 타이틀 영역
         st.markdown("""
         <div style='background-color: #ffffff; padding: 30px 30px 15px 30px; border-top-left-radius: 12px; border-top-right-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; border-bottom: none; text-align: center;'>
-            <h2 style='color: #1e3a8a; font-weight: 800; margin-bottom: 5px;'>🏭 명인제약</h2>
-            <p style='color: #64748b; font-size: 13px; margin: 0;'>생산 시점 관리 시스템 (POP)</p>
+            <h2 style='color: #1e3a8a; font-weight: 800; margin-bottom: 5px;'>명인제약 생산시점관리</h2>
+            <p style='color: #64748b; font-size: 13px; margin: 0;'>비밀번호는 2026</p>
         </div>
         """, unsafe_allow_html=True)
         
