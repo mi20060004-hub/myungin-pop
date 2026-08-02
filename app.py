@@ -16,6 +16,21 @@ if query_params.get("auth") == "success":
     st.session_state.authenticated = True
 
 if not st.session_state.authenticated:
+# 🌟 로그인 전용 화사한 배경 스타일 주입 (여기 추가!)
+    st.markdown(f"""
+    <style>
+    .stApp {{
+        background: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), 
+                    url('https://github.com/mi20060004-hub/myungin-pop/blob/main/%EB%AA%85%EC%9D%B8%EB%B0%94%ED%83%95_%EC%99%80%EC%9D%B4%EB%93%9C33.jpg');
+        background-size: cover; background-position: center; background-repeat: no-repeat;
+    }}
+    div[data-testid="stMarkdownContainer"] > div > div.stContainer {{
+        background-color: rgba(255, 255, 255, 0.95) !important; padding: 20px !important;
+        border-radius: 8px !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
     # 화면 중앙 정렬 레이아웃
     col1, col2, col3 = st.columns([1, 1.2, 1])
     
