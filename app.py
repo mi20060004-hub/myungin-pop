@@ -420,19 +420,19 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<p class='card-text-date'>{p_date}{elapsed_suffix}</p>", unsafe_allow_html=True)
 
-                                # 공정별 직전 공정 완료일 기준 경과일 추가 표시
+                                # 공정별 직전 공정 완료일 기준 경과일 추가 표시 (p 태그로 통일)
                                 if stage in ["타정공정", "캡슐공정"]:
                                     prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정"])
                                     if prev_elapsed_suffix:
-                                        st.markdown(f"<div class='card-text-date' style='color:#059669;'>{prev_elapsed_suffix}</div>", unsafe_allow_html=True)
+                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>혼합후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
                                 elif stage == "코팅공정":
                                     prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["타정공정"])
                                     if prev_elapsed_suffix:
-                                        st.markdown(f"<div class='card-text-date' style='color:#059669;'>{prev_elapsed_suffix}</div>", unsafe_allow_html=True)
+                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>타정후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
                                 elif stage == "외관선별공정":
                                     prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["코팅공정", "타정공정", "질량선별공정", "인쇄공정"])
                                     if prev_elapsed_suffix:
-                                        st.markdown(f"<div class='card-text-date' style='color:#059669;'>{prev_elapsed_suffix}</div>", unsafe_allow_html=True)
+                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>직전공정후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
                                 st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
