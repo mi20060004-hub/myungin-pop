@@ -54,7 +54,7 @@ if not st.session_state.authenticated:
         
         # 실제 입력창 (시각적 일체감을 위해 컨테이너 대신 카드 바로 아래 배치)
         with st.container():
-            st.markdown("<p style='font-weight: 700; color: #ffffff; margin-top: 15px; margin-bottom: 5px; font-size: 13px;'>🔐 시스템 접근 비밀번호</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-weight: 700; color: #ffffff; margin-top: 15px; margin-bottom: 5px; font-size: 13px;'>명인제약 1공장 고형제 POP System password</p>", unsafe_allow_html=True)
             input_pw = st.text_input("비밀번호 입력", type="password", label_visibility="collapsed", placeholder="비밀번호를 입력하세요")
             
             st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
@@ -449,7 +449,7 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 2.09 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 2.10 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
 
 # --- 7. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
