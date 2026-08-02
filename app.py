@@ -21,7 +21,7 @@ if not st.session_state.authenticated:
     <style>
     .stApp {{
         background: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), 
-                    url('https://github.com/mi20060004-hub/myungin-pop/blob/main/%EB%AA%85%EC%9D%B8%EB%B0%94%ED%83%95_%EC%99%80%EC%9D%B4%EB%93%9C33.jpg');
+                    url('https://github.com/mi20060004-hub/myungin-pop/blob/main/%EB%AA%85%EC%9D%B8%EB%B0%94%ED%83%95_%EC%99%80%EC%9D%B4%EB%93%9C33.jpg?raw=true');
         background-size: cover; background-position: center; background-repeat: no-repeat;
     }}
     div[data-testid="stMarkdownContainer"] > div > div.stContainer {{
