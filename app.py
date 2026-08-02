@@ -16,7 +16,7 @@ if query_params.get("auth") == "success":
     st.session_state.authenticated = True
 
 if not st.session_state.authenticated:
-    # 🌟 배경 스타일 주입
+    # 🌟 배경 스타일 및 로그인 박스 순백색 지정 주입
     st.markdown("""
     <style>
     .stApp {
@@ -25,17 +25,17 @@ if not st.session_state.authenticated:
         background-size: cover; background-position: center; background-repeat: no-repeat;
     }
     
-    /* 🌟 로그인 박스 배경을 깔끔한 흰색으로 강제 설정 */
+    /* 🌟 로그인 박스 배경을 깔끔한 순백색으로 강제 설정 */
     div[data-testid="stMarkdownContainer"] > div > div.stContainer {
         background-color: #ffffff !important;
-        padding: 30px !important;
+        padding: 10px !important;
         border-radius: 12px !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2) !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3) !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # 화면 중앙 정렬 레이아웃 (들여쓰기 오류 해결 완료)
+    # 화면 중앙 정렬 레이아웃
     col1, col2, col3 = st.columns([1.5, 1, 1.5])
     
     with col2:
