@@ -31,17 +31,17 @@ if not st.session_state.authenticated:
     </style>
     """, unsafe_allow_html=True)
 
-    # 화면 중앙 정렬 레이아웃
-    col1, col2, col3 = st.columns([1, 1.2, 1])
+# 화면 중앙 정렬 레이아웃 (양옆 빈 공간 비율을 키워 가운데 박스를 좁게 만듦)
+    col1, col2, col3 = st.columns([1.5, 1, 1.5])
     
     with col2:
         st.markdown("<div style='height: 60px;'></div>", unsafe_allow_html=True)
         
         # 디자인된 로그인 카드 타이틀 영역
         st.markdown("""
-        <div style='background-color: #ffffff; padding: 35px 35px 20px 35px; border-top-left-radius: 12px; border-top-right-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; border-bottom: none; text-align: center;'>
+        <div style='background-color: #ffffff; padding: 30px 30px 15px 30px; border-top-left-radius: 12px; border-top-right-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; border-bottom: none; text-align: center;'>
             <h2 style='color: #1e3a8a; font-weight: 800; margin-bottom: 5px;'>🏭 명인제약</h2>
-            <p style='color: #64748b; font-size: 14px; margin: 0;'>생산 시점 관리 시스템 (POP)</p>
+            <p style='color: #64748b; font-size: 13px; margin: 0;'>생산 시점 관리 시스템 (POP)</p>
         </div>
         """, unsafe_allow_html=True)
         
