@@ -16,18 +16,18 @@ if query_params.get("auth") == "success":
     st.session_state.authenticated = True
 
 if not st.session_state.authenticated:
-        # 🌟 배경 스타일 주입 (f-string 중괄호 오류 해결 버전)
-        st.markdown("""
-        <style>
-        .stApp {
-            background: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), 
-                        url('https://github.com/mi20060004-hub/myungin-pop/blob/main/%EB%AA%85%EC%9D%B8%EB%B0%94%ED%83%95_%EC%99%80%EC%9D%B4%EB%93%9C33.jpg?raw=true');
-            background-size: cover; background-position: center; background-repeat: no-repeat;
-        }
-        </style>
-        """, unsafe_allow_html=True)
+    # 🌟 배경 스타일 주입
+    st.markdown("""
+    <style>
+    .stApp {
+        background: linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), 
+                    url('https://github.com/mi20060004-hub/myungin-pop/blob/main/%EB%AA%85%EC%9D%B8%EB%B0%94%ED%83%95_%EC%99%80%EC%9D%B4%EB%93%9C33.jpg?raw=true');
+        background-size: cover; background-position: center; background-repeat: no-repeat;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-    # 화면 중앙 정렬 레이아웃 (폭을 좁게 유지)
+    # 화면 중앙 정렬 레이아웃 (들여쓰기 오류 해결 완료)
     col1, col2, col3 = st.columns([1.5, 1, 1.5])
     
     with col2:
