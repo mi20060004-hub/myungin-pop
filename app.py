@@ -331,6 +331,30 @@ with st.sidebar:
             """, unsafe_allow_html=True)
         st.write("---")
 
+# 📝 [신규 추가] 실시간 가동 중인 랏 선택 후 공정 특이사항 수정 기능
+        st.markdown("<div style='font-size:16px; font-weight:800; color:#1e3a8a; margin-bottom:5px;'>📝 공정 특이사항 수정</div>", unsafe_allow_html=True)
+        if not curr_df.empty:
+            curr_df['목록표시'] = curr_df['제품'].astype(str).str.strip() + " | " + curr_df['Lot'].astype(str).str.strip() + " (" + curr_df['공정'].astype(str).str.strip() + ")"
+            target_lot_options = curr_df['목록표시'].tolist()
+            
+            selected_target_label = st.selectbox("수정할 랏 선택", ["선택하세요"] + target_lot_options, key="edit_note_select")
+            
+            if selected_target_label != "선택하세요":
+                selected_row = curr_df[curr_df['목록표시'] == selected_target_label].iloc[0]
+                current_note = str(selected_row.get('특이사항', ''))
+                if current_note == 'nan' or current_note == 'None': current_note = ""
+                
+                new_note_input = st.text_area("변경할 특이사항 입력", value=current_note, key="edit_note_input")
+                
+                if st.button("💾 특이사항 저장", use_container_width=True):
+                    supabase.table("product_history").update({"특이사항": new_note_input}).eq("id", selected_row['Row']).execute()
+                    st.success("특이사항이 수정되었습니다!")
+                    st.rerun()
+        else:
+            st.caption("수정 가능한 가동 중인 랏이 없습니다.")
+
+        st.write("---")
+        
     with st.popover("🔒 데이터 초기화", use_container_width=True):
         input_pwd = st.text_input("비밀번호 입력", type="password")
         if st.button("🚨 초기화 실행", type="primary", use_container_width=True):
