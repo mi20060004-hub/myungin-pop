@@ -131,7 +131,6 @@ def get_elapsed_days_str(date_val):
 def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
     if all_df.empty or not lot_num or not prod_name:
         return ""
-    # 같은 제품, 같은 랏 번호이면서 지정된 이전 공정들 중 완료된 기록 찾기 (상태 조건 완화)
     prev_logs = all_df[
         (all_df['Lot'].astype(str).str.strip() == str(lot_num).strip()) & 
         (all_df['제품'].astype(str).str.strip() == str(prod_name).strip()) & 
@@ -141,7 +140,6 @@ def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
     if prev_logs.empty:
         return ""
     
-    # 종료시간 기준으로 가장 최신 데이터 선택 (종료시간이 없으면 생성일/제조일 등 대체 가능)
     prev_logs = prev_logs.copy()
     prev_logs['종료dt'] = pd.to_datetime(prev_logs['종료시간'], errors='coerce')
     prev_logs = prev_logs.sort_values(by='종료dt', ascending=False)
@@ -155,8 +153,20 @@ def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
         target_dt = datetime.strptime(end_time_str[:10], '%Y-%m-%d').date()
         today_dt = get_today_date_kst()
         delta_days = (today_dt - target_dt).days
+        
         stage_name = latest_row.get('공정', '')
-        return f" ({stage_name} 완료 후 +{delta_days}일)"
+        # 공정명에 따라 간결한 접두사 매핑
+        prefix = "직전"
+        if "혼합" in stage_name:
+            prefix = "혼합후"
+        elif "타정" in stage_name:
+            prefix = "타정후"
+        elif "코팅" in stage_name:
+            prefix = "코팅후"
+        elif "선별" in stage_name or "질량" in stage_name:
+            prefix = "선별후"
+            
+        return f"({prefix}+{delta_days}일)"
     except Exception:
         return ""
 
@@ -410,15 +420,15 @@ if st.session_state.view == 'main':
                                 if stage in ["타정공정", "캡슐공정"]:
                                     prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정"])
                                     if prev_elapsed_suffix:
-                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>혼합후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
+                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
                                 elif stage == "코팅공정":
                                     prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["타정공정"])
                                     if prev_elapsed_suffix:
-                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>타정후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
+                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
                                 elif stage == "외관선별공정":
                                     prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["코팅공정", "타정공정", "질량선별공정", "인쇄공정"])
                                     if prev_elapsed_suffix:
-                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>직전공정후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
+                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
 
                                 st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
