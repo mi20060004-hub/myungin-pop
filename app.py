@@ -131,24 +131,24 @@ def get_elapsed_days_str(date_val):
 def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
     if all_df.empty or not lot_num or not prod_name:
         return ""
-    # 같은 제품, 같은 랏 번호이면서 지정된 이전 공정들 중 가장 최근에 완료된 기록 찾기
+    # 같은 제품, 같은 랏 번호이면서 지정된 이전 공정들 중 완료된 기록 찾기 (상태 조건 완화)
     prev_logs = all_df[
         (all_df['Lot'].astype(str).str.strip() == str(lot_num).strip()) & 
         (all_df['제품'].astype(str).str.strip() == str(prod_name).strip()) & 
         (all_df['공정'].isin(target_stages)) & 
-        (all_df['상태'].isin(['완료', '1팀종료']))
+        (all_df['상태'].isin(['완료', '1팀종료', '종료']))
     ]
     if prev_logs.empty:
         return ""
     
-    # 종료시간 기준으로 가장 최신 데이터 선택
+    # 종료시간 기준으로 가장 최신 데이터 선택 (종료시간이 없으면 생성일/제조일 등 대체 가능)
     prev_logs = prev_logs.copy()
     prev_logs['종료dt'] = pd.to_datetime(prev_logs['종료시간'], errors='coerce')
     prev_logs = prev_logs.sort_values(by='종료dt', ascending=False)
     
     latest_row = prev_logs.iloc[0]
     end_time_str = str(latest_row.get('종료시간', ''))
-    if not end_time_str or end_time_str == 'nan':
+    if not end_time_str or end_time_str == 'nan' or end_time_str == 'NaT':
         return ""
     
     try:
@@ -191,12 +191,10 @@ def load_data():
     except Exception:
         pass
 
-    # [수정됨] 1000건 제한을 피하기 위해 전체 데이터를 루프를 돌며 모두 가져옴
     count_res = supabase.table("product_history").select("id", count='exact').range(0, 0).execute()
     total_count = count_res.count if count_res.count else 0
     
     all_data = []
-    # 1000건씩 나누어 순차적으로 데이터를 가져와 병합
     for i in range(0, total_count, 1000):
         res = supabase.table("product_history").select("*").order("priority", desc=True).order("id", desc=True).range(i, i + 999).execute()
         if res.data:
@@ -215,7 +213,6 @@ def load_data():
 master_dict, stock_dict, curr_df, log_df, all_raw_df = load_data()
 
 def update_priority(row, direction, df_in_stage):
-    # 같은 공정 내 정렬 (상태 > 우선순위 > 생성순)
     stage_df = df_in_stage[df_in_stage['공정'] == row['공정']].sort_values(
         by=['상태', 'priority', 'id'], 
         ascending=[False, False, False]
@@ -225,33 +222,26 @@ def update_priority(row, direction, df_in_stage):
     
     if idx == -1: return
 
-    # 방향별 타겟 인덱스 설정
     if direction == "up":
         target_idx = idx - 1
     elif direction == "down":
         target_idx = idx + 1
     elif direction == "top":
-        # 맨 위(진행중이 아닌 첫번째)의 위치를 찾음
         non_progress = [i for i, item in enumerate(items) if str(item['상태']).strip() != "진행중"]
         if not non_progress: return
         target_idx = non_progress[0]
-        if target_idx == idx: return # 이미 맨 위면 중단
+        if target_idx == idx: return
     else:
         return
 
-    # 타겟 블록과 값 교체 (핵심 로직)
     if 0 <= target_idx < len(items) and target_idx != idx:
         target_item = items[target_idx]
-        
-        # '진행중'인 블록은 Top을 제외하고는 건드릴 수 없음
         if str(target_item['상태']).strip() == "진행중" and direction != "top": return
 
-        # None 값일 경우 0으로 처리
         old_p = row.get('priority', 0) if pd.notna(row.get('priority')) else 0
         target_p = target_item.get('priority', 0) if pd.notna(target_item.get('priority')) else 0
 
         if direction in ["up", "down"]:
-            # 🌟 [수정된 부분] 두 값이 똑같으면 강제로 +1, -1 차이를 만들어 줌
             new_old_p = target_p if target_p != old_p else old_p + 1
             new_target_p = old_p if target_p != old_p else target_p - 1
             
@@ -259,7 +249,6 @@ def update_priority(row, direction, df_in_stage):
             supabase.table("product_history").update({"priority": new_target_p}).eq("id", target_item['Row']).execute()
             
         elif direction == "top":
-            # 맨 위 항목보다 무조건 +1 더 큰 값을 부여하여 최상단으로 끄집어 올림
             new_priority = target_p + 1
             supabase.table("product_history").update({"priority": new_priority}).eq("id", row['Row']).execute()
 
@@ -319,7 +308,6 @@ with st.sidebar:
 
     st.divider()
     
-    # 🌟 [신규 추가] 실시간 현황판 제품 위치 추적 검색창
     search_keyword = ""
     if st.session_state.view == 'main':
         st.markdown("<div style='font-size:16px; font-weight:800; color:#ff6b00; margin-bottom:5px;'>🔍 현황판 제품 위치 추적</div>", unsafe_allow_html=True)
@@ -398,7 +386,6 @@ if st.session_state.view == 'main':
                     cols = st.columns(10)
                     for idx, (_, row) in enumerate(chunk_df.iterrows()):
                         with cols[idx]:
-                            # 🌟 [신규 추가] 실시간 검색 매칭 로직 판별
                             prod_name = str(row['제품']).strip()
                             lot_num = str(row['Lot']).strip()
                             
@@ -410,7 +397,6 @@ if st.session_state.view == 'main':
                                     border_class = "search-dimmed"
                                     
                             with st.container(border=True):
-                                # HTML Wrapper 주입하여 테두리 이중 지배 해결
                                 st.markdown(f"<div class='{border_class}'>", unsafe_allow_html=True)
                                 st.markdown(f"<p class='card-text-10px'>{prod_name}</p>", unsafe_allow_html=True)
                                 st.markdown(f"<p class='card-text-l-10px'>{lot_num}</p>", unsafe_allow_html=True)
@@ -420,7 +406,7 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<p class='card-text-date'>{p_date}{elapsed_suffix}</p>", unsafe_allow_html=True)
 
-                                # 공정별 직전 공정 완료일 기준 경과일 추가 표시 (설비별 카드용)
+                                # 공정별 직전 공정 완료일 기준 경과일 추가 표시 (창고형 카드)
                                 if stage in ["타정공정", "캡슐공정"]:
                                     prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정"])
                                     if prev_elapsed_suffix:
@@ -433,19 +419,7 @@ if st.session_state.view == 'main':
                                     prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["코팅공정", "타정공정", "질량선별공정", "인쇄공정"])
                                     if prev_elapsed_suffix:
                                         st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>직전공정후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
-                                # 공정별 직전 공정 완료일 기준 경과일 추가 표시 (p 태그로 통일)
-                                if stage in ["타정공정", "캡슐공정"]:
-                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정"])
-                                    if prev_elapsed_suffix:
-                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>혼합후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
-                                elif stage == "코팅공정":
-                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["타정공정"])
-                                    if prev_elapsed_suffix:
-                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>타정후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
-                                elif stage == "외관선별공정":
-                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["코팅공정", "타정공정", "질량선별공정", "인쇄공정"])
-                                    if prev_elapsed_suffix:
-                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>직전공정후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
+
                                 st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
@@ -468,10 +442,8 @@ if st.session_state.view == 'main':
                                 c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
                                 
                                 if stage == "정립혼합대기창고":
-                                    # 1순위: 정립, 2순위: 혼합, 3순위: 캡슐 탐색
                                     target_stage = None
                                     pop_machines = []
-                                    
                                     for candidate in ["정립공정", "혼합공정", "캡슐공정"]:
                                         machines = master_dict.get(prod_name, {}).get(candidate, [])
                                         if machines:
@@ -539,7 +511,6 @@ if st.session_state.view == 'main':
                                         
                                         if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
                                             dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
-                                            
                                             has_granule = bool(master_dict.get(prod_name, {}).get("과립공정", []))
                                             has_dry = bool(master_dict.get(prod_name, {}).get("건조공정", []))
                                             
@@ -586,7 +557,6 @@ if st.session_state.view == 'main':
                             m_specific_items = m_items[m_items['설비'].str.strip().str.upper() == m_clean.upper()]
                         
                         for _, row in m_specific_items.iterrows():
-                            # 🌟 [신규 추가] 실시간 검색 매칭 로직 판별
                             prod_name = str(row['제품']).strip()
                             lot_num = str(row['Lot']).strip()
                             
@@ -607,6 +577,20 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<div class='machine-title' style='display:none;'></div><div class='card-text-date'>{p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
                                 
+                                # 🌟 [추가됨] 설비별 카드(타정, 캡슐, 코팅, 외관선별 등)에도 직전 공정 경과일 반영
+                                if stage in ["타정공정", "캡슐공정"]:
+                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정"])
+                                    if prev_elapsed_suffix:
+                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>혼합후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
+                                elif stage == "코팅공정":
+                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["타정공정"])
+                                    if prev_elapsed_suffix:
+                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>타정후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
+                                elif stage == "외관선별공정":
+                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["코팅공정", "타정공정", "질량선별공정", "인쇄공정"])
+                                    if prev_elapsed_suffix:
+                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>직전공정후{prev_elapsed_suffix}</p>", unsafe_allow_html=True)
+
                                 st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
@@ -715,12 +699,10 @@ else:
         display_df = all_raw_df.copy() if not all_raw_df.empty else pd.DataFrame()
     
     if not display_df.empty:
-        # 데이터 정제: 모든 컬럼의 값을 문자열로 변환하고 공백 제거 (필터 오류 방지)
         for col in ['제품', '공정', '유형']:
             if col in display_df.columns:
                 display_df[col] = display_df[col].astype(str).str.strip()
         
-        # 필터링용 유니크 리스트 생성 (None 제거)
         prod_list = sorted([p for p in display_df['제품'].unique() if p and p != 'nan'])
         
         if st.session_state.view == 'all_history':
@@ -736,13 +718,11 @@ else:
             with filter_cols[3]:
                 only_live = st.toggle("⚡ 현재 실시간 현황판 로트만 보기", value=False)
             
-            # 필터링 적용
             if sel_filter != "전체 보기": display_df = display_df[display_df['제품'] == sel_filter]
             if sel_stage != "전체 보기": display_df = display_df[display_df['공정'] == sel_stage]
             if sel_type != "전체 보기": display_df = display_df[display_df['유형'] == sel_type]
                 
             if only_live and not curr_df.empty:
-                # 안전한 실시간 매칭
                 live_combos = (curr_df['제품'].astype(str).str.strip() + "_" + curr_df['Lot'].astype(str).str.strip() + "_" + curr_df['공정'].astype(str).str.strip()).unique().tolist()
                 df_combos = (display_df['제품'] + "_" + display_df['Lot'].astype(str).str.strip() + "_" + display_df['공정'])
                 display_df = display_df[df_combos.isin(live_combos)]
@@ -755,6 +735,3 @@ else:
         st.dataframe(display_df[avail_cols].sort_index(ascending=False), use_container_width=True, height=600)
     else: 
         st.info("데이터가 없습니다.")
-
-
-
