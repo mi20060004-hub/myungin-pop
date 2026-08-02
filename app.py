@@ -128,6 +128,38 @@ def get_elapsed_days_str(date_val):
     except Exception:
         return ""
 
+def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
+    if all_df.empty or not lot_num or not prod_name:
+        return ""
+    # 같은 제품, 같은 랏 번호이면서 지정된 이전 공정들 중 가장 최근에 완료된 기록 찾기
+    prev_logs = all_df[
+        (all_df['Lot'].astype(str).str.strip() == str(lot_num).strip()) & 
+        (all_df['제품'].astype(str).str.strip() == str(prod_name).strip()) & 
+        (all_df['공정'].isin(target_stages)) & 
+        (all_df['상태'].isin(['완료', '1팀종료']))
+    ]
+    if prev_logs.empty:
+        return ""
+    
+    # 종료시간 기준으로 가장 최신 데이터 선택
+    prev_logs = prev_logs.copy()
+    prev_logs['종료dt'] = pd.to_datetime(prev_logs['종료시간'], errors='coerce')
+    prev_logs = prev_logs.sort_values(by='종료dt', ascending=False)
+    
+    latest_row = prev_logs.iloc[0]
+    end_time_str = str(latest_row.get('종료시간', ''))
+    if not end_time_str or end_time_str == 'nan':
+        return ""
+    
+    try:
+        target_dt = datetime.strptime(end_time_str[:10], '%Y-%m-%d').date()
+        today_dt = get_today_date_kst()
+        delta_days = (today_dt - target_dt).days
+        stage_name = latest_row.get('공정', '')
+        return f" ({stage_name} 완료 후 +{delta_days}일)"
+    except Exception:
+        return ""
+
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
     master_dict = {}
@@ -387,7 +419,20 @@ if st.session_state.view == 'main':
                                 if p_date and p_date.upper() != "NONE" and p_date != "-":
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<p class='card-text-date'>{p_date}{elapsed_suffix}</p>", unsafe_allow_html=True)
-                                
+
+                                # 공정별 직전 공정 완료일 기준 경과일 추가 표시
+                                if stage in ["타정공정", "캡슐공정"]:
+                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정"])
+                                    if prev_elapsed_suffix:
+                                        st.markdown(f"<div class='card-text-date' style='color:#059669;'>{prev_elapsed_suffix}</div>", unsafe_allow_html=True)
+                                elif stage == "코팅공정":
+                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["타정공정"])
+                                    if prev_elapsed_suffix:
+                                        st.markdown(f"<div class='card-text-date' style='color:#059669;'>{prev_elapsed_suffix}</div>", unsafe_allow_html=True)
+                                elif stage == "외관선별공정":
+                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["코팅공정", "타정공정", "질량선별공정", "인쇄공정"])
+                                    if prev_elapsed_suffix:
+                                        st.markdown(f"<div class='card-text-date' style='color:#059669;'>{prev_elapsed_suffix}</div>", unsafe_allow_html=True)
                                 st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
                                 if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
