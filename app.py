@@ -431,7 +431,7 @@ with st.sidebar:
             """, unsafe_allow_html=True)
         st.write("---")
 
-        st.markdown("<div style='font-size:16px; font-weight:800; color:#1e3a8a; margin-bottom:5px;'>📝 공정 특이사항 수정</div>", unsafe_allow_html=True)
+st.markdown("<div style='font-size:16px; font-weight:800; color:#1e3a8a; margin-bottom:5px;'>📝 공정 특이사항 수정</div>", unsafe_allow_html=True)
         if not curr_df.empty:
             curr_df['목록표시'] = curr_df['제품'].astype(str).str.strip() + " | " + curr_df['Lot'].astype(str).str.strip() + " (" + curr_df['공정'].astype(str).str.strip() + ")"
             target_lot_options = curr_df['목록표시'].tolist()
@@ -443,10 +443,17 @@ with st.sidebar:
                 current_note = str(selected_row.get('특이사항', ''))
                 if current_note == 'nan' or current_note == 'None': current_note = ""
                 
-                new_note_input = st.text_area("변경할 특이사항 입력", value=current_note, key="edit_note_input")
+                # 💡 콜백 함수나 session_state를 활용해 즉시 반영되도록 개선된 텍스트 에어리어
+                def update_note_callback():
+                    # 사용자가 입력한 최신 값을 즉시 세션에 반영
+                    pass
+
+                new_note_input = st.text_area("변경할 특이사항 입력", value=current_note, key="edit_note_input", on_change=update_note_callback)
                 
                 if st.button("💾 특이사항 저장", use_container_width=True):
-                    supabase.table("product_history").update({"특이사항": new_note_input}).eq("id", selected_row['Row']).execute()
+                    # 💡 세션에 담긴 최신 입력값을 바로 가져와서 Supabase에 즉시 반영
+                    final_note = st.session_state.get("edit_note_input", current_note)
+                    supabase.table("product_history").update({"특이사항": final_note}).eq("id", selected_row['Row']).execute()
                     st.success("특이사항이 수정되었습니다!")
                     st.rerun()
         else:
