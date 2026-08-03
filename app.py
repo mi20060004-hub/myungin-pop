@@ -431,7 +431,7 @@ with st.sidebar:
             """, unsafe_allow_html=True)
         st.write("---")
 
-st.markdown("<div style='font-size:16px; font-weight:800; color:#1e3a8a; margin-bottom:5px;'>📝 공정 특이사항 수정</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:16px; font-weight:800; color:#1e3a8a; margin-bottom:5px;'>📝 공정 특이사항 수정</div>", unsafe_allow_html=True)
         if not curr_df.empty:
             curr_df['목록표시'] = curr_df['제품'].astype(str).str.strip() + " | " + curr_df['Lot'].astype(str).str.strip() + " (" + curr_df['공정'].astype(str).str.strip() + ")"
             target_lot_options = curr_df['목록표시'].tolist()
