@@ -443,16 +443,25 @@ with st.sidebar:
                 current_note = str(selected_row.get('특이사항', ''))
                 if current_note == 'nan' or current_note == 'None': current_note = ""
                 
-                # 💡 콜백 함수나 session_state를 활용해 즉시 반영되도록 개선된 텍스트 에어리어
-                def update_note_callback():
-                    # 사용자가 입력한 최신 값을 즉시 세션에 반영
-                    pass
+                # 💡 입력값이 변경될 때마다 세션에 즉시 반영되는 콜백 함수 정의
+                def on_change_note():
+                    st.session_state.current_edit_note = st.session_state.edit_note_input
 
-                new_note_input = st.text_area("변경할 특이사항 입력", value=current_note, key="edit_note_input", on_change=update_note_callback)
+                # 💡 세션 상태 키 초기화
+                if "current_edit_note" not in st.session_state or st.session_state.get("last_selected_label") != selected_target_label:
+                    st.session_state.current_edit_note = current_note
+                    st.session_state.last_selected_label = selected_target_label
+
+                new_note_input = st.text_area(
+                    "변경할 특이사항 입력", 
+                    value=st.session_state.current_edit_note, 
+                    key="edit_note_input", 
+                    on_change=on_change_note
+                )
                 
                 if st.button("💾 특이사항 저장", use_container_width=True):
-                    # 💡 세션에 담긴 최신 입력값을 바로 가져와서 Supabase에 즉시 반영
-                    final_note = st.session_state.get("edit_note_input", current_note)
+                    # 💡 입력창 또는 세션에 담긴 최신값을 가져와서 즉시 반영
+                    final_note = st.session_state.get("edit_note_input", st.session_state.current_edit_note)
                     supabase.table("product_history").update({"특이사항": final_note}).eq("id", selected_row['Row']).execute()
                     st.success("특이사항이 수정되었습니다!")
                     st.rerun()
