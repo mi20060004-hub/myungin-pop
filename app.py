@@ -10,13 +10,11 @@ st.set_page_config(layout="wide", page_title="명인제약 생산 시점 관리"
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# URL 주소창에 auth=success가 남아있다면 새로고침해도 인증 상태를 유지
 query_params = st.query_params
 if query_params.get("auth") == "success":
     st.session_state.authenticated = True
 
 if not st.session_state.authenticated:
-    # 🌟 완벽한 순백색 카드 디자인이 적용된 배경 스타일 주입
     st.markdown("""
     <style>
     .stApp {
@@ -25,7 +23,6 @@ if not st.session_state.authenticated:
         background-size: cover; background-position: center; background-repeat: no-repeat;
     }
     
-    /* 🌟 순백색 커스텀 로그인 카드 디자인 클래스 */
     .custom-login-box {
         background-color: #ffffff !important;
         padding: 35px !important;
@@ -36,13 +33,11 @@ if not st.session_state.authenticated:
     </style>
     """, unsafe_allow_html=True)
 
-    # 화면 중앙 정렬 레이아웃
     col1, col2, col3 = st.columns([1.5, 1, 1.5])
     
     with col2:
         st.markdown("<div style='height: 40px;'></div>", unsafe_allow_html=True)
         
-        # 🌟 HTML div를 직접 사용하여 투명함 없이 100% 순백색 카드 구현
         st.markdown("""
         <div class="custom-login-box">
             <div style='text-align: center; padding-bottom: 15px;'>
@@ -52,7 +47,6 @@ if not st.session_state.authenticated:
         </div>
         """, unsafe_allow_html=True)
         
-        # 실제 입력창 (시각적 일체감을 위해 컨테이너 대신 카드 바로 아래 배치)
         with st.container():
             st.markdown("<p style='font-weight: 400; color: #ffffff; margin-top: 15px; margin-bottom: 5px; font-size: 15px;'>🔒 비밀번호는 '2026' 입니다.</p>", unsafe_allow_html=True)
             input_pw = st.text_input("비밀번호 입력", type="password", label_visibility="collapsed", placeholder="비밀번호를 입력하세요")
@@ -84,23 +78,19 @@ def show_update_dialog():
     
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     
-    # 확인 버튼을 누르면 팝업이 닫히고 다시 뜨지 않음
     if st.button("확인 (팝업 닫기)", type="primary", use_container_width=True):
         st.session_state.update_dialog_shown = True
         st.rerun()
 
-# 2️⃣ 로그인 성공 직후 및 세션 체크 시 최초 1회만 팝업 실행
 if "update_dialog_shown" not in st.session_state:
     st.session_state.update_dialog_shown = False
 
-# 사용자가 로그인 상태이고, 아직 팝업을 확인하지 않았다면 창 띄우기
 if st.session_state.authenticated and not st.session_state.update_dialog_shown:
     show_update_dialog()
 
-# --- 3. CSS 스타일 (버튼 초슬림 압착 및 재고/재공 텍스트 레이아웃 + 검색 하이라이트 클래스 추가) ---
+# --- 3. CSS 스타일 ---
 st.markdown("""
 <style>
-/* 부드러운 스크롤 이동 효과 적용 */
 html {
     scroll-behavior: smooth;
 }
@@ -116,7 +106,6 @@ html {
 }
 .main .block-container { padding-top: 100px !important; }
 
-/* 자동 스크롤 시 헤더에 가려지지 않도록 상단 여백 보정 */
 .stage-bar {
     scroll-margin-top: 80px;
     color: white; padding: 8px 13px; border-radius: 6px; 
@@ -135,7 +124,6 @@ html {
 .card-text-date { font-size: 12px !important; color: #64748b; font-weight: 700; text-align: center; margin: 1px 0; line-height: 1.2; }
 .info-text-10px { font-size: 10px !important; color: #ef4444 !important; font-weight: 800 !important; margin: 1px 0; text-align: center; line-height: 1.2; }
 
-/* 재고 상태별 3단 분리 클래스 */
 .stock-red { font-size: 12px !important; color: #ef4444 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .stock-green { font-size: 12px !important; color: #004d40 !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
 .stock-black { font-size: 12px !important; color: #1e293b !important; font-weight: 800 !important; text-align: center; margin: 1px 0; line-height: 1.2; }
@@ -155,7 +143,6 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
     margin: 0px !important; padding: 0px !important; line-height: 16px !important; font-size: 11px !important; font-weight: 800 !important; display: flex !important; align-items: center !important; justify-content: center !important;
 }
 
-/* 🌟 검색 하이라이트 CSS 스타일 강제 주입 */
 .search-highlighted {
     border: 7px solid #ff6b00 !important;
     box-shadow: 0 0 15px rgba(255, 107, 0, 0.8) !important;
@@ -168,7 +155,7 @@ div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. Supabase DB 연결 ---
+# --- 4. Supabase DB 연결 ---
 @st.cache_resource
 def init_supabase():
     url: str = st.secrets["supabase"]["url"]
@@ -181,7 +168,7 @@ except Exception as e:
     st.error(f"🔗 데이터베이스 연결 실패: {e}")
     st.stop()
 
-# --- 4. 데이터 로직 ---
+# --- 5. 데이터 로직 (🚀 st.cache_data 적용으로 반응 속도 개선) ---
 MACHINE_MAP = {
     "칭량공정": [], 
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
@@ -244,11 +231,12 @@ def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
         target_dt = datetime.strptime(end_time_str[:10], '%Y-%m-%d').date()
         today_dt = get_today_date_kst()
         delta_days = (today_dt - target_dt).days
-        # 날짜 일수만 리턴 (예: +5)
         return f"+{delta_days}일"
     except Exception:
         return ""
 
+@st.cache_data(ttl=10) # 10초 동안 데이터를 캐싱하여 불필요한 DB 조회를 줄이고 속도를 극대화합니다.
+sup_cache_version = 1 # 캐시 갱신 제어용
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
     master_dict = {}
@@ -349,7 +337,7 @@ if 'reset_lot' not in st.session_state: st.session_state.reset_lot = ""
 if 'reset_type' not in st.session_state: st.session_state.reset_type = "일반로트"
 if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 
-# --- 5. 헤더 및 상단 메뉴 바 ---
+# --- 6. 헤더 및 상단 메뉴 바 ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리 (MYUNG-IN Pharm POP System)</p></div>', unsafe_allow_html=True)
 nav_cols = st.columns(5) 
 with nav_cols[0]:
@@ -363,7 +351,7 @@ with nav_cols[3]:
 with nav_cols[4]:
     st.link_button("🌐 일일 재고/재공", "https://myungin-pp.appsmith.com/app/untitled-application-1/page1-6a27d4bd9e8e4df7ae2343bf?environment=production", use_container_width=True)
 
-# --- 6. 사이드바 ---
+# --- 7. 사이드바 ---
 with st.sidebar:
     st.header("🏭 제조 투입")
     sel_p = st.selectbox("제품명 선택", list(master_dict.keys()), key="sel_p_widget")
@@ -402,7 +390,6 @@ with st.sidebar:
         st.markdown("<div style='font-size:16px; font-weight:800; color:#ff6b00; margin-bottom:5px;'>🔍 현황판 제품 위치 추적</div>", unsafe_allow_html=True)
         search_keyword = st.text_input("검색어 입력 (제품명 또는 Lot)", placeholder="예: 톨비스정 또는 26001", key="live_search_box").strip()
         
-        # 🌟 검색어 입력 시 현재 위치 팝업/안내 박스 표시 (에러 해결 버전)
         if search_keyword and not curr_df.empty:
             kw = search_keyword.lower()
             matched_search_df = curr_df[
@@ -444,7 +431,6 @@ with st.sidebar:
             """, unsafe_allow_html=True)
         st.write("---")
 
-# 📝 [신규 추가] 실시간 가동 중인 랏 선택 후 공정 특이사항 수정 기능
         st.markdown("<div style='font-size:16px; font-weight:800; color:#1e3a8a; margin-bottom:5px;'>📝 공정 특이사항 수정</div>", unsafe_allow_html=True)
         if not curr_df.empty:
             curr_df['목록표시'] = curr_df['제품'].astype(str).str.strip() + " | " + curr_df['Lot'].astype(str).str.strip() + " (" + curr_df['공정'].astype(str).str.strip() + ")"
@@ -477,7 +463,7 @@ with st.sidebar:
 
     st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 2.10 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
 
-# --- 7. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
+# --- 8. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
     prod_clean = prod_name.replace(" ", "")
     stock_info = stock_dict.get(prod_clean, {"재고": "정보없음", "재공": "정보없음"})
@@ -500,7 +486,7 @@ def render_stock_and_wip_html(prod_name):
         
     return html_str
 
-# --- 8. 메인 콘텐츠 및 현황판 렌더링 ---
+# --- 9. 메인 콘텐츠 및 현황판 렌더링 ---
 if st.session_state.view == 'main':
     for idx_stage, stage in enumerate(TARGET_STAGES):
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
@@ -543,7 +529,6 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<p class='card-text-date'>{p_date}{elapsed_suffix}</p>", unsafe_allow_html=True)
 
-                                # 공정별 직전 공정 완료일 기준 경과일 추가 표시 (창고형 카드)
                                 if stage in ["타정공정", "캡슐공정"]:
                                     prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정"])
                                     if prev_elapsed_suffix:
@@ -714,7 +699,6 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<div class='machine-title' style='display:none;'></div><div class='card-text-date'>{p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
                                 
-                                # 🌟 [수정됨] 중복 및 괄호 겹침 해결된 깔끔한 경과일 표시
                                 if stage in ["타정공정", "캡슐공정"]:
                                     prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정"])
                                     if prev_elapsed_suffix:
