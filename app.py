@@ -443,25 +443,25 @@ with st.sidebar:
                 current_note = str(selected_row.get('특이사항', ''))
                 if current_note == 'nan' or current_note == 'None': current_note = ""
                 
-                # 💡 입력값이 변경될 때마다 세션에 즉시 반영되는 콜백 함수 정의
-                def on_change_note():
-                    st.session_state.current_edit_note = st.session_state.edit_note_input
+                # 💡 선택된 랏이 바뀌거나 최초 진입 시 세션 키 초기화
+                if "target_note_val" not in st.session_state or st.session_state.get("prev_selected_label") != selected_target_label:
+                    st.session_state.target_note_val = current_note
+                    st.session_state.prev_selected_label = selected_target_label
 
-                # 💡 세션 상태 키 초기화
-                if "current_edit_note" not in st.session_state or st.session_state.get("last_selected_label") != selected_target_label:
-                    st.session_state.current_edit_note = current_note
-                    st.session_state.last_selected_label = selected_target_label
+                # 💡 입력하는 즉시 세션 상태에 실시간 동기화
+                def sync_note_input():
+                    st.session_state.target_note_val = st.session_state.live_textarea_key
 
-                new_note_input = st.text_area(
+                st.text_area(
                     "변경할 특이사항 입력", 
-                    value=st.session_state.current_edit_note, 
-                    key="edit_note_input", 
-                    on_change=on_change_note
+                    value=st.session_state.target_note_val, 
+                    key="live_textarea_key", 
+                    on_change=sync_note_input
                 )
                 
                 if st.button("💾 특이사항 저장", use_container_width=True):
-                    # 💡 입력창 또는 세션에 담긴 최신값을 가져와서 즉시 반영
-                    final_note = st.session_state.get("edit_note_input", st.session_state.current_edit_note)
+                    # 💡 세션에 보관된 최신 입력값을 가져와서 단 한 번에 Supabase에 즉시 반영
+                    final_note = st.session_state.get("live_textarea_key", st.session_state.target_note_val)
                     supabase.table("product_history").update({"특이사항": final_note}).eq("id", selected_row['Row']).execute()
                     st.success("특이사항이 수정되었습니다!")
                     st.rerun()
