@@ -236,7 +236,6 @@ def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
         return ""
 
 @st.cache_data(ttl=10) # 10초 동안 데이터를 캐싱하여 불필요한 DB 조회를 줄이고 속도를 극대화합니다.
-sup_cache_version = 1 # 캐시 갱신 제어용
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
     master_dict = {}
