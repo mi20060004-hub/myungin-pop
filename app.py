@@ -168,7 +168,7 @@ except Exception as e:
     st.error(f"🔗 데이터베이스 연결 실패: {e}")
     st.stop()
 
-# --- 5. 데이터 로직 (🚀 st.cache_data 적용으로 반응 속도 개선) ---
+# --- 5. 데이터 로직 (🚀 st.cache_data 적용) ---
 MACHINE_MAP = {
     "칭량공정": [], 
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
@@ -235,7 +235,7 @@ def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
     except Exception:
         return ""
 
-@st.cache_data(ttl=10) # 10초 동안 데이터를 캐싱하여 불필요한 DB 조회를 줄이고 속도를 극대화합니다.
+@st.cache_data(ttl=10)
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
     master_dict = {}
@@ -368,19 +368,20 @@ with st.sidebar:
     elif lot_in:
         if st.button("➕ 투입 대기열 추가", use_container_width=True):
             st.session_state.pending_lots.append({'제품': sel_p.strip(), 'Lot': lot_in, '제조일자': date_str, '유형': lot_type, '특이사항': note_in, '설비': ""})
-            st.session_state.reset_lot = ""; st.rerun()
+            st.session_state.reset_lot = ""
 
     if st.session_state.pending_lots:
         st.write("---")
         for idx, p in enumerate(st.session_state.pending_lots):
             c1, c2 = st.columns([8, 2])
             c1.info(f"{p['제품']} | {p['Lot']} ({p['제조일자']})")
-            if c2.button("❌", key=f"del_{idx}"): st.session_state.pending_lots.pop(idx); st.rerun()
+            if c2.button("❌", key=f"del_{idx}"): st.session_state.pending_lots.pop(idx)
         if st.button("🚀 전체 투입 확정", type="primary", use_container_width=True):
             for p in st.session_state.pending_lots:
                 p_clean = p['제품'].strip()
                 supabase.table("product_history").insert({"Lot": p['Lot'], "제품": p_clean, "공정": "칭량공정", "상태": "대기", "제조일자": p['제조일자'], "유형": p['유형'], "특이사항": p['특이사항'], "설비": ""}).execute()
-            st.session_state.pending_lots = []; st.rerun()
+            st.session_state.pending_lots = []
+            st.rerun()
 
     st.divider()
     
