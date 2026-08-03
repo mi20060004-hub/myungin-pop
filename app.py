@@ -459,7 +459,7 @@ with st.sidebar:
                     on_change=sync_note_input
                 )
                 
-                if st.button("💾 특이사항 저장", use_container_width=True):
+                if st.button("💾특이사항 저장(2회클릭)", use_container_width=True):
                     # 💡 세션에 보관된 최신 입력값을 가져와서 단 한 번에 Supabase에 즉시 반영
                     final_note = st.session_state.get("live_textarea_key", st.session_state.target_note_val)
                     supabase.table("product_history").update({"특이사항": final_note}).eq("id", selected_row['Row']).execute()
