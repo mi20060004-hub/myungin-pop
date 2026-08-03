@@ -235,7 +235,7 @@ def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
     except Exception:
         return ""
 
-@st.cache_data(ttl=10)
+@st.cache_data(ttl=2)
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
     master_dict = {}
