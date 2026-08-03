@@ -735,7 +735,7 @@ if st.session_state.view == 'main':
                                 elif stage == "외관선별공정":
                                     prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["코팅공정", "타정공정", "질량선별공정", "인쇄공정"])
                                     if prev_elapsed_suffix:
-                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>(직전후{prev_elapsed_suffix})</p>", unsafe_allow_html=True)
+                                        st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>(직전공정완료후{prev_elapsed_suffix})</p>", unsafe_allow_html=True)
 
                                 st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
                                 
