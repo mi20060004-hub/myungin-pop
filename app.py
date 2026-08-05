@@ -260,7 +260,7 @@ def load_data():
         curr_df['Row'] = curr_df['id']
 
     # ⚡ [변경 사항] 완료 이력 저장량을 500개에서 1500개로 확대
-    log_res = supabase.table("product_history").select("*").in_("상태", ["완료", "1팀종료", "종료"]).order("id", desc=True).limit(3000).execute()
+    log_res = supabase.table("product_history").select("*").in_("상태", ["완료", "1팀종료", "종료"]).order("id", desc=True).range(0, 2999).execute()
     log_df = pd.DataFrame(log_res.data) if log_res.data else pd.DataFrame()
     if not log_df.empty and 'id' in log_df.columns:
         log_df['Row'] = log_df['id']
