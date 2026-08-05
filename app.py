@@ -223,38 +223,6 @@ def get_elapsed_days_str(date_val):
     except Exception:
         return ""
 
-def get_prev_stage_elapsed_str(lot_num, prod_name, target_stages):
-    if not lot_num or not prod_name:
-        return ""
-    
-    clean_lot = str(lot_num).strip()
-    clean_prod = str(prod_name).strip()
-    
-    try:
-        res = supabase.table("product_history") \
-            .select("종료시간") \
-            .eq("Lot", clean_lot) \
-            .eq("제품", clean_prod) \
-            .in_("공정", target_stages) \
-            .in_("상태", ["완료", "1팀종료", "종료"]) \
-            .order("id", desc=True) \
-            .limit(1) \
-            .execute()
-            
-        if not res.data:
-            return ""
-            
-        end_time_str = str(res.data[0].get("종료시간", ""))
-        if not end_time_str or len(end_time_str) < 10:
-            return ""
-            
-        target_dt = datetime.strptime(end_time_str[:10], '%Y-%m-%d').date()
-        today_dt = get_today_date_kst()
-        delta_days = (today_dt - target_dt).days
-        return f"+{delta_days}일"
-    except Exception:
-        return ""
-
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
     master_dict = {}
@@ -287,12 +255,12 @@ def load_data():
         pass
 
     curr_res = supabase.table("product_history").select("*").not_.in_("상태", ["완료", "1팀종료", "폐기"]).order("priority", desc=True).order("id", desc=True).execute()
-    
     curr_df = pd.DataFrame(curr_res.data) if curr_res.data else pd.DataFrame()
     if not curr_df.empty and 'id' in curr_df.columns:
         curr_df['Row'] = curr_df['id']
 
-    log_res = supabase.table("product_history").select("*").in_("상태", ["완료", "1팀종료"]).order("id", desc=True).limit(500).execute()
+    # ⚡ [속도 최적화 핵심] 최근 2000개의 완료 이력을 한 번에 메모리로 로드하여 개별 DB 쿼리 부하 제거
+    log_res = supabase.table("product_history").select("*").in_("상태", ["완료", "1팀종료", "종료"]).order("id", desc=True).limit(2000).execute()
     log_df = pd.DataFrame(log_res.data) if log_res.data else pd.DataFrame()
     if not log_df.empty and 'id' in log_df.columns:
         log_df['Row'] = log_df['id']
@@ -302,6 +270,41 @@ def load_data():
     return master_dict, stock_dict, curr_df, log_df, all_raw_df
 
 master_dict, stock_dict, curr_df, log_df, all_raw_df = load_data()
+
+# ⚡ 메모리 기반 고속 이전 공정 경과일 계산 함수 (네트워크 지연 없음)
+def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
+    if all_df.empty or not lot_num or not prod_name:
+        return ""
+    
+    clean_lot = str(lot_num).strip()
+    clean_prod = str(prod_name).strip()
+    
+    prev_logs = all_df[
+        (all_df['Lot'].astype(str).str.strip() == clean_lot) & 
+        (all_df['제품'].astype(str).str.strip() == clean_prod) & 
+        (all_df['공정'].isin(target_stages)) & 
+        (all_df['상태'].isin(['완료', '1팀종료', '종료']))
+    ]
+    if prev_logs.empty:
+        return ""
+    
+    prev_logs = prev_logs.copy()
+    prev_logs['종료dt'] = pd.to_datetime(prev_logs['종료시간'], errors='coerce')
+    prev_logs = prev_logs.dropna(subset=['종료dt'])
+    if prev_logs.empty:
+        return ""
+        
+    prev_logs = prev_logs.sort_values(by='종료dt', ascending=False)
+    latest_row = prev_logs.iloc[0]
+    end_time_str = str(latest_row.get('종료시간', ''))
+    
+    try:
+        target_dt = datetime.strptime(end_time_str[:10], '%Y-%m-%d').date()
+        today_dt = get_today_date_kst()
+        delta_days = (today_dt - target_dt).days
+        return f"+{delta_days}일"
+    except Exception:
+        return ""
 
 def update_priority(row, direction, df_in_stage):
     stage_df = df_in_stage[df_in_stage['공정'] == row['공정']].sort_values(
@@ -369,7 +372,7 @@ with nav_cols[5]:
 with nav_cols[6]:
     if st.button("🗃️ 전체이력", key="nav_4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
 with nav_cols[7]:
-    st.link_button("🌐 재고", "url?id=14", use_container_width=True)
+    st.link_button("🌐 재고", "https://myungin-pop-vopibtvzsxaaxqlu4kdkby.streamlit.app/~/+/url?id=14", use_container_width=True)
 
 # --- 7. 사이드바 ---
 with st.sidebar:
@@ -849,16 +852,17 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<div class='machine-title' style='display:none;'></div><div class='card-text-date'>{p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
                                 
+                                # ⚡ 메모리 기반 고속 함수 호출 (all_raw_df 활용)
                                 if stage in ["타정공정", "캡슐공정"]:
-                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(lot_num, prod_name, ["혼합공정", "반제품창고", "정립혼합대기창고", "정립공정", "건조공정", "과립공정"])
+                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정", "반제품창고", "정립혼합대기창고", "정립공정", "건조공정", "과립공정"])
                                     if prev_elapsed_suffix:
                                         st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>(혼합후{prev_elapsed_suffix})</p>", unsafe_allow_html=True)
                                 elif stage == "코팅공정":
-                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(lot_num, prod_name, ["타정공정", "질량선별공정", "캡슐공정"])
+                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["타정공정", "질량선별공정", "캡슐공정"])
                                     if prev_elapsed_suffix:
                                         st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>(타정후{prev_elapsed_suffix})</p>", unsafe_allow_html=True)
                                 elif stage == "외관선별공정":
-                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(lot_num, prod_name, ["코팅공정", "타정공정", "질량선별공정", "인쇄공정", "캡슐공정"])
+                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["코팅공정", "타정공정", "질량선별공정", "인쇄공정", "캡슐공정"])
                                     if prev_elapsed_suffix:
                                         st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>(직전공정완료후{prev_elapsed_suffix})</p>", unsafe_allow_html=True)
 
@@ -1011,7 +1015,7 @@ elif st.session_state.view == 'tablet_plan':
                             
                             p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
                             if p_date and p_date.upper() != "NONE" and p_date != "-":
-                                prev_elapsed_suffix = get_prev_stage_elapsed_str(lot_num, prod_name, ["혼합공정", "반제품창고", "정립혼합대기창고", "정립공정", "건조공정", "과립공정"])
+                                prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정", "반제품창고", "정립혼합대기창고", "정립공정", "건조공정", "과립공정"])
                                 suffix_str = f" (혼합후{prev_elapsed_suffix})" if prev_elapsed_suffix else ""
                                 st.markdown(f"<div class='card-text-date'>{p_date}{suffix_str}</div>", unsafe_allow_html=True)
 
@@ -1181,7 +1185,7 @@ elif st.session_state.view == 'coating_plan':
                         
                         p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
                         if p_date and p_date.upper() != "NONE" and p_date != "-":
-                            prev_elapsed_suffix = get_prev_stage_elapsed_str(lot_num, prod_name, ["타정공정", "질량선별공정", "캡슐공정"])
+                            prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["타정공정", "질량선별공정", "캡슐공정"])
                             suffix_str = f" (타정후{prev_elapsed_suffix})" if prev_elapsed_suffix else ""
                             st.markdown(f"<div class='card-text-date'>{p_date}{suffix_str}</div>", unsafe_allow_html=True)
 
@@ -1348,7 +1352,7 @@ elif st.session_state.view == 'capsule_plan':
                         
                         p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
                         if p_date and p_date.upper() != "NONE" and p_date != "-":
-                            prev_elapsed_suffix = get_prev_stage_elapsed_str(lot_num, prod_name, ["혼합공정", "반제품창고", "정립혼합대기창고", "정립공정", "건조공정", "과립공정"])
+                            prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정", "반제품창고", "정립혼합대기창고", "정립공정", "건조공정", "과립공정"])
                             suffix_str = f" (혼합후{prev_elapsed_suffix})" if prev_elapsed_suffix else ""
                             st.markdown(f"<div class='card-text-date'>{p_date}{suffix_str}</div>", unsafe_allow_html=True)
 
