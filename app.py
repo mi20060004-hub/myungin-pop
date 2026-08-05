@@ -350,7 +350,7 @@ nav_cols = st.columns(8)
 with nav_cols[0]:
     if st.button("📊 실시간", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
 with nav_cols[1]:
-    if st.button("🎯 타정계획", key="n_tablet_plan", use_container_width=True): st.session_state.view = 'tablet_plan'; st.rerun()
+    if st.button("💊 타정계획", key="n_tablet_plan", use_container_width=True): st.session_state.view = 'tablet_plan'; st.rerun()
 with nav_cols[2]:
     if st.button("💊 코팅계획", key="n_coating_plan", use_container_width=True): st.session_state.view = 'coating_plan'; st.rerun()
 with nav_cols[3]:
@@ -954,7 +954,7 @@ if st.session_state.view == 'main':
 
 # --- 10. 타정공정계획 페이지 전용 렌더링 ---
 elif st.session_state.view == 'tablet_plan':
-    st.header("🎯 타정공정 계획 및 사전 배정 관리")
+    st.header("💊 타정공정 계획")
     st.markdown("타정공정 이전 공정에 있는 제품들은 마스터에 등록된 첫 번째 타정기로 자동 분류되어 설비 카드 아래쪽에 표시됩니다. 타정기가 2대 이상인 경우 [변경] 버튼을 통해 타정기를 바꿀 수 있습니다.")
     st.write("---")
     
@@ -1126,7 +1126,7 @@ elif st.session_state.view == 'tablet_plan':
 
 # --- 10-1. 코팅공정계획 페이지 전용 렌더링 ---
 elif st.session_state.view == 'coating_plan':
-    st.header("💊 코팅공정 계획 및 사전 배정 관리")
+    st.header("💊 코팅공정 계획")
     st.markdown("코팅공정 이전 공정에 있는 제품들은 마스터에 등록된 첫 번째 코팅기로 자동 분류되어 설비 카드 아래쪽에 표시됩니다. 코팅기가 2대 이상인 경우 [변경] 버튼을 통해 코팅기를 바꿀 수 있습니다.")
     st.write("---")
     
@@ -1293,7 +1293,7 @@ elif st.session_state.view == 'coating_plan':
 
 # --- 10-2. 캡슐공정계획 페이지 전용 렌더링 ---
 elif st.session_state.view == 'capsule_plan':
-    st.header("💊 캡슐공정 계획 및 사전 배정 관리")
+    st.header("💊 캡슐공정 계획")
     st.markdown("캡슐공정 이전 공정에 있는 제품들은 마스터에 등록된 첫 번째 캡슐충전기로 자동 분류되어 설비 카드 아래쪽에 표시됩니다. 캡슐기가 2대 이상인 경우 [변경] 버튼을 통해 캡슐기를 바꿀 수 있습니다.")
     st.write("---")
     
