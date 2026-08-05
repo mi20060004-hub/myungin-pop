@@ -124,7 +124,7 @@ div[data-testid="stExpander"] {
 }
 
 div[data-testid="stExpander"] summary {
-    background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%) !important;
+    background: linear-gradient(90deg, #475569 0%, #64748b 100%) !important; /* 세련된 차콜/회색 그라데이션 */
     border-radius: 6px;
     padding: 2px 10px;
 }
