@@ -380,7 +380,7 @@ with nav_cols[5]:
 with nav_cols[6]:
     if st.button("🗃️ 전체이력", key="nav_4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
 with nav_cols[7]:
-    st.link_button("🌐 재고", "https://myungin-pop-vopibtvzsxaaxqlu4kdkby.streamlit.app/~/+/url?id=14", use_container_width=True)
+    st.link_button("🌐 재고", "https://myungin-pop-vopibtvzsxaaxqlu4kdkby.streamlit.app/~/+/https://github.com/mi20060004-hub/myungin-pop/security?auth=success", use_container_width=True)
 
 # --- 7. 사이드바 ---
 with st.sidebar:
