@@ -70,7 +70,8 @@ if not st.session_state.authenticated:
 def show_update_dialog():
     st.markdown("""
     ### 🚀 업데이트 주요 기능
-    1. 타정공정계획 페이지의 이전공정 대기 안내 글자 및 블록 상태 바가 진한 초록색으로 변경되었습니다.
+    1. 타정공정 계획에 이어 '코팅공정 계획' 및 '캡슐공정 계획' 페이지가 신설되었습니다.
+    2. 이전 공정 대기 블록들이 각 공정 설비 카드 아래쪽에 자동으로 배치됩니다.
     """)
     
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
@@ -146,7 +147,7 @@ div[data-testid="stExpander"] summary p {
 .bg-waiting { background-color: #3b82f6; }
 .bg-progress { background-color: #ef4444; }
 .bg-paused { background-color: #f59e0b; }
-.bg-green-waiting { background-color: #065f46; } /* 진한 초록색 배경 */
+.bg-green-waiting { background-color: #065f46; }
 
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
@@ -343,21 +344,25 @@ if 'reset_lot' not in st.session_state: st.session_state.reset_lot = ""
 if 'reset_type' not in st.session_state: st.session_state.reset_type = "일반로트"
 if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 
-# --- 6. 헤더 및 상단 메뉴 바 ---
+# --- 6. 헤더 및 상단 메뉴 바 (타정, 코팅, 캡슐 공정계획 메뉴 구성) ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리 (MYUNG-IN Pharm POP System)</p></div>', unsafe_allow_html=True)
-nav_cols = st.columns(6) 
+nav_cols = st.columns(8) 
 with nav_cols[0]:
-    if st.button("📊 실시간 현황판", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
+    if st.button("📊 실시간", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
 with nav_cols[1]:
-    if st.button("🎯 타정공정 계획", key="n_tablet_plan", use_container_width=True): st.session_state.view = 'tablet_plan'; st.rerun()
+    if st.button("🎯 타정계획", key="n_tablet_plan", use_container_width=True): st.session_state.view = 'tablet_plan'; st.rerun()
 with nav_cols[2]:
-    if st.button("✅ 1팀 공정 완료", key="nav_2", use_container_width=True): st.session_state.view = 'history'; st.rerun()
+    if st.button("💊 코팅계획", key="n_coating_plan", use_container_width=True): st.session_state.view = 'coating_plan'; st.rerun()
 with nav_cols[3]:
-    if st.button("🏷️ 선별 공정 완료", key="nav_3", use_container_width=True): st.session_state.view = 'selection'; st.rerun()
+    if st.button("💊 캡슐계획", key="n_capsule_plan", use_container_width=True): st.session_state.view = 'capsule_plan'; st.rerun()
 with nav_cols[4]:
-    if st.button("🗃️ 전체 공정 이력", key="nav_4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
+    if st.button("✅ 1팀완료", key="nav_2", use_container_width=True): st.session_state.view = 'history'; st.rerun()
 with nav_cols[5]:
-    st.link_button("🌐 일일 재고/재공", "https://myungin-pp.appsmith.com/app/untitled-application-1/page1-6a27d4bd9e8e4df7ae2343bf?environment=production", use_container_width=True)
+    if st.button("🏷️ 선별완료", key="nav_3", use_container_width=True): st.session_state.view = 'selection'; st.rerun()
+with nav_cols[6]:
+    if st.button("🗃️ 전체이력", key="nav_4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
+with nav_cols[7]:
+    st.link_button("🌐 재고", "https://myungin-pp.appsmith.com/app/untitled-application-1/page1-6a27d4bd9e8e4df7ae2343bf?environment=production", use_container_width=True)
 
 # --- 7. 사이드바 ---
 with st.sidebar:
@@ -474,7 +479,7 @@ with st.sidebar:
     st.divider()
     
     search_keyword = ""
-    if st.session_state.view in ['main', 'tablet_plan']:
+    if st.session_state.view in ['main', 'tablet_plan', 'coating_plan', 'capsule_plan']:
         st.markdown("<div style='font-size:16px; font-weight:800; color:#ff6b00; margin-bottom:5px;'>🔍 현황판 제품 위치 추적</div>", unsafe_allow_html=True)
         search_keyword = st.text_input("검색어 입력 (제품명 또는 Lot)", placeholder="예: 톨비스정 또는 26001", key="live_search_box").strip()
         
@@ -500,7 +505,7 @@ with st.sidebar:
                 
         st.divider()
 
-    if st.session_state.view in ['main', 'tablet_plan']:
+    if st.session_state.view in ['main', 'tablet_plan', 'coating_plan', 'capsule_plan']:
         active_stages_for_count = [s for s in TARGET_STAGES if s != "계획공정"]
         total_active_count = len(curr_df[curr_df['공정'].isin(active_stages_for_count)]) if not curr_df.empty else 0
         
@@ -564,7 +569,7 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 2.19 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 2.20 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
 
 # --- 8. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
@@ -980,17 +985,14 @@ elif st.session_state.view == 'tablet_plan':
             with cols[idx]:
                 st.markdown(f"<div class='machine-title'>{m_clean}</div>", unsafe_allow_html=True)
                 
-                # 1. 현재 타정공정에 들어와 있는 실제 항목들
                 m_specific_items = pd.DataFrame()
                 if not tablet_items.empty:
                     m_specific_items = tablet_items[tablet_items['설비'].str.strip().str.upper() == m_clean.upper()].sort_values(by=['상태', 'priority'], ascending=[False, False])
                 
-                # 2. 이전 공정에서 첫 번째 타정기가 이 설비로 자동 매핑된 항목들
                 m_prior_assigned = pd.DataFrame()
                 if not prior_mapped_df.empty:
                     m_prior_assigned = prior_mapped_df[prior_mapped_df['임시배정설비'].str.strip().str.upper() == m_clean.upper()].sort_values(by=['priority'], ascending=[False])
 
-                # --- [A] 현재 타정공정에 들어와 있는 설비별 블록들 먼저 표시 ---
                 if not m_specific_items.empty:
                     for _, row in m_specific_items.iterrows():
                         prod_name = str(row['제품']).strip()
@@ -1014,14 +1016,11 @@ elif st.session_state.view == 'tablet_plan':
                             
                             c_move1, c_move2, c_move3 = st.columns(3)
                             with c_move1:
-                                if st.button("↑", key=f"tp_eq_up_{row['Row']}"):
-                                    update_priority(row, "up", m_specific_items)
+                                if st.button("↑", key=f"tp_eq_up_{row['Row']}"): update_priority(row, "up", m_specific_items)
                             with c_move2:
-                                if st.button("↓", key=f"tp_eq_down_{row['Row']}"):
-                                    update_priority(row, "down", m_specific_items)
+                                if st.button("↓", key=f"tp_eq_down_{row['Row']}"): update_priority(row, "down", m_specific_items)
                             with c_move3:
-                                if st.button("▲", key=f"tp_eq_top_{row['Row']}"):
-                                    update_priority(row, "top", m_specific_items)
+                                if st.button("▲", key=f"tp_eq_top_{row['Row']}"): update_priority(row, "top", m_specific_items)
                                     
                             c_type = "" if pd.isna(row['유형']) else str(row['유형'])
                             c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
@@ -1064,9 +1063,7 @@ elif st.session_state.view == 'tablet_plan':
                                     supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
                                     st.rerun()
 
-                # --- [B] 이전공정 대기 블록들을 설비 카드 아래쪽에 표시 ---
                 if not m_prior_assigned.empty:
-                    # '이전공정 대기' 안내 글자 색상을 진한 초록색(#065f46)으로 변경
                     st.markdown(f"<p style='font-size:11px; font-weight:800; color:#065f46; margin:6px 0 2px 0;'>⬇️ 이전공정 대기 ({len(m_prior_assigned)}건)</p>", unsafe_allow_html=True)
                     for _, row in m_prior_assigned.iterrows():
                         prod_name = str(row['제품']).strip()
@@ -1088,22 +1085,16 @@ elif st.session_state.view == 'tablet_plan':
                             if row['특이사항'] and not pd.isna(row['특이사항']): 
                                 st.markdown(f"<div class='info-text-10px'>📝 {row['특이사항']}</div>", unsafe_allow_html=True)
                                 
-                            # 블록 내 상태 바 배경을 진한 초록색 클래스(bg-green-waiting)로 지정
                             st.markdown(f"<div class='status-bar bg-green-waiting'>[{row['공정']}] 대기</div>", unsafe_allow_html=True)
                             
-                            # 이전공정 대기 블록 우선순위 변경 버튼 추가
                             c_move1, c_move2, c_move3 = st.columns(3)
                             with c_move1:
-                                if st.button("↑", key=f"tp_prior_up_{row['Row']}"):
-                                    update_priority(row, "up", m_prior_assigned)
+                                if st.button("↑", key=f"tp_prior_up_{row['Row']}"): update_priority(row, "up", m_prior_assigned)
                             with c_move2:
-                                if st.button("↓", key=f"tp_prior_down_{row['Row']}"):
-                                    update_priority(row, "down", m_prior_assigned)
+                                if st.button("↓", key=f"tp_prior_down_{row['Row']}"): update_priority(row, "down", m_prior_assigned)
                             with c_move3:
-                                if st.button("▲", key=f"tp_prior_top_{row['Row']}"):
-                                    update_priority(row, "top", m_prior_assigned)
+                                if st.button("▲", key=f"tp_prior_top_{row['Row']}"): update_priority(row, "top", m_prior_assigned)
                             
-                            # 타정기가 2대 이상 등록되어 있는 경우에만 '타정기 변경' 버튼 표시
                             valid_t_machines = master_dict.get(prod_name, {}).get("타정공정", [])
                             if len(valid_t_machines) > 1:
                                 c_type = "" if pd.isna(row['유형']) else str(row['유형'])
@@ -1132,6 +1123,338 @@ elif st.session_state.view == 'tablet_plan':
         else:
             with cols[idx]:
                 st.write("")
+
+# --- 10-1. 코팅공정계획 페이지 전용 렌더링 ---
+elif st.session_state.view == 'coating_plan':
+    st.header("💊 코팅공정 계획 및 사전 배정 관리")
+    st.markdown("코팅공정 이전 공정에 있는 제품들은 마스터에 등록된 첫 번째 코팅기로 자동 분류되어 설비 카드 아래쪽에 표시됩니다. 코팅기가 2대 이상인 경우 [변경] 버튼을 통해 코팅기를 바꿀 수 있습니다.")
+    st.write("---")
+    
+    coating_prior_stages = ["계획공정", "칭량공정", "과립공정", "건조공정", "정립혼합대기창고", "정립공정", "혼합공정", "반제품창고", "타정공정", "질량선별공정"]
+    coating_prior_items = curr_df[curr_df['공정'].isin(coating_prior_stages)].copy() if not curr_df.empty else pd.DataFrame()
+    
+    coating_mapped_rows = []
+    if not coating_prior_items.empty:
+        for _, row in coating_prior_items.iterrows():
+            p_name = str(row['제품']).strip()
+            coating_machines = master_dict.get(p_name, {}).get("코팅공정", [])
+            first_machine = coating_machines[0].strip() if coating_machines else "미지정코팅기"
+            
+            row_dict = row.to_dict()
+            row_dict['임시배정설비'] = first_machine
+            coating_mapped_rows.append(row_dict)
+            
+    coating_prior_mapped_df = pd.DataFrame(coating_mapped_rows) if coating_mapped_rows else pd.DataFrame()
+
+    coating_items = curr_df[curr_df['공정'] == "코팅공정"].copy() if not curr_df.empty else pd.DataFrame()
+    
+    coating_stage_machines = MACHINE_MAP["코팅공정"]
+    cols = st.columns(len(coating_stage_machines) if len(coating_stage_machines) > 0 else 1)
+    
+    for idx, m_clean in enumerate(coating_stage_machines):
+        with cols[idx]:
+            st.markdown(f"<div class='machine-title'>{m_clean}</div>", unsafe_allow_html=True)
+            
+            m_specific_items = pd.DataFrame()
+            if not coating_items.empty:
+                m_specific_items = coating_items[coating_items['설비'].str.strip().str.upper() == m_clean.upper()].sort_values(by=['상태', 'priority'], ascending=[False, False])
+            
+            m_prior_assigned = pd.DataFrame()
+            if not coating_prior_mapped_df.empty:
+                m_prior_assigned = coating_prior_mapped_df[coating_prior_mapped_df['임시배정설비'].str.strip().str.upper() == m_clean.upper()].sort_values(by=['priority'], ascending=[False])
+
+            if not m_specific_items.empty:
+                for _, row in m_specific_items.iterrows():
+                    prod_name = str(row['제품']).strip()
+                    lot_num = str(row['Lot']).strip()
+                    
+                    with st.container(border=True):
+                        st.markdown(f"<div class='card-text-10px'>{prod_name}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='card-text-l-10px'>{lot_num}</div>", unsafe_allow_html=True)
+                        
+                        p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
+                        if p_date and p_date.upper() != "NONE" and p_date != "-":
+                            prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["타정공정"])
+                            suffix_str = f" (타정후{prev_elapsed_suffix})" if prev_elapsed_suffix else ""
+                            st.markdown(f"<div class='card-text-date'>{p_date}{suffix_str}</div>", unsafe_allow_html=True)
+
+                        st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
+                        
+                        if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
+                        if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<div class='info-text-10px'>📝 {row['특이사항']}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
+                        
+                        c_move1, c_move2, c_move3 = st.columns(3)
+                        with c_move1:
+                            if st.button("↑", key=f"coat_eq_up_{row['Row']}"): update_priority(row, "up", m_specific_items)
+                        with c_move2:
+                            if st.button("↓", key=f"coat_eq_down_{row['Row']}"): update_priority(row, "down", m_specific_items)
+                        with c_move3:
+                            if st.button("▲", key=f"coat_eq_top_{row['Row']}"): update_priority(row, "top", m_specific_items)
+                                
+                        c_type = "" if pd.isna(row['유형']) else str(row['유형'])
+                        c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
+                        c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
+                        
+                        if row['상태'] == '대기':
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                if st.button("시작", key=f"coat_start_{row['Row']}", use_container_width=True): 
+                                    supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
+                                    st.rerun()
+                            with c2:
+                                with st.popover("변경", use_container_width=True):
+                                    valid_machines = master_dict.get(prod_name, {}).get("코팅공정", [])
+                                    for nm in valid_machines:
+                                        nm_clean = nm.strip()
+                                        if nm_clean.upper() != str(row['설비']).strip().upper() and st.button(nm_clean, key=f"coat_ch_{row['Row']}_{nm_clean}", use_container_width=True): 
+                                            supabase.table("product_history").update({"설비": nm_clean}).eq("id", row['Row']).execute()
+                                            st.rerun()
+                        elif row['상태'] == '진행중':
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                if st.button("대기", key=f"coat_pause_{row['Row']}", use_container_width=True): 
+                                    supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
+                                    st.rerun()
+                            with c2:
+                                if st.button("완료", key=f"coat_end_{row['Row']}", use_container_width=True):
+                                    dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                    n_stg = "외관선별공정"
+                                    n_machines = master_dict.get(prod_name, {}).get(n_stg, [])
+                                    next_m = n_machines[0].strip() if n_machines else ""
+                                    sub_df = curr_df[(curr_df['공정'] == n_stg) & (curr_df['설비'].str.strip() == next_m)]
+                                    new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
+                                    
+                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m, "priority": new_p}).execute()
+                                    supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                    st.rerun()
+                        elif row['상태'] == '지연':
+                            if st.button("재시작", key=f"coat_resume_{row['Row']}", use_container_width=True): 
+                                supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
+                                st.rerun()
+
+            if not m_prior_assigned.empty:
+                st.markdown(f"<p style='font-size:11px; font-weight:800; color:#065f46; margin:6px 0 2px 0;'>⬇️ 이전공정 대기 ({len(m_prior_assigned)}건)</p>", unsafe_allow_html=True)
+                for _, row in m_prior_assigned.iterrows():
+                    prod_name = str(row['제품']).strip()
+                    lot_num = str(row['Lot']).strip()
+                    
+                    with st.container(border=True):
+                        st.markdown(f"<div class='card-text-10px'>{prod_name}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='card-text-l-10px'>{lot_num}</div>", unsafe_allow_html=True)
+                        
+                        p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
+                        if p_date and p_date.upper() != "NONE" and p_date != "-":
+                            st.markdown(f"<div class='card-text-date'>일자: {p_date}</div>", unsafe_allow_html=True)
+
+                        st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
+                        
+                        r_type = str(row.get('유형', '')).strip()
+                        if r_type and r_type not in ['일반로트', '일반', 'nan', 'None', '-']:
+                            st.markdown(f"<p class='lot-type-highlight'>{r_type}</p>", unsafe_allow_html=True)
+                        if row['특이사항'] and not pd.isna(row['특이사항']): 
+                            st.markdown(f"<div class='info-text-10px'>📝 {row['특이사항']}</div>", unsafe_allow_html=True)
+                            
+                        st.markdown(f"<div class='status-bar bg-green-waiting'>[{row['공정']}] 대기</div>", unsafe_allow_html=True)
+                        
+                        c_move1, c_move2, c_move3 = st.columns(3)
+                        with c_move1:
+                            if st.button("↑", key=f"coat_prior_up_{row['Row']}"): update_priority(row, "up", m_prior_assigned)
+                        with c_move2:
+                            if st.button("↓", key=f"coat_prior_down_{row['Row']}"): update_priority(row, "down", m_prior_assigned)
+                        with c_move3:
+                            if st.button("▲", key=f"coat_prior_top_{row['Row']}"): update_priority(row, "top", m_prior_assigned)
+                        
+                        valid_c_machines = master_dict.get(prod_name, {}).get("코팅공정", [])
+                        if len(valid_c_machines) > 1:
+                            c_type = "" if pd.isna(row['유형']) else str(row['유형'])
+                            c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
+                            c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
+                            
+                            with st.popover("코팅기 변경", use_container_width=True):
+                                for cm in valid_c_machines:
+                                    cm_clean = cm.strip()
+                                    if st.button(cm_clean, key=f"reassign_coat_{row['Row']}_{cm_clean}", use_container_width=True):
+                                        sub_df = curr_df[(curr_df['공정'] == "코팅공정") & (curr_df['설비'].str.strip() == cm_clean)]
+                                        new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
+                                        
+                                        supabase.table("product_history").insert({
+                                            "Lot": lot_num, "제품": prod_name, "공정": "코팅공정", "상태": "대기", 
+                                            "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, 
+                                            "설비": cm_clean, "priority": new_p
+                                        }).execute()
+                                        
+                                        supabase.table("product_history").update({
+                                            "상태": "완료", "종료시간": get_now_kst(), "소요시간": "코팅계획배정"
+                                        }).eq("id", row['Row']).execute()
+                                        
+                                        st.success(f"{cm_clean}(으)로 배정되었습니다!")
+                                        st.rerun()
+
+# --- 10-2. 캡슐공정계획 페이지 전용 렌더링 ---
+elif st.session_state.view == 'capsule_plan':
+    st.header("💊 캡슐공정 계획 및 사전 배정 관리")
+    st.markdown("캡슐공정 이전 공정에 있는 제품들은 마스터에 등록된 첫 번째 캡슐충전기로 자동 분류되어 설비 카드 아래쪽에 표시됩니다. 캡슐기가 2대 이상인 경우 [변경] 버튼을 통해 캡슐기를 바꿀 수 있습니다.")
+    st.write("---")
+    
+    capsule_prior_stages = ["계획공정", "칭량공정", "과립공정", "건조공정", "정립혼합대기창고", "정립공정", "혼합공정", "반제품창고"]
+    capsule_prior_items = curr_df[curr_df['공정'].isin(capsule_prior_stages)].copy() if not curr_df.empty else pd.DataFrame()
+    
+    capsule_mapped_rows = []
+    if not capsule_prior_items.empty:
+        for _, row in capsule_prior_items.iterrows():
+            p_name = str(row['제품']).strip()
+            capsule_machines = master_dict.get(p_name, {}).get("캡슐공정", [])
+            first_machine = capsule_machines[0].strip() if capsule_machines else "미지정캡슐기"
+            
+            row_dict = row.to_dict()
+            row_dict['임시배정설비'] = first_machine
+            capsule_mapped_rows.append(row_dict)
+            
+    capsule_prior_mapped_df = pd.DataFrame(capsule_mapped_rows) if capsule_mapped_rows else pd.DataFrame()
+
+    capsule_items = curr_df[curr_df['공정'] == "캡슐공정"].copy() if not curr_df.empty else pd.DataFrame()
+    
+    capsule_stage_machines = MACHINE_MAP["캡슐공정"]
+    cols = st.columns(len(capsule_stage_machines) if len(capsule_stage_machines) > 0 else 1)
+    
+    for idx, m_clean in enumerate(capsule_stage_machines):
+        with cols[idx]:
+            st.markdown(f"<div class='machine-title'>{m_clean}</div>", unsafe_allow_html=True)
+            
+            m_specific_items = pd.DataFrame()
+            if not capsule_items.empty:
+                m_specific_items = capsule_items[capsule_items['설비'].str.strip().str.upper() == m_clean.upper()].sort_values(by=['상태', 'priority'], ascending=[False, False])
+            
+            m_prior_assigned = pd.DataFrame()
+            if not capsule_prior_mapped_df.empty:
+                m_prior_assigned = capsule_prior_mapped_df[capsule_prior_mapped_df['임시배정설비'].str.strip().str.upper() == m_clean.upper()].sort_values(by=['priority'], ascending=[False])
+
+            if not m_specific_items.empty:
+                for _, row in m_specific_items.iterrows():
+                    prod_name = str(row['제품']).strip()
+                    lot_num = str(row['Lot']).strip()
+                    
+                    with st.container(border=True):
+                        st.markdown(f"<div class='card-text-10px'>{prod_name}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='card-text-l-10px'>{lot_num}</div>", unsafe_allow_html=True)
+                        
+                        p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
+                        if p_date and p_date.upper() != "NONE" and p_date != "-":
+                            st.markdown(f"<div class='card-text-date'>{p_date}</div>", unsafe_allow_html=True)
+
+                        st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
+                        
+                        if row['유형'] not in ['일반로트', '일반', '']: st.markdown(f"<p class='lot-type-highlight'>{row['유형']}</p>", unsafe_allow_html=True)
+                        if row['특이사항'] and not pd.isna(row['특이사항']): st.markdown(f"<div class='info-text-10px'>📝 {row['특이사항']}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='status-bar {'bg-waiting' if row['상태']=='대기' else 'bg-progress' if row['상태']=='진행중' else 'bg-paused'}'>{row['상태']}</div>", unsafe_allow_html=True)
+                        
+                        c_move1, c_move2, c_move3 = st.columns(3)
+                        with c_move1:
+                            if st.button("↑", key=f"cap_eq_up_{row['Row']}"): update_priority(row, "up", m_specific_items)
+                        with c_move2:
+                            if st.button("↓", key=f"cap_eq_down_{row['Row']}"): update_priority(row, "down", m_specific_items)
+                        with c_move3:
+                            if st.button("▲", key=f"cap_eq_top_{row['Row']}"): update_priority(row, "top", m_specific_items)
+                                
+                        c_type = "" if pd.isna(row['유형']) else str(row['유형'])
+                        c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
+                        c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
+                        
+                        if row['상태'] == '대기':
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                if st.button("시작", key=f"cap_start_{row['Row']}", use_container_width=True): 
+                                    supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
+                                    st.rerun()
+                            with c2:
+                                with st.popover("변경", use_container_width=True):
+                                    valid_machines = master_dict.get(prod_name, {}).get("캡슐공정", [])
+                                    for nm in valid_machines:
+                                        nm_clean = nm.strip()
+                                        if nm_clean.upper() != str(row['설비']).strip().upper() and st.button(nm_clean, key=f"cap_ch_{row['Row']}_{nm_clean}", use_container_width=True): 
+                                            supabase.table("product_history").update({"설비": nm_clean}).eq("id", row['Row']).execute()
+                                            st.rerun()
+                        elif row['상태'] == '진행중':
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                if st.button("대기", key=f"cap_pause_{row['Row']}", use_container_width=True): 
+                                    supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
+                                    st.rerun()
+                            with c2:
+                                if st.button("완료", key=f"cap_end_{row['Row']}", use_container_width=True):
+                                    dur = str(datetime.strptime(get_now_kst(), '%Y-%m-%d %H:%M') - datetime.strptime(row['시작시간'], '%Y-%m-%d %H:%M'))
+                                    n_stg = "외관선별공정"
+                                    n_machines = master_dict.get(prod_name, {}).get(n_stg, [])
+                                    next_m = n_machines[0].strip() if n_machines else ""
+                                    sub_df = curr_df[(curr_df['공정'] == n_stg) & (curr_df['설비'].str.strip() == next_m)]
+                                    new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
+                                    
+                                    supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m, "priority": new_p}).execute()
+                                    supabase.table("product_history").update({"상태": "1팀종료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
+                                    st.rerun()
+                        elif row['상태'] == '지연':
+                            if st.button("재시작", key=f"cap_resume_{row['Row']}", use_container_width=True): 
+                                supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
+                                st.rerun()
+
+            if not m_prior_assigned.empty:
+                st.markdown(f"<p style='font-size:11px; font-weight:800; color:#065f46; margin:6px 0 2px 0;'>⬇️ 이전공정 대기 ({len(m_prior_assigned)}건)</p>", unsafe_allow_html=True)
+                for _, row in m_prior_assigned.iterrows():
+                    prod_name = str(row['제품']).strip()
+                    lot_num = str(row['Lot']).strip()
+                    
+                    with st.container(border=True):
+                        st.markdown(f"<div class='card-text-10px'>{prod_name}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='card-text-l-10px'>{lot_num}</div>", unsafe_allow_html=True)
+                        
+                        p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
+                        if p_date and p_date.upper() != "NONE" and p_date != "-":
+                            st.markdown(f"<div class='card-text-date'>일자: {p_date}</div>", unsafe_allow_html=True)
+
+                        st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
+                        
+                        r_type = str(row.get('유형', '')).strip()
+                        if r_type and r_type not in ['일반로트', '일반', 'nan', 'None', '-']:
+                            st.markdown(f"<p class='lot-type-highlight'>{r_type}</p>", unsafe_allow_html=True)
+                        if row['특이사항'] and not pd.isna(row['특이사항']): 
+                            st.markdown(f"<div class='info-text-10px'>📝 {row['특이사항']}</div>", unsafe_allow_html=True)
+                            
+                        st.markdown(f"<div class='status-bar bg-green-waiting'>[{row['공정']}] 대기</div>", unsafe_allow_html=True)
+                        
+                        c_move1, c_move2, c_move3 = st.columns(3)
+                        with c_move1:
+                            if st.button("↑", key=f"cap_prior_up_{row['Row']}"): update_priority(row, "up", m_prior_assigned)
+                        with c_move2:
+                            if st.button("↓", key=f"cap_prior_down_{row['Row']}"): update_priority(row, "down", m_prior_assigned)
+                        with c_move3:
+                            if st.button("▲", key=f"cap_prior_top_{row['Row']}"): update_priority(row, "top", m_prior_assigned)
+                        
+                        valid_cap_machines = master_dict.get(prod_name, {}).get("캡슐공정", [])
+                        if len(valid_cap_machines) > 1:
+                            c_type = "" if pd.isna(row['유형']) else str(row['유형'])
+                            c_note = "" if pd.isna(row['특이사항']) else str(row['특이사항'])
+                            c_date_val = "" if pd.isna(row.get('제조일자')) else str(row.get('제조일자'))
+                            
+                            with st.popover("캡슐기 변경", use_container_width=True):
+                                for cm in valid_cap_machines:
+                                    cm_clean = cm.strip()
+                                    if st.button(cm_clean, key=f"reassign_cap_{row['Row']}_{cm_clean}", use_container_width=True):
+                                        sub_df = curr_df[(curr_df['공정'] == "캡슐공정") & (curr_df['설비'].str.strip() == cm_clean)]
+                                        new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
+                                        
+                                        supabase.table("product_history").insert({
+                                            "Lot": lot_num, "제품": prod_name, "공정": "캡슐공정", "상태": "대기", 
+                                            "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, 
+                                            "설비": cm_clean, "priority": new_p
+                                        }).execute()
+                                        
+                                        supabase.table("product_history").update({
+                                            "상태": "완료", "종료시간": get_now_kst(), "소요시간": "캡슐계획배정"
+                                        }).eq("id", row['Row']).execute()
+                                        
+                                        st.success(f"{cm_clean}(으)로 배정되었습니다!")
+                                        st.rerun()
 
 # --- 11. 기타 이력 페이지들 렌더링 ---
 elif st.session_state.view in ['history', 'selection', 'all_history']:
