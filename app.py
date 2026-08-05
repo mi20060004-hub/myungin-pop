@@ -168,7 +168,7 @@ except Exception as e:
     st.error(f"🔗 데이터베이스 연결 실패: {e}")
     st.stop()
 
-# --- 5. 데이터 로직 (🚀 캐시 적용 및 즉시 갱신 처리) ---
+# --- 5. 데이터 로직 (🚀 미완료 항목(대기, 진행중, 지연)만 실시간 조회) ---
 MACHINE_MAP = {
     "칭량공정": [], 
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
@@ -235,7 +235,6 @@ def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
     except Exception:
         return ""
 
-@st.cache_data
 def load_data():
     m_data = supabase.table("product_master").select("*").execute()
     master_dict = {}
@@ -267,23 +266,21 @@ def load_data():
     except Exception:
         pass
 
-    count_res = supabase.table("product_history").select("id", count='exact').range(0, 0).execute()
-    total_count = count_res.count if count_res.count else 0
+    # 🚀 핵심 개선: 상태가 완료/1팀종료/폐기가 아닌 항목(대기, 진행중, 지연 등)만 직접 조회
+    curr_res = supabase.table("product_history").select("*").not_.in_("상태", ["완료", "1팀종료", "폐기"]).order("priority", desc=True).order("id", desc=True).execute()
     
-    all_data = []
-    for i in range(0, total_count, 1000):
-        res = supabase.table("product_history").select("*").order("priority", desc=True).order("id", desc=True).range(i, i + 999).execute()
-        if res.data:
-            all_data.extend(res.data)
-            
-    if not all_data:
-        return master_dict, stock_dict, pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-        
-    all_raw_df = pd.DataFrame(all_data)
-    if 'id' in all_raw_df.columns: all_raw_df['Row'] = all_raw_df['id']
-    
-    curr_df = all_raw_df[~all_raw_df['상태'].isin(['완료', '1팀종료', '폐기'])].copy()
-    log_df = all_raw_df[all_raw_df['상태'].isin(['완료', '1팀종료'])].copy()
+    curr_df = pd.DataFrame(curr_res.data) if curr_res.data else pd.DataFrame()
+    if not curr_df.empty and 'id' in curr_df.columns:
+        curr_df['Row'] = curr_df['id']
+
+    # 이력(로그) 조회를 위한 최근 데이터 가져오기 (필요시 최소한만 로드)
+    log_res = supabase.table("product_history").select("*").in_("상태", ["완료", "1팀종료"]).order("id", desc=True).limit(500).execute()
+    log_df = pd.DataFrame(log_res.data) if log_res.data else pd.DataFrame()
+    if not log_df.empty and 'id' in log_df.columns:
+        log_df['Row'] = log_df['id']
+
+    all_raw_df = pd.concat([curr_df, log_df], ignore_index=True) if not curr_df.empty or not log_df.empty else pd.DataFrame()
+
     return master_dict, stock_dict, curr_df, log_df, all_raw_df
 
 master_dict, stock_dict, curr_df, log_df, all_raw_df = load_data()
@@ -328,7 +325,6 @@ def update_priority(row, direction, df_in_stage):
             new_priority = target_p + 1
             supabase.table("product_history").update({"priority": new_priority}).eq("id", row['Row']).execute()
 
-        st.cache_data.clear()
         st.rerun()
 
 if 'pending_lots' not in st.session_state: st.session_state.pending_lots = []
@@ -382,7 +378,6 @@ with st.sidebar:
                 p_clean = p['제품'].strip()
                 supabase.table("product_history").insert({"Lot": p['Lot'], "제품": p_clean, "공정": "칭량공정", "상태": "대기", "제조일자": p['제조일자'], "유형": p['유형'], "특이사항": p['특이사항'], "설비": ""}).execute()
             st.session_state.pending_lots = []
-            st.cache_data.clear()
             st.rerun()
 
     st.divider()
@@ -462,7 +457,6 @@ with st.sidebar:
                 if st.button("💾 특이사항 저장", use_container_width=True):
                     final_note = st.session_state.get("live_textarea_key", st.session_state.target_note_val)
                     supabase.table("product_history").update({"특이사항": final_note}).eq("id", selected_row['Row']).execute()
-                    st.cache_data.clear()
                     st.success("특이사항이 수정되었습니다!")
                     st.rerun()
         else:
@@ -475,7 +469,6 @@ with st.sidebar:
         if st.button("🚨 초기화 실행", type="primary", use_container_width=True):
             if input_pwd == "1234":
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
-                st.cache_data.clear()
                 st.rerun()
 
     st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 2.10 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
@@ -599,7 +592,6 @@ if st.session_state.view == 'main':
                                                     new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": target_stage, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": pm_clean, "priority": new_p}).execute()
                                                     supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": "창고출고"}).eq("id", row['Row']).execute()
-                                                    st.cache_data.clear()
                                                     st.rerun()
                                         else:
                                             st.caption("다음 공정 설비 없음")
@@ -608,7 +600,6 @@ if st.session_state.view == 'main':
                                                 new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
                                                 supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "캡슐공정", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": "", "priority": new_p}).execute()
                                                 supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": "강제출고"}).eq("id", row['Row']).execute()
-                                                st.cache_data.clear()
                                                 st.rerun()
 
                                 elif stage == "반제품창고":
@@ -631,7 +622,6 @@ if st.session_state.view == 'main':
                                                     new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": next_pop_stage, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": pm_clean, "priority": new_p}).execute()
                                                     supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": "창고출고"}).eq("id", row['Row']).execute()
-                                                    st.cache_data.clear()
                                                     st.rerun()
                                         else:
                                             st.caption("지정 설비 없음")
@@ -640,18 +630,15 @@ if st.session_state.view == 'main':
                                                 new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
                                                 supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "타정공정", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": "", "priority": new_p}).execute()
                                                 supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": "강제출고"}).eq("id", row['Row']).execute()
-                                                st.cache_data.clear()
                                                 st.rerun()
                                 else:
                                     if row['상태'] == '대기':
                                         if st.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
-                                            st.cache_data.clear()
                                             st.rerun()
                                     elif row['상태'] == '진행중':
                                         if st.button("대기", key=f"pause_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
-                                            st.cache_data.clear()
                                             st.rerun()
                                         
                                         if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
@@ -680,12 +667,10 @@ if st.session_state.view == 'main':
                                                     supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m, "priority": new_p}).execute()
                                             
                                             supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                            st.cache_data.clear()
                                             st.rerun()
                                     elif row['상태'] == '지연':
                                         if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
-                                            st.cache_data.clear()
                                             st.rerun()
                                 st.markdown("</div>", unsafe_allow_html=True)
             else:
@@ -763,7 +748,6 @@ if st.session_state.view == 'main':
                                     with c1:
                                         if st.button("시작", key=f"start_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "진행중", "시작시간": get_now_kst()}).eq("id", row['Row']).execute()
-                                            st.cache_data.clear()
                                             st.rerun()
                                     with c2:
                                         with st.popover("변경", use_container_width=True):
@@ -772,14 +756,12 @@ if st.session_state.view == 'main':
                                                 nm_clean = nm.strip()
                                                 if nm_clean.upper() != str(row['설비']).strip().upper() and st.button(nm_clean, key=f"ch_act_{row['Row']}_{nm_clean}", use_container_width=True): 
                                                     supabase.table("product_history").update({"설비": nm_clean}).eq("id", row['Row']).execute()
-                                                    st.cache_data.clear()
                                                     st.rerun()
                                 elif row['상태'] == '진행중':
                                     c1, c2 = st.columns(2)
                                     with c1:
                                         if st.button("대기", key=f"pause_act_{row['Row']}", use_container_width=True): 
                                             supabase.table("product_history").update({"상태": "지연"}).eq("id", row['Row']).execute()
-                                            st.cache_data.clear()
                                             st.rerun()
                                     with c2:
                                         if stage == "건조공정":
@@ -789,7 +771,6 @@ if st.session_state.view == 'main':
                                                 new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
                                                 supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "정립혼합대기창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": "", "priority": new_p}).execute()
                                                 supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                                st.cache_data.clear()
                                                 st.rerun()
                                         elif stage == "혼합공정":
                                             if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
@@ -798,7 +779,6 @@ if st.session_state.view == 'main':
                                                 new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
                                                 supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": "반제품창고", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": "", "priority": new_p}).execute()
                                                 supabase.table("product_history").update({"상태": "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                                st.cache_data.clear()
                                                 st.rerun()
                                         else:
                                             n_stg = None
@@ -819,7 +799,6 @@ if st.session_state.view == 'main':
                                                             new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
                                                             supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": nm_clean, "priority": new_p}).execute()
                                                             supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                                            st.cache_data.clear()
                                                             st.rerun()
                                             else:
                                                 if st.button("완료", key=f"end_act_{row['Row']}", use_container_width=True):
@@ -830,12 +809,10 @@ if st.session_state.view == 'main':
                                                         new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
                                                         supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m, "priority": new_p}).execute()
                                                     supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
-                                                    st.cache_data.clear()
                                                     st.rerun()
                                 elif row['상태'] == '지연':
                                     if st.button("재시작", key=f"resume_act_{row['Row']}", use_container_width=True): 
                                         supabase.table("product_history").update({"상태": "진행중"}).eq("id", row['Row']).execute()
-                                        st.cache_data.clear()
                                         st.rerun()
                                 st.markdown("</div>", unsafe_allow_html=True)
                 else:
