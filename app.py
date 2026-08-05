@@ -353,7 +353,7 @@ if 'reset_lot' not in st.session_state: st.session_state.reset_lot = ""
 if 'reset_type' not in st.session_state: st.session_state.reset_type = "일반로트"
 if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 
-# --- 6. 헤더 및 상단 메뉴 바 (타정, 코팅, 캡슐 공정계획 메뉴 구성) ---
+# --- 6. 헤더 및 상단 메뉴 바 ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리 (MYUNG-IN Pharm POP System)</p></div>', unsafe_allow_html=True)
 nav_cols = st.columns(8) 
 with nav_cols[0]:
@@ -828,7 +828,8 @@ if st.session_state.view == 'main':
                         st.markdown(f"<div class='machine-title'>{m_clean}</div>", unsafe_allow_html=True)
                         m_specific_items = pd.DataFrame()
                         if not m_items.empty:
-                            m_specific_items = m_items[m_items['설비'].str.strip().str.upper() == m_clean.upper()]
+                            # 대소문자 및 양쪽 공백을 완벽히 제거하여 비교하도록 수정
+                            m_specific_items = m_items[m_items['설비'].astype(str).str.strip().str.upper() == m_clean.upper()]
                         
                         for _, row in m_specific_items.iterrows():
                             prod_name = str(row['제품']).strip()
@@ -851,12 +852,13 @@ if st.session_state.view == 'main':
                                     elapsed_suffix = get_elapsed_days_str(p_date)
                                     st.markdown(f"<div class='machine-title' style='display:none;'></div><div class='card-text-date'>{p_date}{elapsed_suffix}</div>", unsafe_allow_html=True)
                                 
+                                # 이전 공정 탐색 범위 확장 (혼합공정, 반제품창고, 정립혼합대기창고 등 포함)
                                 if stage in ["타정공정", "캡슐공정"]:
-                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정", "반제품창고", "정립혼합대기창고"])
+                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정", "반제품창고", "정립혼합대기창고", "정립공정"])
                                     if prev_elapsed_suffix:
                                         st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>(혼합후{prev_elapsed_suffix})</p>", unsafe_allow_html=True)
                                 elif stage == "코팅공정":
-                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["타정공정", "질량선별공정"])
+                                    prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["타정공정", "질량선별공정", "캡슐공정"])
                                     if prev_elapsed_suffix:
                                         st.markdown(f"<p class='card-text-date' style='color:#059669; font-weight:800;'>(타정후{prev_elapsed_suffix})</p>", unsafe_allow_html=True)
                                 elif stage == "외관선별공정":
@@ -996,11 +998,11 @@ elif st.session_state.view == 'tablet_plan':
                 
                 m_specific_items = pd.DataFrame()
                 if not tablet_items.empty:
-                    m_specific_items = tablet_items[tablet_items['설비'].str.strip().str.upper() == m_clean.upper()].sort_values(by=['상태', 'priority'], ascending=[False, False])
+                    m_specific_items = tablet_items[tablet_items['설비'].astype(str).str.strip().str.upper() == m_clean.upper()].sort_values(by=['상태', 'priority'], ascending=[False, False])
                 
                 m_prior_assigned = pd.DataFrame()
                 if not prior_mapped_df.empty:
-                    m_prior_assigned = prior_mapped_df[prior_mapped_df['임시배정설비'].str.strip().str.upper() == m_clean.upper()].sort_values(by=['priority'], ascending=[False])
+                    m_prior_assigned = prior_mapped_df[prior_mapped_df['임시배정설비'].astype(str).str.strip().str.upper() == m_clean.upper()].sort_values(by=['priority'], ascending=[False])
 
                 if not m_specific_items.empty:
                     for _, row in m_specific_items.iterrows():
@@ -1013,7 +1015,7 @@ elif st.session_state.view == 'tablet_plan':
                             
                             p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
                             if p_date and p_date.upper() != "NONE" and p_date != "-":
-                                prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정", "반제품창고", "정립혼합대기창고"])
+                                prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정", "반제품창고", "정립혼합대기창고", "정립공정"])
                                 suffix_str = f" (혼합후{prev_elapsed_suffix})" if prev_elapsed_suffix else ""
                                 st.markdown(f"<div class='card-text-date'>{p_date}{suffix_str}</div>", unsafe_allow_html=True)
 
@@ -1166,11 +1168,11 @@ elif st.session_state.view == 'coating_plan':
             
             m_specific_items = pd.DataFrame()
             if not coating_items.empty:
-                m_specific_items = coating_items[coating_items['설비'].str.strip().str.upper() == m_clean.upper()].sort_values(by=['상태', 'priority'], ascending=[False, False])
+                m_specific_items = coating_items[coating_items['설비'].astype(str).str.strip().str.upper() == m_clean.upper()].sort_values(by=['상태', 'priority'], ascending=[False, False])
             
             m_prior_assigned = pd.DataFrame()
             if not coating_prior_mapped_df.empty:
-                m_prior_assigned = coating_prior_mapped_df[coating_prior_mapped_df['임시배정설비'].str.strip().str.upper() == m_clean.upper()].sort_values(by=['priority'], ascending=[False])
+                m_prior_assigned = coating_prior_mapped_df[coating_prior_mapped_df['임시배정설비'].astype(str).str.strip().str.upper() == m_clean.upper()].sort_values(by=['priority'], ascending=[False])
 
             if not m_specific_items.empty:
                 for _, row in m_specific_items.iterrows():
@@ -1183,7 +1185,7 @@ elif st.session_state.view == 'coating_plan':
                         
                         p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
                         if p_date and p_date.upper() != "NONE" and p_date != "-":
-                            prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["타정공정", "질량선별공정"])
+                            prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["타정공정", "질량선별공정", "캡슐공정"])
                             suffix_str = f" (타정후{prev_elapsed_suffix})" if prev_elapsed_suffix else ""
                             st.markdown(f"<div class='card-text-date'>{p_date}{suffix_str}</div>", unsafe_allow_html=True)
 
@@ -1333,11 +1335,11 @@ elif st.session_state.view == 'capsule_plan':
             
             m_specific_items = pd.DataFrame()
             if not capsule_items.empty:
-                m_specific_items = capsule_items[capsule_items['설비'].str.strip().str.upper() == m_clean.upper()].sort_values(by=['상태', 'priority'], ascending=[False, False])
+                m_specific_items = capsule_items[capsule_items['설비'].astype(str).str.strip().str.upper() == m_clean.upper()].sort_values(by=['상태', 'priority'], ascending=[False, False])
             
             m_prior_assigned = pd.DataFrame()
             if not capsule_prior_mapped_df.empty:
-                m_prior_assigned = capsule_prior_mapped_df[capsule_prior_mapped_df['임시배정설비'].str.strip().str.upper() == m_clean.upper()].sort_values(by=['priority'], ascending=[False])
+                m_prior_assigned = capsule_prior_mapped_df[capsule_prior_mapped_df['임시배정설비'].astype(str).str.strip().str.upper() == m_clean.upper()].sort_values(by=['priority'], ascending=[False])
 
             if not m_specific_items.empty:
                 for _, row in m_specific_items.iterrows():
@@ -1350,7 +1352,7 @@ elif st.session_state.view == 'capsule_plan':
                         
                         p_date = str(row.get('제조일자', '')).strip() if not pd.isna(row.get('제조일자')) else ""
                         if p_date and p_date.upper() != "NONE" and p_date != "-":
-                            prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정", "반제품창고", "정립혼합대기창고"])
+                            prev_elapsed_suffix = get_prev_stage_elapsed_str(all_raw_df, lot_num, prod_name, ["혼합공정", "반제품창고", "정립혼합대기창고", "정립공정"])
                             suffix_str = f" (혼합후{prev_elapsed_suffix})" if prev_elapsed_suffix else ""
                             st.markdown(f"<div class='card-text-date'>{p_date}{suffix_str}</div>", unsafe_allow_html=True)
 
