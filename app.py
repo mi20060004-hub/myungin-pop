@@ -70,9 +70,7 @@ if not st.session_state.authenticated:
 def show_update_dialog():
     st.markdown("""
     ### 🚀 업데이트 주요 기능
-    1. 타정공정계획 페이지에서 이전공정 대기 블록이 설비 카드 아래쪽에 배치됩니다.
-    2. 타정기가 1대만 있는 경우 변경 버튼이 숨겨집니다.
-    3. 이전공정 대기 블록에서도 순서 조정(↑, ↓, ▲)이 가능해졌습니다.
+    1. 타정공정계획 페이지의 이전공정 대기 안내 글자 및 블록 상태 바가 진한 초록색으로 변경되었습니다.
     """)
     
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
@@ -148,6 +146,7 @@ div[data-testid="stExpander"] summary p {
 .bg-waiting { background-color: #3b82f6; }
 .bg-progress { background-color: #ef4444; }
 .bg-paused { background-color: #f59e0b; }
+.bg-green-waiting { background-color: #065f46; } /* 진한 초록색 배경 */
 
 div[data-testid="stDataFrame"] td, div[data-testid="stDataFrame"] th { font-size: 16px !important; }
 
@@ -565,7 +564,7 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 2.18 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 2.19 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
 
 # --- 8. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
@@ -1067,7 +1066,8 @@ elif st.session_state.view == 'tablet_plan':
 
                 # --- [B] 이전공정 대기 블록들을 설비 카드 아래쪽에 표시 ---
                 if not m_prior_assigned.empty:
-                    st.markdown(f"<p style='font-size:11px; font-weight:800; color:#2563eb; margin:6px 0 2px 0;'>⬇️ 이전공정 대기 ({len(m_prior_assigned)}건)</p>", unsafe_allow_html=True)
+                    # '이전공정 대기' 안내 글자 색상을 진한 초록색(#065f46)으로 변경
+                    st.markdown(f"<p style='font-size:11px; font-weight:800; color:#065f46; margin:6px 0 2px 0;'>⬇️ 이전공정 대기 ({len(m_prior_assigned)}건)</p>", unsafe_allow_html=True)
                     for _, row in m_prior_assigned.iterrows():
                         prod_name = str(row['제품']).strip()
                         lot_num = str(row['Lot']).strip()
@@ -1088,7 +1088,8 @@ elif st.session_state.view == 'tablet_plan':
                             if row['특이사항'] and not pd.isna(row['특이사항']): 
                                 st.markdown(f"<div class='info-text-10px'>📝 {row['특이사항']}</div>", unsafe_allow_html=True)
                                 
-                            st.markdown(f"<div class='status-bar bg-waiting'>[{row['공정']}] 대기</div>", unsafe_allow_html=True)
+                            # 블록 내 상태 바 배경을 진한 초록색 클래스(bg-green-waiting)로 지정
+                            st.markdown(f"<div class='status-bar bg-green-waiting'>[{row['공정']}] 대기</div>", unsafe_allow_html=True)
                             
                             # 이전공정 대기 블록 우선순위 변경 버튼 추가
                             c_move1, c_move2, c_move3 = st.columns(3)
