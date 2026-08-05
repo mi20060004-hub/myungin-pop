@@ -223,33 +223,31 @@ def get_elapsed_days_str(date_val):
     except Exception:
         return ""
 
-def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
-    if all_df.empty or not lot_num or not prod_name:
+def get_prev_stage_elapsed_str(lot_num, prod_name, target_stages):
+    if not lot_num or not prod_name:
         return ""
     
     clean_lot = str(lot_num).strip()
     clean_prod = str(prod_name).strip()
     
-    prev_logs = all_df[
-        (all_df['Lot'].astype(str).str.strip() == clean_lot) & 
-        (all_df['제품'].astype(str).str.strip() == clean_prod) & 
-        (all_df['공정'].isin(target_stages)) & 
-        (all_df['상태'].isin(['완료', '1팀종료', '종료']))
-    ]
-    if prev_logs.empty:
-        return ""
-    
-    prev_logs = prev_logs.copy()
-    prev_logs['종료dt'] = pd.to_datetime(prev_logs['종료시간'], errors='coerce')
-    prev_logs = prev_logs.dropna(subset=['종료dt'])
-    if prev_logs.empty:
-        return ""
-        
-    prev_logs = prev_logs.sort_values(by='종료dt', ascending=False)
-    latest_row = prev_logs.iloc[0]
-    end_time_str = str(latest_row.get('종료시간', ''))
-    
     try:
+        res = supabase.table("product_history") \
+            .select("종료시간") \
+            .eq("Lot", clean_lot) \
+            .eq("제품", clean_prod) \
+            .in_("공정", target_stages) \
+            .in_("상태", ["완료", "1팀종료", "종료"]) \
+            .order("id", desc=True) \
+            .limit(1) \
+            .execute()
+            
+        if not res.data:
+            return ""
+            
+        end_time_str = str(res.data[0].get("종료시간", ""))
+        if not end_time_str or len(end_time_str) < 10:
+            return ""
+            
         target_dt = datetime.strptime(end_time_str[:10], '%Y-%m-%d').date()
         today_dt = get_today_date_kst()
         delta_days = (today_dt - target_dt).days
