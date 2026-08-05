@@ -2,5 +2,5 @@
 base = "light"
 primaryColor = "#1e3a8a"
 backgroundColor = "#f8fafc"
-secondaryBackgroundColor = "#ffffff"
+secondaryBackgroundColor = "#e2e8f0"
 textColor = "#1e293b"
