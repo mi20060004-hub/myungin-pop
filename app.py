@@ -65,7 +65,7 @@ if not st.session_state.authenticated:
         
     st.stop()
 
-# --- 🌟 업데이트 안내 팝업 (st.dialog 활용) ---
+# --- 🌟 업데이트 안내 팝업 (URL 파라미터 연동형) ---
 @st.dialog("✨ [시스템 업데이트 안내] 새로운 기능이 추가되었습니다!")
 def show_update_dialog():
     st.markdown("""
@@ -81,13 +81,11 @@ def show_update_dialog():
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     
     if st.button("확인 (팝업 닫기)", type="primary", use_container_width=True):
-        st.session_state.update_dialog_shown = True
+        st.query_params["popup"] = "seen"
         st.rerun()
 
-if "update_dialog_shown" not in st.session_state:
-    st.session_state.update_dialog_shown = False
-
-if st.session_state.authenticated and not st.session_state.update_dialog_shown:
+# 로그인 상태이고, URL에 popup=seen 파라미터가 없을 때만 팝업 실행
+if st.session_state.authenticated and st.query_params.get("popup") != "seen":
     show_update_dialog()
 
 # --- 3. CSS 스타일 ---
