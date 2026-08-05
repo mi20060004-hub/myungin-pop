@@ -108,6 +108,13 @@ html {
 }
 .main .block-container { padding-top: 100px !important; }
 
+.stage-bar {
+    scroll-margin-top: 80px;
+    color: white; padding: 8px 13px; border-radius: 6px; 
+    font-size: 18px; font-weight: 700; margin-top: 20px; margin-bottom: 10px; 
+    background: linear-gradient(90deg, #334155 0%, #64748b 100%);
+}
+
 div[data-testid="stExpander"] {
     border: 1px solid #cbd5e1;
     border-radius: 6px;
@@ -514,6 +521,7 @@ with st.sidebar:
         st.markdown(f"<div style='font-size:16px; font-weight:800; color:#1e3a8a; margin-bottom:5px;'>실시간 가동 건수 (총 {total_active_count}건)</div>", unsafe_allow_html=True)
         st.markdown("<div style='font-size:14px; font-weight:700; color:#475569; margin-bottom:8px;'>공정 바로가기 (클릭 시 이동)</div>", unsafe_allow_html=True)
         
+        # 💡 공정 바로가기 링크 버튼 복원
         for stage in TARGET_STAGES:
             stage_id = stage.replace(" ", "")
             single_stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
@@ -602,7 +610,9 @@ if st.session_state.view == 'main':
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         stage_id = stage.replace(" ", "")
         
-        # 💡 모든 공정 바를 st.expander (기본 펼침 형태: expanded=True)로 적용하여 접었다 펼칠 수 있도록 개선
+        # 💡 각 공정 영역에 앵커 아이디(id) 적용
+        st.markdown(f'<div id="{stage_id}"></div>', unsafe_allow_html=True)
+        
         with st.expander(f"▶ {stage} ({stage_count}건)", expanded=True):
             m_items = pd.DataFrame()
             if not curr_df.empty:
