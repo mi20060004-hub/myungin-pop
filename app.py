@@ -819,7 +819,7 @@ if st.session_state.view == 'main':
                     with cols[idx]:
                         st.write("") 
 else:
-    title_map = {"history": "완료된 공정 확인", "selection": "완료된 공정 확인(선별)", "all_history": "모든 공정 이력 확인"}
+    title_map = {"history": "완료된 공정 확인", "selection": "완료된 공정 확인(선별)", "all_history": "최근 500개 공정 이력 확인"}
     st.header(f"📋 {title_map[st.session_state.view]}")
     
     if st.session_state.view == 'history':
