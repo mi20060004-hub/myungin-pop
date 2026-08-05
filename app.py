@@ -122,10 +122,19 @@ div[data-testid="stExpander"] {
     margin-top: 20px;
     margin-bottom: 10px;
 }
-div[data-testid="stExpander"] summary p {
+
+div[data-testid="stExpander"] summary {
+    background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%) !important;
+    border-radius: 6px;
+    padding: 2px 10px;
+}
+
+div[data-testid="stExpander"] summary p, 
+div[data-testid="stExpander"] summary svg {
+    color: white !important;
+    fill: white !important;
     font-size: 18px !important;
     font-weight: 800 !important;
-    color: #1e3a8a !important;
 }
 
 .machine-title {
