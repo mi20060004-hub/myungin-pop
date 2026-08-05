@@ -70,9 +70,9 @@ if not st.session_state.authenticated:
 def show_update_dialog():
     st.markdown("""
     ### 🚀 업데이트 주요 기능
-    1. '계획공정' 단계가 신설되어 사전 생산 계획 등록 및 수정이 가능해졌습니다.
-    2. 사이드바에서 계획된 항목을 불러와 제조일자 선택 후 칭량공정 투입이 가능합니다.
-    3. 메인 현황판에 계획공정 전용 접기/펼치기 바가 추가되었습니다.
+    1. 계획공정 블록에 로트 유형 및 특이사항 표시 기능 추가
+    2. 사이드바 내 '등록된 생산 계획 수정' 기능 추가
+    3. 실시간 가동 건수 집계 시 계획공정 수량 제외 (칭량공정~외관선별공정만 합산)
     """)
     
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
@@ -169,7 +169,7 @@ except Exception as e:
 
 # --- 5. 데이터 로직 ---
 MACHINE_MAP = {
-    "계획공정": [],  # 👈 새로 추가된 계획 단계
+    "계획공정": [],  
     "칭량공정": [], 
     "과립공정": ["P100", "SM100", "P400", "GS400", "SM600", "KM10", "글라트유동층", "GPCG2", "구형과립기", "롤러컴팩터"],
     "건조공정": ["트레이1호", "트레이2호", "트레이3호", "트레이4호", "트레이5호", "트레이6호", "트레이7호", "다산유동층", "D600"],
@@ -371,6 +371,43 @@ with st.sidebar:
             st.success("계획공정에 등록되었습니다!")
             st.rerun()
 
+    # 이미 등록된 계획 수정용 섹션
+    planned_items_edit = curr_df[curr_df['공정'] == '계획공정'] if not curr_df.empty else pd.DataFrame()
+    if not planned_items_edit.empty:
+        with st.expander("✏️ 등록된 생산 계획 수정", expanded=False):
+            planned_items_edit['수정표시'] = planned_items_edit['제품'].astype(str).str.strip() + " | " + planned_items_edit['Lot'].astype(str).str.strip()
+            edit_options = planned_items_edit['수정표시'].tolist()
+            selected_edit_label = st.selectbox("수정할 계획 선택", ["선택하세요"] + edit_options, key="select_plan_to_edit")
+            
+            if selected_edit_label != "선택하세요":
+                target_edit_row = planned_items_edit[planned_items_edit['수정표시'] == selected_edit_label].iloc[0]
+                
+                up_lot = st.text_input("제조번호 수정", value=str(target_edit_row['Lot']), key="up_lot_val")
+                
+                raw_d = str(target_edit_row['제조일자'])
+                default_d = datetime.strptime(raw_d[:10], '%Y-%m-%d').date() if len(raw_d) >= 10 else get_today_date_kst()
+                up_date = st.date_input("제조일자 수정", value=default_d, key="up_date_val")
+                up_date_str = up_date.strftime('%Y-%m-%d')
+                
+                type_list = ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"]
+                cur_t = str(target_edit_row['유형'])
+                t_idx = type_list.index(cur_t) if cur_t in type_list else 0
+                up_type = st.selectbox("로트 유형 수정", type_list, index=t_idx, key="up_type_val")
+                
+                cur_n = str(target_edit_row['특이사항'])
+                if cur_n == 'nan' or cur_n == 'None': cur_n = ""
+                up_note = st.text_area("특이사항 수정", value=cur_n, key="up_note_val")
+                
+                if st.button("💾 수정 내용 저장", use_container_width=True):
+                    supabase.table("product_history").update({
+                        "Lot": up_lot.strip(),
+                        "제조일자": up_date_str,
+                        "유형": up_type,
+                        "특이사항": up_note
+                    }).eq("id", target_edit_row['Row']).execute()
+                    st.success("계획 정보가 수정되었습니다!")
+                    st.rerun()
+
     st.divider()
 
     st.header("🏭 2. 현장 제조 투입 (칭량공정)")
@@ -385,23 +422,24 @@ with st.sidebar:
         if selected_plan_label != "선택하세요":
             target_plan_row = planned_items[planned_items['선택표시'] == selected_plan_label].iloc[0]
             
-            # 제조 투입 전 정보 수정(업데이트) 기능 지원
-            st.markdown("<p style='font-size:13px; font-weight:700; color:#1e3a8a; margin-bottom:0px;'>투입 전 정보 수정 가능</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size:13px; font-weight:700; color:#1e3a8a; margin-bottom:0px;'>투입 시 최종 확인/수정</p>", unsafe_allow_html=True)
             edit_date = st.date_input("실제 제조일자 선택", value=datetime.strptime(str(target_plan_row['제조일자']), '%Y-%m-%d').date() if pd.notna(target_plan_row['제조일자']) and len(str(target_plan_row['제조일자'])) >= 10 else get_today_date_kst(), key="edit_exec_date")
             edit_date_str = edit_date.strftime('%Y-%m-%d')
             
-            edit_type = st.selectbox("로트 유형 수정", ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"], index=["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"].index(target_plan_row['유형']) if target_plan_row['유형'] in ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"] else 0, key="edit_exec_type")
+            type_list = ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"]
+            cur_t2 = str(target_plan_row['유형'])
+            t_idx2 = type_list.index(cur_t2) if cur_t2 in type_list else 0
+            edit_type = st.selectbox("로트 유형 확인/수정", type_list, index=t_idx2, key="edit_exec_type")
             
             curr_note_val = str(target_plan_row.get('특이사항', ''))
             if curr_note_val == 'nan' or curr_note_val == 'None': curr_note_val = ""
-            edit_note = st.text_area("특이사항 수정", value=curr_note_val, key="edit_exec_note")
+            edit_note = st.text_area("특이사항 확인/수정", value=curr_note_val, key="edit_exec_note")
             
             if st.button("🚀 칭량공정 투입 확정", type="primary", use_container_width=True):
                 p_name = target_plan_row['제품'].strip()
                 l_num = target_plan_row['Lot'].strip()
                 row_id = target_plan_row['Row']
                 
-                # 칭량공정에 새로 삽입
                 weigh_sub = curr_df[curr_df['공정'] == "칭량공정"]
                 new_weigh_p = int(weigh_sub['priority'].min()) - 1 if not weigh_sub.empty and pd.notna(weigh_sub['priority'].min()) else 0
                 
@@ -411,7 +449,6 @@ with st.sidebar:
                     "설비": "", "priority": new_weigh_p
                 }).execute()
                 
-                # 기존 계획공정 항목은 완료(출고) 처리
                 supabase.table("product_history").update({
                     "상태": "완료", "종료시간": get_now_kst(), "소요시간": "계획투입완료"
                 }).eq("id", row_id).execute()
@@ -451,7 +488,10 @@ with st.sidebar:
         st.divider()
 
     if st.session_state.view == 'main':
-        total_active_count = len(curr_df) if not curr_df.empty else 0
+        # 칭량공정부터 외관선별공정까지의 가동 건수만 합산
+        active_stages_for_count = [s for s in TARGET_STAGES if s != "계획공정"]
+        total_active_count = len(curr_df[curr_df['공정'].isin(active_stages_for_count)]) if not curr_df.empty else 0
+        
         st.markdown(f"<div style='font-size:16px; font-weight:800; color:#1e3a8a; margin-bottom:5px;'>실시간 가동 건수 (총 {total_active_count}건)</div>", unsafe_allow_html=True)
         st.markdown("<div style='font-size:14px; font-weight:700; color:#475569; margin-bottom:8px;'>공정 바로가기 (클릭 시 이동)</div>", unsafe_allow_html=True)
         
@@ -512,7 +552,7 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 2.14 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 2.15 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
 
 # --- 8. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
@@ -543,7 +583,7 @@ if st.session_state.view == 'main':
         stage_count = len(curr_df[curr_df['공정'] == stage]) if not curr_df.empty else 0
         stage_id = stage.replace(" ", "")
         
-        # '계획공정'인 경우는 st.expander를 활용하여 바를 클릭하면 접고 펼쳐지도록 구현
+        # '계획공정' 렌더링 (블록에 로트 유형 및 특이사항 표시 적용)
         if stage == "계획공정":
             with st.expander(f"▶ {stage} ({stage_count}건)", expanded=True):
                 m_items = pd.DataFrame()
@@ -579,6 +619,17 @@ if st.session_state.view == 'main':
                                         st.markdown(f"<p class='card-text-date'>예정일: {p_date}</p>", unsafe_allow_html=True)
                                         
                                     st.markdown(render_stock_and_wip_html(prod_name), unsafe_allow_html=True)
+                                    
+                                    # 일반로트가 아닌 경우에만 로트 유형 표시
+                                    r_type = str(row.get('유형', '')).strip()
+                                    if r_type and r_type not in ['일반로트', '일반', 'nan', 'None', '-']:
+                                        st.markdown(f"<p class='lot-type-highlight'>{r_type}</p>", unsafe_allow_html=True)
+                                        
+                                    # 공정 특이사항 표시
+                                    r_note = str(row.get('특이사항', '')).strip()
+                                    if r_note and r_note != 'nan' and r_note != 'None':
+                                        st.markdown(f"<p class='info-text-10px'>📝 {r_note}</p>", unsafe_allow_html=True)
+                                        
                                     st.markdown("</div>", unsafe_allow_html=True)
                 else:
                     st.caption("등록된 생산 계획이 없습니다.")
