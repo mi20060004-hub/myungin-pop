@@ -70,8 +70,12 @@ if not st.session_state.authenticated:
 def show_update_dialog():
     st.markdown("""
     ### 🚀 업데이트 주요 기능
-    1. 타정공정 계획에 이어 '코팅공정 계획' 및 '캡슐공정 계획' 페이지가 신설되었습니다.
-    2. 이전 공정 대기 블록들이 각 공정 설비 카드 아래쪽에 자동으로 배치됩니다.
+    1. 로그인 기능이 추가되었습니다.
+    2. 칭량공정 이전 '계획공정'이 추가되었습니다.
+    3. 타정,캡슐,코팅공정 계획 페이지가 추가되었습니다.
+    4. 현황판 제품 위치추적 기능이 강화되었습니다.
+    5. 공정중인 제품블록에 특이사항을 입력하는 기능이 추가되었습니다.
+    6. 제품블록에 이전공정 완료 후 며칠이 지났는지 표시됩니다.
     """)
     
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
@@ -569,7 +573,7 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 2.20 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 3.02 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
 
 # --- 8. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
