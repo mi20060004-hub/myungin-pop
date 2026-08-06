@@ -923,7 +923,7 @@ if st.session_state.view == 'main':
                                                             next_m = n_machines[0].strip() if n_machines else ""
                                                             sub_df = curr_df[(curr_df['공정'] == n_stg) & (curr_df['설비'].str.strip() == next_m)]
                                                             new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
-                                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정", "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m, "priority": new_p}).execute()
+                                                            supabase.table("product_history").insert({"Lot": row['Lot'], "제품": prod_name, "공정": n_stg, "상태": "대기", "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, "설비": next_m, "priority": new_p}).execute()
                                                             supabase.table("product_history").update({"상태": "1팀종료" if "외관선별" in str(n_stg) else "완료", "종료시간": get_now_kst(), "소요시간": dur}).eq("id", row['Row']).execute()
                                                         else:
                                                             # 💡 다음 공정이 없는 마지막 공정(외관선별공정 등)일 경우 바로 완료 처리
