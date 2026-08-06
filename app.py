@@ -249,49 +249,17 @@ def load_data():
 
     stock_dict = {}
     try:
-        s_data = supabase.table("product_stock_all").select("*").execute()
+        s_data = supabase.table("product_stock").select("적요, \"재고 월수\", \"재공 월수\"").order("id", desc=True).execute()
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
-            
-            col_item = next((c for c in s_df.columns if '품목명' in str(c)), None)
-            col_stock = next((c for c in s_df.columns if '재고 월수' in str(c)), None)
-            col_wip = next((c for c in s_df.columns if '재고/ 재공' in str(c) or '재공' in str(c)), None)
-            
-            if col_item and col_stock:
-                s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce')
-                s_df['재공_num'] = pd.to_numeric(s_df[col_wip], errors='coerce') if col_wip else pd.NA
-                
-                # 포장단위(예: 30C, 100T 등 끝단어)만 제외하고, 제품명과 용량(mg 등)은 결합하여 키 생성
-                def make_clean_key(val):
-                    parts = str(val).strip().split()
-                    if not parts: return ""
-                    # 마지막 단어가 포장단위(숫자+알파벳 조합 등)인 경우에만 제외
-                    if len(parts) > 1 and any(char.isalpha() for char in parts[-1]) and any(char.isdigit() for char in parts[-1]):
-                        base_parts = parts[:-1]
-                    else:
-                        base_parts = parts
-                    return "".join(base_parts).replace(" ", "")
-
-                s_df['매칭키'] = s_df[col_item].apply(make_clean_key)
-                
-                grouped = s_df.groupby('매칭키').agg(
-                    min_stock=('재고_num', 'min'),
-                    min_wip=('재공_num', 'min') if col_wip else ('재고_num', lambda x: pd.NA)
-                ).reset_index()
-                
-                for _, s_row in grouped.iterrows():
-                    p_key = str(s_row['매칭키']).strip()
-                    if not p_key: continue
-                    
-                    min_s = s_row['min_stock']
-                    min_w = s_row['min_wip']
-                    
-                    stock_dict[p_key] = {
-                        "재고": str(min_s) if pd.notna(min_s) else "정보없음",
-                        "재공": str(min_w) if pd.notna(min_w) else "정보없음"
-                    }
-    except Exception as e:
-        print(f"Stock load error: {e}")
+            s_df = s_df.drop_duplicates(subset=['적요'], keep='first')
+            for _, s_row in s_df.iterrows():
+                clean_stock_p = str(s_row['적요']).replace(" ", "").strip()
+                stock_dict[clean_stock_p] = {
+                    "재고": str(s_row.get('재고 월수', '정보없음')).strip(),
+                    "재공": str(s_row.get('재공 월수', '정보없음')).strip()
+                }
+    except Exception:
         pass
 
     curr_res = supabase.table("product_history").select("*").not_.in_("상태", ["완료", "1팀종료", "폐기"]).order("priority", desc=True).order("id", desc=True).execute()
@@ -630,10 +598,8 @@ with st.sidebar:
 
 # --- 8. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
-    # 조회할 때도 동일하게 공백을 완전히 제거하여 키 값 일치시키기
-    prod_clean = "".join(str(prod_name).strip().split())
+    prod_clean = prod_name.replace(" ", "")
     stock_info = stock_dict.get(prod_clean, {"재고": "정보없음", "재공": "정보없음"})
-    
     s_val = stock_info["재고"]
     w_val = stock_info["재공"]
     
@@ -641,21 +607,15 @@ def render_stock_and_wip_html(prod_name):
         html_str = "<p class='stock-black'>재고: 정보없음</p>"
     else:
         try:
-            val_float = float(s_val)
-            if val_float <= 1.0: 
-                html_str = f"<p class='stock-red'>재고: {s_val}개월</p>"
-            else: 
-                html_str = f"<p class='stock-green'>재고: {s_val}개월</p>"
-        except ValueError: 
-            html_str = f"<p class='stock-green'>재고: {s_val}</p>"
+            if float(s_val) <= 1.0: html_str = f"<p class='stock-red'>재고: {s_val}개월</p>"
+            else: html_str = f"<p class='stock-green'>재고: {s_val}개월</p>"
+        except ValueError: html_str = f"<p class='stock-green'>재고: {s_val}</p>"
         
     if w_val == "정보없음" or w_val == "None" or not w_val:
         html_str += "<p class='wip-black'>재공: 정보없음</p>"
     else:
-        try: 
-            html_str += f"<p class='wip-blue'>재공: {w_val}개월</p>"
-        except ValueError: 
-            html_str += f"<p class='wip-blue'>재공: {w_val}</p>"
+        try: html_str += f"<p class='wip-blue'>재공: {w_val}개월</p>"
+        except ValueError: html_str += f"<p class='wip-blue'>재공: {w_val}</p>"
         
     return html_str
 
