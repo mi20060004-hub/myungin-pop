@@ -249,31 +249,39 @@ def load_data():
 
     stock_dict = {}
     try:
-        # product_stock_all 테이블 전체 데이터를 가져와서 안전하게 처리
         s_data = supabase.table("product_stock_all").select("*").execute()
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
             
-            # 실제 컬럼명 확인 및 유연한 매칭 (품목명, 재고 월수, 재고/ 재공 월수 컬럼 찾기)
             col_item = next((c for c in s_df.columns if '품목명' in str(c)), None)
             col_stock = next((c for c in s_df.columns if '재고 월수' in str(c)), None)
             col_wip = next((c for c in s_df.columns if '재고/ 재공' in str(c) or '재공' in str(c)), None)
             
             if col_item and col_stock:
-                # 포장단위 무시하고 순수 제품명 추출
-                s_df['순수제품명'] = s_df[col_item].astype(str).str.strip().apply(lambda x: x.split()[0] if x else "")
-                
                 s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce')
                 s_df['재공_num'] = pd.to_numeric(s_df[col_wip], errors='coerce') if col_wip else pd.NA
                 
-                grouped = s_df.groupby('순수제품명').agg(
+                # 포장단위(예: 30C, 100T 등 끝단어)만 제외하고, 제품명과 용량(mg 등)은 결합하여 키 생성
+                def make_clean_key(val):
+                    parts = str(val).strip().split()
+                    if not parts: return ""
+                    # 마지막 단어가 포장단위(숫자+알파벳 조합 등)인 경우에만 제외
+                    if len(parts) > 1 and any(char.isalpha() for char in parts[-1]) and any(char.isdigit() for char in parts[-1]):
+                        base_parts = parts[:-1]
+                    else:
+                        base_parts = parts
+                    return "".join(base_parts).replace(" ", "")
+
+                s_df['매칭키'] = s_df[col_item].apply(make_clean_key)
+                
+                grouped = s_df.groupby('매칭키').agg(
                     min_stock=('재고_num', 'min'),
                     min_wip=('재공_num', 'min') if col_wip else ('재고_num', lambda x: pd.NA)
                 ).reset_index()
                 
                 for _, s_row in grouped.iterrows():
-                    raw_p_name = str(s_row['순수제품명']).strip()
-                    p_key = "".join(raw_p_name.split()) # 공백 완전 제거
+                    p_key = str(s_row['매칭키']).strip()
+                    if not p_key: continue
                     
                     min_s = s_row['min_stock']
                     min_w = s_row['min_wip']
