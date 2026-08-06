@@ -253,23 +253,22 @@ def load_data():
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
             
-            # 1. 품목명 컬럼 지정
-            col_item = '품목명' if '품목명' in s_df.columns else next((c for c in s_df.columns if '품목명' in str(c)), None)
+            # 컬럼명 자동 매칭 (품목명, 재고 월수, 재고/ 재공 월수)
+            col_item = next((c for c in s_df.columns if '품목명' in str(c)), '품목명')
+            col_stock = next((c for c in s_df.columns if '재고 월수' in str(c)), '재고 월수')
+            col_wip = next((c for c in s_df.columns if '재고/ 재공' in str(c) or '재공' in str(c)), '재고/ 재공 월수')
             
-            # 2. 재고/재공 관련 컬럼 정밀 지정 (Supabase 화면 기준)
-            # 첫 번째 '재고/재공 월수' 계열 컬럼을 재고로 우선 활용
-            col_stock = next((c for c in s_df.columns if '재고/재공 월수' in str(c) or '재고' in str(c)), None)
-            
-            if col_item and col_stock:
-                # 숫자 변환 (에러 발생 시 NaN 처리)
-                s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce')
+            if col_item in s_df.columns:
+                s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce') if col_stock in s_df.columns else pd.NA
+                s_df['재공_num'] = pd.to_numeric(s_df[col_wip], errors='coerce') if col_wip in s_df.columns else pd.NA
                 
-                # 라코정150mg 30T 형태에서 마지막 포장단위(30T 등)만 떼어내고 순수 제품명 추출
+                # '아토목신캡슐10mg 30C' 형태에서 마지막 포장단위 토큰을 제외한 앞부분만 합쳐서 매칭키 생성
                 def make_exact_key(val):
                     text = str(val).strip()
                     if not text: return ""
                     parts = text.split()
-                    if len(parts) > 1 and any(c.isdigit() for c in parts[-1]) and any(c.isalpha() for c in parts[-1]):
+                    if len(parts) > 1:
+                        # 마지막 단어(포장단위)를 제외하고 붙이기
                         base_parts = parts[:-1]
                     else:
                         base_parts = parts
@@ -277,9 +276,10 @@ def load_data():
 
                 s_df['매칭키'] = s_df[col_item].apply(make_exact_key)
                 
-                # 동일 제품별 최솟값 그룹화
+                # 동일 제품명별로 재고 및 재공 월수의 최솟값 계산
                 grouped = s_df.groupby('매칭키').agg(
-                    min_stock=('재고_num', 'min')
+                    min_stock=('재고_num', 'min'),
+                    min_wip=('재공_num', 'min') if '재공_num' in s_df.columns else ('재고_num', lambda x: pd.NA)
                 ).reset_index()
                 
                 for _, s_row in grouped.iterrows():
@@ -287,11 +287,11 @@ def load_data():
                     if not p_key: continue
                     
                     min_s = s_row['min_stock']
+                    min_w = s_row['min_wip']
                     
-                    # 재고와 재공 모두 동일 컬럼의 최솟값 또는 유효값 부여
                     stock_dict[p_key] = {
                         "재고": str(min_s) if pd.notna(min_s) else "정보없음",
-                        "재공": str(min_s) if pd.notna(min_s) else "정보없음"
+                        "재공": str(min_w) if pd.notna(min_w) else "정보없음"
                     }
     except Exception as e:
         print(f"Stock load error: {e}")
