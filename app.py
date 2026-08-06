@@ -48,7 +48,7 @@ if not st.session_state.authenticated:
         """, unsafe_allow_html=True)
         
         with st.container():
-            st.markdown("<p style='font-weight: 400; color: #ffffff; margin-top: 15px; margin-bottom: 5px; font-size: 15px;'>🔒 비밀번호는 '2026' 입니다.</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-weight: 400; color: #ffffff; margin-top: 15px; margin-bottom: 5px; font-size: 15px;'>🔒 비밀번호는 **** 입니다.</p>", unsafe_allow_html=True)
             input_pw = st.text_input("비밀번호 입력", type="password", label_visibility="collapsed", placeholder="비밀번호를 입력하세요")
             
             st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
@@ -66,27 +66,27 @@ if not st.session_state.authenticated:
     st.stop()
 
 # --- 🌟 업데이트 안내 팝업 (URL 파라미터 연동형) ---
-@st.dialog("✨ [시스템 업데이트 안내] 새로운 기능이 추가되었습니다!")
-def show_update_dialog():
-    st.markdown("""
+#@st.dialog("✨ [시스템 업데이트 안내] 새로운 기능이 추가되었습니다!")
+#def show_update_dialog():
+#    st.markdown("""
     ### 🚀 업데이트 주요 기능
-    1. 로그인 기능이 추가되었습니다.
-    2. '계획공정'이 추가되었습니다.(제조 예정제품 확인 가능)
-    3. 타정,캡슐,코팅공정 계획 페이지가 추가되었습니다.(설비별 대기제품 확인 가능)
-    4. 현황판의 제품 위치추적 기능이 강화되었습니다.
-    5. 공정중인 제품블록에 특이사항을 입력하는 기능이 추가되었습니다.
-    6. 직전공정 완료 후 며칠이 지났는지 블록에 표시됩니다.
-    """)
+#    1. 로그인 기능이 추가되었습니다.
+#    2. '계획공정'이 추가되었습니다.(제조 예정제품 확인 가능)
+#    3. 타정,캡슐,코팅공정 계획 페이지가 추가되었습니다.(설비별 대기제품 확인 가능)
+#    4. 현황판의 제품 위치추적 기능이 강화되었습니다.
+#    5. 공정중인 제품블록에 특이사항을 입력하는 기능이 추가되었습니다.
+#    6. 직전공정 완료 후 며칠이 지났는지 블록에 표시됩니다.
+#    """)
     
-    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+#    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     
-    if st.button("확인 (팝업 닫기)", type="primary", use_container_width=True):
-        st.query_params["popup"] = "seen"
-        st.rerun()
+#    if st.button("확인 (팝업 닫기)", type="primary", use_container_width=True):
+#        st.query_params["popup"] = "seen"
+#        st.rerun()
 
 # 로그인 상태이고, URL에 popup=seen 파라미터가 없을 때만 팝업 실행
-if st.session_state.authenticated and st.query_params.get("popup") != "seen":
-    show_update_dialog()
+#if st.session_state.authenticated and st.query_params.get("popup") != "seen":
+#    show_update_dialog()
 
 # --- 3. CSS 스타일 ---
 st.markdown("""
@@ -594,7 +594,7 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 3.02 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 3.06 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
 
 # --- 8. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
