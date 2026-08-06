@@ -598,7 +598,8 @@ with st.sidebar:
 
 # --- 8. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
-    prod_clean = prod_name.replace(" ", "")
+    # 스트림릿 제품명과 맞추기 위해 공백을 제거한 순수 제품명 추출
+    prod_clean = prod_name.replace(" ", "").strip()
     stock_info = stock_dict.get(prod_clean, {"재고": "정보없음", "재공": "정보없음"})
     s_val = stock_info["재고"]
     w_val = stock_info["재공"]
@@ -607,15 +608,21 @@ def render_stock_and_wip_html(prod_name):
         html_str = "<p class='stock-black'>재고: 정보없음</p>"
     else:
         try:
-            if float(s_val) <= 1.0: html_str = f"<p class='stock-red'>재고: {s_val}개월</p>"
-            else: html_str = f"<p class='stock-green'>재고: {s_val}개월</p>"
-        except ValueError: html_str = f"<p class='stock-green'>재고: {s_val}</p>"
+            val_float = float(s_val)
+            if val_float <= 1.0: 
+                html_str = f"<p class='stock-red'>재고: {s_val}개월</p>"
+            else: 
+                html_str = f"<p class='stock-green'>재고: {s_val}개월</p>"
+        except ValueError: 
+            html_str = f"<p class='stock-green'>재고: {s_val}</p>"
         
     if w_val == "정보없음" or w_val == "None" or not w_val:
         html_str += "<p class='wip-black'>재공: 정보없음</p>"
     else:
-        try: html_str += f"<p class='wip-blue'>재공: {w_val}개월</p>"
-        except ValueError: html_str += f"<p class='wip-blue'>재공: {w_val}</p>"
+        try: 
+            html_str += f"<p class='wip-blue'>재공: {w_val}개월</p>"
+        except ValueError: 
+            html_str += f"<p class='wip-blue'>재공: {w_val}</p>"
         
     return html_str
 
