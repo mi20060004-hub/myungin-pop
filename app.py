@@ -249,54 +249,17 @@ def load_data():
 
     stock_dict = {}
     try:
-        # product_stock_all 테이블에서 데이터 조회
-        s_res = supabase.table("product_stock_all").select("*").execute()
-        if s_res.data:
-            s_df = pd.DataFrame(s_res.data)
-            
-            # 컬럼명이 정확히 존재하는지 유연하게 파악
-            col_item = next((c for c in s_df.columns if '품목명' in str(c)), None)
-            col_stock = next((c for c in s_df.columns if '재고 월수' in str(c)), None)
-            col_wip = next((c for c in s_df.columns if '재고/ 재공' in str(c) or '재공' in str(c)), None)
-            
-            if col_item:
-                s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce') if col_stock else pd.NA
-                s_df['재공_num'] = pd.to_numeric(s_df[col_wip], errors='coerce') if col_wip else pd.NA
-                
-                # 핵심: "아토목신캡슐10mg 30C", "클로퀸정200mg 100T(군납용)" 등에서 
-                # 마지막 단어(포장단위)를 제거하고 공백을 없애서 master의 제품명과 일치시키기
-                def make_clean_key(val):
-                    text = str(val).strip()
-                    if not text or text.lower() == 'nan': return ""
-                    parts = text.split()
-                    if len(parts) > 1:
-                        # 마지막 토큰(포장단위) 제외
-                        base_parts = parts[:-1]
-                    else:
-                        base_parts = parts
-                    return "".join(base_parts).replace(" ", "")
-
-                s_df['매칭키'] = s_df[col_item].apply(make_clean_key)
-                
-                # 동일 제품별 최솟값(min) 계산
-                grouped = s_df.groupby('매칭키').agg(
-                    min_stock=('재고_num', 'min'),
-                    min_wip=('재공_num', 'min') if col_wip else ('재고_num', lambda x: pd.NA)
-                ).reset_index()
-                
-                for _, s_row in grouped.iterrows():
-                    p_key = str(s_row['매칭키']).strip()
-                    if not p_key: continue
-                    
-                    min_s = s_row['min_stock']
-                    min_w = s_row['min_wip']
-                    
-                    stock_dict[p_key] = {
-                        "재고": str(min_s) if pd.notna(min_s) else "정보없음",
-                        "재공": str(min_w) if pd.notna(min_w) else "정보없음"
-                    }
-    except Exception as e:
-        print(f"Stock load error: {e}")
+        s_data = supabase.table("product_stock").select("적요, \"재고 월수\", \"재공 월수\"").order("id", desc=True).execute()
+        if s_data.data:
+            s_df = pd.DataFrame(s_data.data)
+            s_df = s_df.drop_duplicates(subset=['적요'], keep='first')
+            for _, s_row in s_df.iterrows():
+                clean_stock_p = str(s_row['적요']).replace(" ", "").strip()
+                stock_dict[clean_stock_p] = {
+                    "재고": str(s_row.get('재고 월수', '정보없음')).strip(),
+                    "재공": str(s_row.get('재공 월수', '정보없음')).strip()
+                }
+    except Exception:
         pass
 
     curr_res = supabase.table("product_history").select("*").not_.in_("상태", ["완료", "1팀종료", "폐기"]).order("priority", desc=True).order("id", desc=True).execute()
@@ -312,6 +275,7 @@ def load_data():
     all_raw_df = pd.concat([curr_df, log_df], ignore_index=True) if not curr_df.empty or not log_df.empty else pd.DataFrame()
 
     return master_dict, stock_dict, curr_df, log_df, all_raw_df
+
 master_dict, stock_dict, curr_df, log_df, all_raw_df = load_data()
 
 def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
