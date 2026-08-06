@@ -408,10 +408,10 @@ with st.sidebar:
 
     planned_items_edit = curr_df[curr_df['공정'] == '계획공정'] if not curr_df.empty else pd.DataFrame()
     if not planned_items_edit.empty:
-        with st.expander("✏️ 등록된 생산 계획 수정", expanded=False):
+        with st.expander("✏️ 등록된 생산 계획 수정 / 삭제", expanded=False):
             planned_items_edit['수정표시'] = planned_items_edit['제품'].astype(str).str.strip() + " | " + planned_items_edit['Lot'].astype(str).str.strip()
             edit_options = planned_items_edit['수정표시'].tolist()
-            selected_edit_label = st.selectbox("수정할 계획 선택", ["선택하세요"] + edit_options, key="select_plan_to_edit")
+            selected_edit_label = st.selectbox("관리할 계획 선택", ["선택하세요"] + edit_options, key="select_plan_to_edit")
             
             if selected_edit_label != "선택하세요":
                 target_edit_row = planned_items_edit[planned_items_edit['수정표시'] == selected_edit_label].iloc[0]
@@ -432,15 +432,23 @@ with st.sidebar:
                 if cur_n == 'nan' or cur_n == 'None': cur_n = ""
                 up_note = st.text_area("특이사항 수정", value=cur_n, key="up_note_val")
                 
-                if st.button("💾 수정 내용 저장", use_container_width=True):
-                    supabase.table("product_history").update({
-                        "Lot": up_lot.strip(),
-                        "제조일자": up_date_str,
-                        "유형": up_type,
-                        "특이사항": up_note
-                    }).eq("id", target_edit_row['Row']).execute()
-                    st.success("계획 정보가 수정되었습니다!")
-                    st.rerun()
+                col_save, col_del = st.columns(2)
+                with col_save:
+                    if st.button("💾 수정 내용 저장", use_container_width=True):
+                        supabase.table("product_history").update({
+                            "Lot": up_lot.strip(),
+                            "제조일자": up_date_str,
+                            "유형": up_type,
+                            "특이사항": up_note
+                        }).eq("id", target_edit_row['Row']).execute()
+                        st.success("계획 정보가 수정되었습니다!")
+                        st.rerun()
+                
+                with col_del:
+                    if st.button("🗑️ 계획 삭제", type="primary", use_container_width=True):
+                        supabase.table("product_history").delete().eq("id", target_edit_row['Row']).execute()
+                        st.success("생산 계획이 삭제되었습니다!")
+                        st.rerun()
 
     st.divider()
 
