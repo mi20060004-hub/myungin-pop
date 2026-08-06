@@ -253,20 +253,22 @@ def load_data():
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
             
-            # 컬럼명 안전하게 매칭 (품목명, 재고, 재공 키워드 포함 컬럼 찾기)
-            col_item = next((c for c in s_df.columns if '품목명' in str(c)), None)
-            col_stock = next((c for c in s_df.columns if '재고' in str(c)), None)
-            col_wip = next((c for c in s_df.columns if '재공' in str(c) or '재고/재공' in str(c) or '재고 / 재공' in str(c)), None)
+            # 1. 품목명 컬럼 지정
+            col_item = '품목명' if '품목명' in s_df.columns else next((c for c in s_df.columns if '품목명' in str(c)), None)
             
-            if col_item:
-                s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce') if col_stock else pd.NA
-                s_df['재공_num'] = pd.to_numeric(s_df[col_wip], errors='coerce') if col_wip else pd.NA
+            # 2. 재고/재공 관련 컬럼 정밀 지정 (Supabase 화면 기준)
+            # 첫 번째 '재고/재공 월수' 계열 컬럼을 재고로 우선 활용
+            col_stock = next((c for c in s_df.columns if '재고/재공 월수' in str(c) or '재고' in str(c)), None)
+            
+            if col_item and col_stock:
+                # 숫자 변환 (에러 발생 시 NaN 처리)
+                s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce')
                 
+                # 라코정150mg 30T 형태에서 마지막 포장단위(30T 등)만 떼어내고 순수 제품명 추출
                 def make_exact_key(val):
                     text = str(val).strip()
                     if not text: return ""
                     parts = text.split()
-                    # 마지막 조각이 포장단위(숫자+알파벳 조합)인 경우 제외
                     if len(parts) > 1 and any(c.isdigit() for c in parts[-1]) and any(c.isalpha() for c in parts[-1]):
                         base_parts = parts[:-1]
                     else:
@@ -275,9 +277,9 @@ def load_data():
 
                 s_df['매칭키'] = s_df[col_item].apply(make_exact_key)
                 
+                # 동일 제품별 최솟값 그룹화
                 grouped = s_df.groupby('매칭키').agg(
-                    min_stock=('재고_num', 'min'),
-                    min_wip=('재공_num', 'min') if col_wip else ('재고_num', lambda x: pd.NA)
+                    min_stock=('재고_num', 'min')
                 ).reset_index()
                 
                 for _, s_row in grouped.iterrows():
@@ -285,11 +287,11 @@ def load_data():
                     if not p_key: continue
                     
                     min_s = s_row['min_stock']
-                    min_w = s_row['min_wip']
                     
+                    # 재고와 재공 모두 동일 컬럼의 최솟값 또는 유효값 부여
                     stock_dict[p_key] = {
                         "재고": str(min_s) if pd.notna(min_s) else "정보없음",
-                        "재공": str(min_w) if pd.notna(min_w) else "정보없음"
+                        "재공": str(min_s) if pd.notna(min_s) else "정보없음"
                     }
     except Exception as e:
         print(f"Stock load error: {e}")
