@@ -249,53 +249,50 @@ def load_data():
 
     stock_dict = {}
     try:
-        # Supabase의 product_stock_all 테이블 조회
-        s_data = supabase.table("product_stock_all").select("*").execute()
-        if s_data.data:
-            s_df = pd.DataFrame(s_data.data)
+        # product_stock_all 테이블에서 전체 데이터 조회
+        s_res = supabase.table("product_stock_all").select("품목명, \"재고 월수\", \"재고/ 재공 월수\"").execute()
+        
+        if s_res.data:
+            s_df = pd.DataFrame(s_res.data)
             
-            # 컬럼명 유연하게 탐색
-            col_item = next((c for c in s_df.columns if '품목명' in str(c)), '품목명')
-            col_stock = next((c for c in s_df.columns if '재고 월수' in str(c)), '재고 월수')
-            col_wip = next((c for c in s_df.columns if '재고/ 재공' in str(c) or '재공' in str(c)), '재고/ 재공 월수')
+            # 1. 숫자형 데이터로 변환 (변환 실패 시 NaN)
+            s_df['재고_num'] = pd.to_numeric(s_df['재고 월수'], errors='coerce')
+            s_df['재공_num'] = pd.to_numeric(s_df['재고/ 재공 월수'], errors='coerce')
             
-            if col_item in s_df.columns:
-                s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce') if col_stock in s_df.columns else pd.NA
-                s_df['재공_num'] = pd.to_numeric(s_df[col_wip], errors='coerce') if col_wip in s_df.columns else pd.NA
-                
-                def make_exact_key(val):
-                    text = str(val).strip()
-                    if not text: return ""
-                    parts = text.split()
-                    if len(parts) > 1:
-                        base_parts = parts[:-1]
-                    else:
-                        base_parts = parts
-                    return "".join(base_parts).replace(" ", "")
+            # 2. 품목명에서 마지막 포장단위 분리 및 순수 제품명 키 생성
+            def extract_product_key(val):
+                text = str(val).strip()
+                if not text or text.lower() == 'nan': return ""
+                parts = text.split()
+                if len(parts) > 1:
+                    # 마지막 단어(포장단위)를 제외한 나머지 부분을 합침
+                    base_name = "".join(parts[:-1])
+                else:
+                    base_name = text
+                return base_name.replace(" ", "")
 
-                s_df['매칭키'] = s_df[col_item].apply(make_exact_key)
+            s_df['매칭키'] = s_df['품목명'].apply(extract_product_key)
+            
+            # 3. 제품명(매칭키)별로 각각 재고 월수와 재공 월수의 최솟값(min) 계산
+            grouped = s_df.groupby('매칭키').agg(
+                min_stock=('재고_num', 'min'),
+                min_wip=('재공_num', 'min')
+            ).reset_index()
+            
+            # 4. stock_dict에 담기
+            for _, row in grouped.iterrows():
+                p_key = str(row['매칭키']).strip()
+                if not p_key: continue
                 
-                grouped = s_df.groupby('매칭키').agg(
-                    min_stock=('재고_num', 'min'),
-                    min_wip=('재공_num', 'min') if '재공_num' in s_df.columns else ('재고_num', lambda x: pd.NA)
-                ).reset_index()
+                min_s = row['min_stock']
+                min_w = row['min_wip']
                 
-                for _, s_row in grouped.iterrows():
-                    p_key = str(s_row['매칭키']).strip()
-                    if not p_key: continue
-                    
-                    min_s = s_row['min_stock']
-                    min_w = s_row['min_wip']
-                    
-                    stock_dict[p_key] = {
-                        "재고": str(min_s) if pd.notna(min_s) else "정보없음",
-                        "재공": str(min_w) if pd.notna(min_w) else "정보없음"
-                    }
-                
-                # 디버깅용: 딕셔너리가 정상 생성되었는지 확인 (첫 5개 출력)
-                print("Loaded stock keys sample:", list(stock_dict.items())[:5])
+                stock_dict[p_key] = {
+                    "재고": str(min_s) if pd.notna(min_s) else "정보없음",
+                    "재공": str(min_w) if pd.notna(min_w) else "정보없음"
+                }
     except Exception as e:
-        print(f"Stock load error details: {e}")
+        print(f"Stock loading error: {e}")
         pass
 
     curr_res = supabase.table("product_history").select("*").not_.in_("상태", ["완료", "1팀종료", "폐기"]).order("priority", desc=True).order("id", desc=True).execute()
