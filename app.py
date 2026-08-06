@@ -249,36 +249,39 @@ def load_data():
 
     stock_dict = {}
     try:
-        # product_stock_all 테이블에서 품목명, 재고 월수, 재고/ 재공 월수 조회
-        s_data = supabase.table("product_stock_all").select("품목명, \"재고 월수\", \"재고/ 재공 월수\"").execute()
+        # product_stock_all 테이블 전체 데이터를 가져와서 안전하게 처리
+        s_data = supabase.table("product_stock_all").select("*").execute()
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
             
-            # 품목명에서 공백 뒤의 포장단위(30C, 100T 등) 무시하고 순수 제품명 추출
-            s_df['순수제품명'] = s_df['품목명'].astype(str).str.strip().apply(lambda x: x.split()[0] if x else "")
+            # 실제 컬럼명 확인 및 유연한 매칭 (품목명, 재고 월수, 재고/ 재공 월수 컬럼 찾기)
+            col_item = next((c for c in s_df.columns if '품목명' in str(c)), None)
+            col_stock = next((c for c in s_df.columns if '재고 월수' in str(c)), None)
+            col_wip = next((c for c in s_df.columns if '재고/ 재공' in str(c) or '재공' in str(c)), None)
             
-            # 숫자로 변환
-            s_df['재고_num'] = pd.to_numeric(s_df['재고 월수'], errors='coerce')
-            s_df['재공_num'] = pd.to_numeric(s_df['재고/ 재공 월수'], errors='coerce')
-            
-            # 동일 제품명 중 최솟값 그룹화
-            grouped = s_df.groupby('순수제품명').agg(
-                min_stock=('재고_num', 'min'),
-                min_wip=('재공_num', 'min')
-            ).reset_index()
-            
-            for _, s_row in grouped.iterrows():
-                # 품목명에서 순수 제품명 추출 후 공백 제거 및 통일
-                raw_p_name = str(s_row['순수제품명']).strip()
-                p_key = "".join(raw_p_name.split()) # 모든 공백 제거
+            if col_item and col_stock:
+                # 포장단위 무시하고 순수 제품명 추출
+                s_df['순수제품명'] = s_df[col_item].astype(str).str.strip().apply(lambda x: x.split()[0] if x else "")
                 
-                min_s = s_row['min_stock']
-                min_w = s_row['min_wip']
+                s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce')
+                s_df['재공_num'] = pd.to_numeric(s_df[col_wip], errors='coerce') if col_wip else pd.NA
                 
-                stock_dict[p_key] = {
-                    "재고": str(min_s) if pd.notna(min_s) else "정보없음",
-                    "재공": str(min_w) if pd.notna(min_w) else "정보없음"
-                }
+                grouped = s_df.groupby('순수제품명').agg(
+                    min_stock=('재고_num', 'min'),
+                    min_wip=('재공_num', 'min') if col_wip else ('재고_num', lambda x: pd.NA)
+                ).reset_index()
+                
+                for _, s_row in grouped.iterrows():
+                    raw_p_name = str(s_row['순수제품명']).strip()
+                    p_key = "".join(raw_p_name.split()) # 공백 완전 제거
+                    
+                    min_s = s_row['min_stock']
+                    min_w = s_row['min_wip']
+                    
+                    stock_dict[p_key] = {
+                        "재고": str(min_s) if pd.notna(min_s) else "정보없음",
+                        "재공": str(min_w) if pd.notna(min_w) else "정보없음"
+                    }
     except Exception as e:
         print(f"Stock load error: {e}")
         pass
