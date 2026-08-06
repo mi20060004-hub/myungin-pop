@@ -249,17 +249,35 @@ def load_data():
 
     stock_dict = {}
     try:
-        s_data = supabase.table("product_stock").select("적요, \"재고 월수\", \"재공 월수\"").order("id", desc=True).execute()
+        # product_stock_all 테이블에서 품목명, 재고 월수, 재고/ 재공 월수 조회
+        s_data = supabase.table("product_stock_all").select("품목명, \"재고 월수\", \"재고/ 재공 월수\"").execute()
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
-            s_df = s_df.drop_duplicates(subset=['적요'], keep='first')
-            for _, s_row in s_df.iterrows():
-                clean_stock_p = str(s_row['적요']).replace(" ", "").strip()
-                stock_dict[clean_stock_p] = {
-                    "재고": str(s_row.get('재고 월수', '정보없음')).strip(),
-                    "재공": str(s_row.get('재공 월수', '정보없음')).strip()
+            
+            # 품목명에서 공백 뒤의 포장단위(30C, 100T 등) 무시하고 순수 제품명 추출
+            s_df['순수제품명'] = s_df['품목명'].astype(str).str.strip().apply(lambda x: x.split()[0] if x else "")
+            
+            # 숫자로 변환
+            s_df['재고_num'] = pd.to_numeric(s_df['재고 월수'], errors='coerce')
+            s_df['재공_num'] = pd.to_numeric(s_df['재고/ 재공 월수'], errors='coerce')
+            
+            # 동일 제품명 중 최솟값 그룹화
+            grouped = s_df.groupby('순수제품명').agg(
+                min_stock=('재고_num', 'min'),
+                min_wip=('재공_num', 'min')
+            ).reset_index()
+            
+            for _, s_row in grouped.iterrows():
+                p_key = str(s_row['순수제품명']).replace(" ", "").strip()
+                min_s = s_row['min_stock']
+                min_w = s_row['min_wip']
+                
+                stock_dict[p_key] = {
+                    "재고": str(min_s) if pd.notna(min_s) else "정보없음",
+                    "재공": str(min_w) if pd.notna(min_w) else "정보없음"
                 }
-    except Exception:
+    except Exception as e:
+        print(f"Stock load error: {e}")
         pass
 
     curr_res = supabase.table("product_history").select("*").not_.in_("상태", ["완료", "1팀종료", "폐기"]).order("priority", desc=True).order("id", desc=True).execute()
