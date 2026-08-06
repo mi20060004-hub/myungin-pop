@@ -249,17 +249,51 @@ def load_data():
 
     stock_dict = {}
     try:
-        s_data = supabase.table("product_stock").select("적요, \"재고 월수\", \"재공 월수\"").order("id", desc=True).execute()
+        # product_stock_all 테이블 전체 데이터 조회
+        s_data = supabase.table("product_stock_all").select("*").execute()
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
-            s_df = s_df.drop_duplicates(subset=['적요'], keep='first')
-            for _, s_row in s_df.iterrows():
-                clean_stock_p = str(s_row['적요']).replace(" ", "").strip()
-                stock_dict[clean_stock_p] = {
-                    "재고": str(s_row.get('재고 월수', '정보없음')).strip(),
-                    "재공": str(s_row.get('재공 월수', '정보없음')).strip()
-                }
-    except Exception:
+            
+            col_item = next((c for c in s_df.columns if '품목명' in str(c)), None)
+            col_stock = next((c for c in s_df.columns if '재고' in str(c) and '월수' in str(c)), None)
+            col_wip = next((c for c in s_df.columns if '재공' in str(c) or '재고/재공' in str(c)), None)
+            
+            if col_item and col_stock:
+                s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce')
+                s_df['재공_num'] = pd.to_numeric(s_df[col_wip], errors='coerce') if col_wip else pd.NA
+                
+                # '라코정150mg 30T' -> 마지막 '30T'만 떼어내고 '라코정150mg'만 매칭키로 추출
+                def make_exact_key(val):
+                    text = str(val).strip()
+                    if not text: return ""
+                    parts = text.split()
+                    # 마지막 조각이 T 또는 C 등으로 끝나는 포장단위 형태인 경우 제외하고 합치기
+                    if len(parts) > 1 and any(c.isdigit() for c in parts[-1]) and any(c.isalpha() for c in parts[-1]):
+                        base_parts = parts[:-1]
+                    else:
+                        base_parts = parts
+                    return "".join(base_parts).replace(" ", "")
+
+                s_df['매칭키'] = s_df[col_item].apply(make_exact_key)
+                
+                grouped = s_df.groupby('매칭키').agg(
+                    min_stock=('재고_num', 'min'),
+                    min_wip=('재공_num', 'min') if col_wip else ('재고_num', lambda x: pd.NA)
+                ).reset_index()
+                
+                for _, s_row in grouped.iterrows():
+                    p_key = str(s_row['매칭키']).strip()
+                    if not p_key: continue
+                    
+                    min_s = s_row['min_stock']
+                    min_w = s_row['min_wip']
+                    
+                    stock_dict[p_key] = {
+                        "재고": str(min_s) if pd.notna(min_s) else "정보없음",
+                        "재공": str(min_w) if pd.notna(min_w) else "정보없음"
+                    }
+    except Exception as e:
+        print(f"Stock load error: {e}")
         pass
 
     curr_res = supabase.table("product_history").select("*").not_.in_("상태", ["완료", "1팀종료", "폐기"]).order("priority", desc=True).order("id", desc=True).execute()
