@@ -249,25 +249,24 @@ def load_data():
 
     stock_dict = {}
     try:
-        # product_stock_all 테이블 전체 데이터 조회
         s_data = supabase.table("product_stock_all").select("*").execute()
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
             
+            # 컬럼명 안전하게 매칭 (품목명, 재고, 재공 키워드 포함 컬럼 찾기)
             col_item = next((c for c in s_df.columns if '품목명' in str(c)), None)
-            col_stock = next((c for c in s_df.columns if '재고' in str(c) and '월수' in str(c)), None)
-            col_wip = next((c for c in s_df.columns if '재공' in str(c) or '재고/재공' in str(c)), None)
+            col_stock = next((c for c in s_df.columns if '재고' in str(c)), None)
+            col_wip = next((c for c in s_df.columns if '재공' in str(c) or '재고/재공' in str(c) or '재고 / 재공' in str(c)), None)
             
-            if col_item and col_stock:
-                s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce')
+            if col_item:
+                s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce') if col_stock else pd.NA
                 s_df['재공_num'] = pd.to_numeric(s_df[col_wip], errors='coerce') if col_wip else pd.NA
                 
-                # '라코정150mg 30T' -> 마지막 '30T'만 떼어내고 '라코정150mg'만 매칭키로 추출
                 def make_exact_key(val):
                     text = str(val).strip()
                     if not text: return ""
                     parts = text.split()
-                    # 마지막 조각이 T 또는 C 등으로 끝나는 포장단위 형태인 경우 제외하고 합치기
+                    # 마지막 조각이 포장단위(숫자+알파벳 조합)인 경우 제외
                     if len(parts) > 1 and any(c.isdigit() for c in parts[-1]) and any(c.isalpha() for c in parts[-1]):
                         base_parts = parts[:-1]
                     else:
