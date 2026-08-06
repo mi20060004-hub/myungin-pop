@@ -61,7 +61,7 @@ if not st.session_state.authenticated:
                 else:
                     st.error("❌ 비밀번호가 올바르지 않습니다.")
                     
-        st.markdown("<p style='text-align: center; color: #ffffff; font-size: 12px; margin-top: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);'>Developed by JK / Production Dept.</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #ffffff; font-size: 12px; margin-top: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);'>Production Dept.</p>", unsafe_allow_html=True)
         
     st.stop()
 
