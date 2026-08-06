@@ -268,7 +268,10 @@ def load_data():
             ).reset_index()
             
             for _, s_row in grouped.iterrows():
-                p_key = str(s_row['순수제품명']).replace(" ", "").strip()
+                # 품목명에서 순수 제품명 추출 후 공백 제거 및 통일
+                raw_p_name = str(s_row['순수제품명']).strip()
+                p_key = "".join(raw_p_name.split()) # 모든 공백 제거
+                
                 min_s = s_row['min_stock']
                 min_w = s_row['min_wip']
                 
@@ -616,9 +619,10 @@ with st.sidebar:
 
 # --- 8. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
-    # 스트림릿 제품명과 맞추기 위해 공백을 제거한 순수 제품명 추출
-    prod_clean = prod_name.replace(" ", "").strip()
+    # 조회할 때도 동일하게 공백을 완전히 제거하여 키 값 일치시키기
+    prod_clean = "".join(str(prod_name).strip().split())
     stock_info = stock_dict.get(prod_clean, {"재고": "정보없음", "재공": "정보없음"})
+    
     s_val = stock_info["재고"]
     w_val = stock_info["재공"]
     
