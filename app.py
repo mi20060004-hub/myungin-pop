@@ -249,11 +249,12 @@ def load_data():
 
     stock_dict = {}
     try:
+        # Supabase의 product_stock_all 테이블 조회
         s_data = supabase.table("product_stock_all").select("*").execute()
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
             
-            # 컬럼명 자동 매칭 (품목명, 재고 월수, 재고/ 재공 월수)
+            # 컬럼명 유연하게 탐색
             col_item = next((c for c in s_df.columns if '품목명' in str(c)), '품목명')
             col_stock = next((c for c in s_df.columns if '재고 월수' in str(c)), '재고 월수')
             col_wip = next((c for c in s_df.columns if '재고/ 재공' in str(c) or '재공' in str(c)), '재고/ 재공 월수')
@@ -262,13 +263,11 @@ def load_data():
                 s_df['재고_num'] = pd.to_numeric(s_df[col_stock], errors='coerce') if col_stock in s_df.columns else pd.NA
                 s_df['재공_num'] = pd.to_numeric(s_df[col_wip], errors='coerce') if col_wip in s_df.columns else pd.NA
                 
-                # '아토목신캡슐10mg 30C' 형태에서 마지막 포장단위 토큰을 제외한 앞부분만 합쳐서 매칭키 생성
                 def make_exact_key(val):
                     text = str(val).strip()
                     if not text: return ""
                     parts = text.split()
                     if len(parts) > 1:
-                        # 마지막 단어(포장단위)를 제외하고 붙이기
                         base_parts = parts[:-1]
                     else:
                         base_parts = parts
@@ -276,7 +275,6 @@ def load_data():
 
                 s_df['매칭키'] = s_df[col_item].apply(make_exact_key)
                 
-                # 동일 제품명별로 재고 및 재공 월수의 최솟값 계산
                 grouped = s_df.groupby('매칭키').agg(
                     min_stock=('재고_num', 'min'),
                     min_wip=('재공_num', 'min') if '재공_num' in s_df.columns else ('재고_num', lambda x: pd.NA)
@@ -293,8 +291,11 @@ def load_data():
                         "재고": str(min_s) if pd.notna(min_s) else "정보없음",
                         "재공": str(min_w) if pd.notna(min_w) else "정보없음"
                     }
+                
+                # 디버깅용: 딕셔너리가 정상 생성되었는지 확인 (첫 5개 출력)
+                print("Loaded stock keys sample:", list(stock_dict.items())[:5])
     except Exception as e:
-        print(f"Stock load error: {e}")
+        print(f"Stock load error details: {e}")
         pass
 
     curr_res = supabase.table("product_history").select("*").not_.in_("상태", ["완료", "1팀종료", "폐기"]).order("priority", desc=True).order("id", desc=True).execute()
@@ -310,7 +311,6 @@ def load_data():
     all_raw_df = pd.concat([curr_df, log_df], ignore_index=True) if not curr_df.empty or not log_df.empty else pd.DataFrame()
 
     return master_dict, stock_dict, curr_df, log_df, all_raw_df
-
 master_dict, stock_dict, curr_df, log_df, all_raw_df = load_data()
 
 def get_prev_stage_elapsed_str(all_df, lot_num, prod_name, target_stages):
