@@ -452,50 +452,56 @@ with st.sidebar:
 
     st.divider()
 
-    st.header("🏭 2. 현장 제조 투입 (칭량공정)")
+    st.header("🏭 2. 현장 제조 투입 (칭량공정 일괄 투입)")
     planned_items = curr_df[curr_df['공정'] == '계획공정'] if not curr_df.empty else pd.DataFrame()
     
     if not planned_items.empty:
+        # 화면 표시용 라벨 생성
         planned_items['선택표시'] = planned_items['제품'].astype(str).str.strip() + " | " + planned_items['Lot'].astype(str).str.strip() + " (" + planned_items['제조일자'].astype(str).str.strip() + ")"
         plan_options = planned_items['선택표시'].tolist()
         
-        selected_plan_label = st.selectbox("투입할 계획 선택", ["선택하세요"] + plan_options, key="select_plan_to_weigh")
+        # 💡 st.selectbox -> st.multiselect 로 변경하여 여러 개 선택 가능하게 함
+        selected_plan_labels = st.multiselect("투입할 계획 선택 (다중 선택 가능)", plan_options, key="select_plans_to_weigh_multi")
         
-        if selected_plan_label != "선택하세요":
-            target_plan_row = planned_items[planned_items['선택표시'] == selected_plan_label].iloc[0]
+        if selected_plan_labels:
+            st.markdown(f"<p style='font-size:13px; font-weight:700; color:#1e3a8a; margin-bottom:0px;'>선택된 항목: {len(selected_plan_labels)}건</p>", unsafe_allow_html=True)
             
-            st.markdown("<p style='font-size:13px; font-weight:700; color:#1e3a8a; margin-bottom:0px;'>투입 시 최종 확인/수정</p>", unsafe_allow_html=True)
-            edit_date = st.date_input("실제 제조일자 선택", value=datetime.strptime(str(target_plan_row['제조일자']), '%Y-%m-%d').date() if pd.notna(target_plan_row['제조일자']) and len(str(target_plan_row['제조일자'])) >= 10 else get_today_date_kst(), key="edit_exec_date")
+            # 일괄 적용할 공통 제조일자 및 유형/특이사항 설정 (필요시 개별 적용도 가능하나 편의상 공통 적용)
+            edit_date = st.date_input("일괄 적용 제조일자 선택", value=get_today_date_kst(), key="edit_exec_date_multi")
             edit_date_str = edit_date.strftime('%Y-%m-%d')
             
             type_list = ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"]
-            cur_t2 = str(target_plan_row['유형'])
-            t_idx2 = type_list.index(cur_t2) if cur_t2 in type_list else 0
-            edit_type = st.selectbox("로트 유형 확인/수정", type_list, index=t_idx2, key="edit_exec_type")
+            edit_type = st.selectbox("로트 유형 일괄 확인/수정", type_list, index=0, key="edit_exec_type_multi")
+            edit_note = st.text_area("공통 특이사항 입력 (선택사항)", key="edit_exec_note_multi")
             
-            curr_note_val = str(target_plan_row.get('특이사항', ''))
-            if curr_note_val == 'nan' or curr_note_val == 'None': curr_note_val = ""
-            edit_note = st.text_area("특이사항 확인/수정", value=curr_note_val, key="edit_exec_note")
-            
-            if st.button("🚀 칭량공정 투입 확정", type="primary", use_container_width=True):
-                p_name = target_plan_row['제품'].strip()
-                l_num = target_plan_row['Lot'].strip()
-                row_id = target_plan_row['Row']
-                
+            if st.button("🚀 칭량공정 일괄 투입 확정", type="primary", use_container_width=True):
+                # 칭량공정 현재 대기열의 최소 priority 조회
                 weigh_sub = curr_df[curr_df['공정'] == "칭량공정"]
-                new_weigh_p = int(weigh_sub['priority'].min()) - 1 if not weigh_sub.empty and pd.notna(weigh_sub['priority'].min()) else 0
+                base_priority = int(weigh_sub['priority'].min()) if not weigh_sub.empty and pd.notna(weigh_sub['priority'].min()) else 0
                 
-                supabase.table("product_history").insert({
-                    "Lot": l_num, "제품": p_name, "공정": "칭량공정", "상태": "대기", 
-                    "제조일자": edit_date_str, "유형": edit_type, "특이사항": edit_note, 
-                    "설비": "", "priority": new_weigh_p
-                }).execute()
+                # 선택된 항목들을 순회하며 일괄 처리
+                for idx, label in enumerate(selected_plan_labels):
+                    target_plan_row = planned_items[planned_items['선택표시'] == label].iloc[0]
+                    p_name = target_plan_row['제품'].strip()
+                    l_num = target_plan_row['Lot'].strip()
+                    row_id = target_plan_row['Row']
+                    
+                    # 다중 투입 시 순서가 유지되도록 priority 차등 부여
+                    new_weigh_p = base_priority - (idx + 1)
+                    
+                    # 1. 칭량공정 대기열에 새로 삽입
+                    supabase.table("product_history").insert({
+                        "Lot": l_num, "제품": p_name, "공정": "칭량공정", "상태": "대기", 
+                        "제조일자": edit_date_str, "유형": edit_type, "특이사항": edit_note if edit_note else str(target_plan_row.get('특이사항', '')), 
+                        "설비": "", "priority": new_weigh_p
+                    }).execute()
+                    
+                    # 2. 기존 계획공정 데이터는 완료 처리
+                    supabase.table("product_history").update({
+                        "상태": "완료", "종료시간": get_now_kst(), "소요시간": "계획투입완료"
+                    }).eq("id", row_id).execute()
                 
-                supabase.table("product_history").update({
-                    "상태": "완료", "종료시간": get_now_kst(), "소요시간": "계획투입완료"
-                }).eq("id", row_id).execute()
-                
-                st.success("칭량공정으로 투입되었습니다!")
+                st.success(f"총 {len(selected_plan_labels)}건의 제품이 칭량공정으로 일괄 투입되었습니다!")
                 st.rerun()
     else:
         st.caption("계획공정에 대기 중인 항목이 없습니다.")
@@ -594,7 +600,7 @@ with st.sidebar:
                 supabase.table("product_history").delete().neq("Lot", "sys_clear").execute()
                 st.rerun()
 
-    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 3.06 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px; line-height: 1.4;'>Ver 3.07 / Developed by JK / Production Dept.</div>", unsafe_allow_html=True)
 
 # --- 8. 재고 및 재공 월수 통합 출력 엔진 헬퍼 함수 ---
 def render_stock_and_wip_html(prod_name):
