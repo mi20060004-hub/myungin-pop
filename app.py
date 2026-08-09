@@ -460,19 +460,17 @@ with st.sidebar:
         planned_items['선택표시'] = planned_items['제품'].astype(str).str.strip() + " | " + planned_items['Lot'].astype(str).str.strip() + " (" + planned_items['제조일자'].astype(str).str.strip() + ")"
         plan_options = planned_items['선택표시'].tolist()
         
-        # 💡 st.selectbox -> st.multiselect 로 변경하여 여러 개 선택 가능하게 함
+        # 다중 선택
         selected_plan_labels = st.multiselect("투입할 계획 선택 (다중 선택 가능)", plan_options, key="select_plans_to_weigh_multi")
         
         if selected_plan_labels:
             st.markdown(f"<p style='font-size:13px; font-weight:700; color:#1e3a8a; margin-bottom:0px;'>선택된 항목: {len(selected_plan_labels)}건</p>", unsafe_allow_html=True)
             
-            # 일괄 적용할 공통 제조일자 및 유형/특이사항 설정 (필요시 개별 적용도 가능하나 편의상 공통 적용)
+            # 제조일자만 일괄 동일하게 설정 가능하도록 제공
             edit_date = st.date_input("일괄 적용 제조일자 선택", value=get_today_date_kst(), key="edit_exec_date_multi")
             edit_date_str = edit_date.strftime('%Y-%m-%d')
             
-            type_list = ["일반로트", "동시PV1", "동시PV2", "동시PV3", "예측PV1", "예측PV2", "예측PV3"]
-            edit_type = st.selectbox("로트 유형 일괄 확인/수정", type_list, index=0, key="edit_exec_type_multi")
-            edit_note = st.text_area("공통 특이사항 입력 (선택사항)", key="edit_exec_note_multi")
+            st.markdown("<p style='font-size:11px; color:#64748b; margin-top:4px;'>ℹ️ 로트유형과 특이사항은 계획공정에 입력된 내용이 그대로 유지되어 투입됩니다.</p>", unsafe_allow_html=True)
             
             if st.button("🚀 칭량공정 일괄 투입 확정", type="primary", use_container_width=True):
                 # 칭량공정 현재 대기열의 최소 priority 조회
@@ -486,14 +484,26 @@ with st.sidebar:
                     l_num = target_plan_row['Lot'].strip()
                     row_id = target_plan_row['Row']
                     
+                    # 기존 계획공정에 입력되어 있던 유형 및 특이사항을 그대로 가져옴
+                    orig_type = str(target_plan_row.get('유형', '일반로트'))
+                    orig_note = str(target_plan_row.get('특이사항', ''))
+                    if orig_note == 'nan' or orig_note == 'None':
+                        orig_note = ""
+                    
                     # 다중 투입 시 순서가 유지되도록 priority 차등 부여
                     new_weigh_p = base_priority - (idx + 1)
                     
-                    # 1. 칭량공정 대기열에 새로 삽입
+                    # 1. 칭량공정 대기열에 기존 유형/특이사항을 담아 새로 삽입
                     supabase.table("product_history").insert({
-                        "Lot": l_num, "제품": p_name, "공정": "칭량공정", "상태": "대기", 
-                        "제조일자": edit_date_str, "유형": edit_type, "특이사항": edit_note if edit_note else str(target_plan_row.get('특이사항', '')), 
-                        "설비": "", "priority": new_weigh_p
+                        "Lot": l_num, 
+                        "제품": p_name, 
+                        "공정": "칭량공정", 
+                        "상태": "대기", 
+                        "제조일자": edit_date_str, 
+                        "유형": orig_type,          # 계획공정 유형 상속
+                        "특이사항": orig_note,      # 계획공정 특이사항 상속
+                        "설비": "", 
+                        "priority": new_weigh_p
                     }).execute()
                     
                     # 2. 기존 계획공정 데이터는 완료 처리
