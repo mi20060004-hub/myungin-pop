@@ -1115,15 +1115,12 @@ elif st.session_state.view == 'tablet_plan':
                                             sub_df = curr_df[(curr_df['공정'] == "타정공정") & (curr_df['설비'].str.strip() == tm_clean)]
                                             new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
                                             
-                                            supabase.table("product_history").insert({
-                                                "Lot": lot_num, "제품": prod_name, "공정": "타정공정", "상태": "대기", 
-                                                "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, 
-                                                "설비": tm_clean, "priority": new_p
-                                            }).execute()
-                                            
                                             supabase.table("product_history").update({
-                                                "상태": "완료", "종료시간": get_now_kst(), "소요시간": "타정계획배정"
+                                                "설비": tm_clean
                                             }).eq("id", row['Row']).execute()
+                                            
+                                            st.success(f"{tm_clean}(으)로 사전 배정되었습니다!")
+                                            st.rerun()
                                             
                                             st.success(f"{tm_clean}(으)로 배정되었습니다!")
                                             st.rerun()
@@ -1285,15 +1282,12 @@ elif st.session_state.view == 'coating_plan':
                                         sub_df = curr_df[(curr_df['공정'] == "코팅공정") & (curr_df['설비'].str.strip() == cm_clean)]
                                         new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
                                         
-                                        supabase.table("product_history").insert({
-                                            "Lot": lot_num, "제품": prod_name, "공정": "코팅공정", "상태": "대기", 
-                                            "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, 
-                                            "설비": cm_clean, "priority": new_p
-                                        }).execute()
-                                        
                                         supabase.table("product_history").update({
-                                            "상태": "완료", "종료시간": get_now_kst(), "소요시간": "코팅계획배정"
+                                            "설비": cm_clean
                                         }).eq("id", row['Row']).execute()
+                                        
+                                        st.success(f"{cm_clean}(으)로 사전 배정되었습니다!")
+                                        st.rerun()
                                         
                                         st.success(f"{cm_clean}(으)로 배정되었습니다!")
                                         st.rerun()
@@ -1452,15 +1446,12 @@ elif st.session_state.view == 'capsule_plan':
                                         sub_df = curr_df[(curr_df['공정'] == "캡슐공정") & (curr_df['설비'].str.strip() == cm_clean)]
                                         new_p = int(sub_df['priority'].min()) - 1 if not sub_df.empty and pd.notna(sub_df['priority'].min()) else 0
                                         
-                                        supabase.table("product_history").insert({
-                                            "Lot": lot_num, "제품": prod_name, "공정": "캡슐공정", "상태": "대기", 
-                                            "제조일자": c_date_val, "유형": c_type, "특이사항": c_note, 
-                                            "설비": cm_clean, "priority": new_p
-                                        }).execute()
-                                        
                                         supabase.table("product_history").update({
-                                            "상태": "완료", "종료시간": get_now_kst(), "소요시간": "캡슐계획배정"
+                                            "설비": cm_clean
                                         }).eq("id", row['Row']).execute()
+                                        
+                                        st.success(f"{cm_clean}(으)로 사전 배정되었습니다!")
+                                        st.rerun()
                                         
                                         st.success(f"{cm_clean}(으)로 배정되었습니다!")
                                         st.rerun()
