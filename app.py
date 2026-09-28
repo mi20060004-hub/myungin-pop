@@ -340,7 +340,7 @@ if 'reset_note' not in st.session_state: st.session_state.reset_note = ""
 
 # --- 6. 헤더 및 상단 메뉴 바 (계획 페이지 버튼 제거) ---
 st.markdown(f'<div class="fixed-header"><p class="main-title-text">명인제약 생산 시점 관리 (MYUNG-IN Pharm POP System)</p></div>', unsafe_allow_html=True)
-nav_cols = st.columns(5) 
+nav_cols = st.columns(6) 
 with nav_cols[0]:
     if st.button("📊 실시간", key="n1", use_container_width=True): st.session_state.view = 'main'; st.rerun()
 with nav_cols[1]:
@@ -351,6 +351,8 @@ with nav_cols[3]:
     if st.button("🗃️ 전체이력", key="nav_4", use_container_width=True): st.session_state.view = 'all_history'; st.rerun()
 with nav_cols[4]:
     st.link_button("🌐 재고", "https://myungin-pp.appsmith.com/app/application/page1-6a27d4bd9e8e4df7ae2343bf", use_container_width=True)
+with nav_cols[5]:
+    st.link_button("📄 제지기관리", "https://myungin-pp.appsmith.com/app/application/pv-6ab3ce858c3ff6360e6ab6b3", use_container_width=True)
 
 # --- 7. 사이드바 ---
 with st.sidebar:
