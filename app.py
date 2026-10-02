@@ -352,7 +352,7 @@ with nav_cols[3]:
 with nav_cols[4]:
     st.link_button("🌐 재고", "https://myungin-pp.appsmith.com/app/application/page1-6a27d4bd9e8e4df7ae2343bf", use_container_width=True)
 with nav_cols[5]:
-    st.link_button("📄 제지기관리", "https://myungin-pp.appsmith.com/app/application/pv-6ab3ce858c3ff6360e6ab6b3", use_container_width=True)
+    st.link_button("📄 제지기관리", "https://myungin-pp.appsmith.com/app/application/login-6abf4ba05b824ffd2ff43a13", use_container_width=True)
 
 # --- 7. 사이드바 ---
 with st.sidebar:
