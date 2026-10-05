@@ -227,15 +227,15 @@ def load_data():
 
     stock_dict = {}
     try:
-        s_data = supabase.table("product_stock").select("적요, \"재고 월수\", \"재공 월수\"").order("id", desc=True).execute()
+        s_data = supabase.table("product_stock").select("제품명, \"재고월수\", \"재공월수\"").order("id", desc=True).execute()
         if s_data.data:
             s_df = pd.DataFrame(s_data.data)
-            s_df = s_df.drop_duplicates(subset=['적요'], keep='first')
+            s_df = s_df.drop_duplicates(subset=['제품명'], keep='first')
             for _, s_row in s_df.iterrows():
-                clean_stock_p = str(s_row['적요']).replace(" ", "").strip()
+                clean_stock_p = str(s_row['제품명']).replace(" ", "").strip()
                 stock_dict[clean_stock_p] = {
-                    "재고": str(s_row.get('재고 월수', '정보없음')).strip(),
-                    "재공": str(s_row.get('재공 월수', '정보없음')).strip()
+                    "재고": str(s_row.get('재고월수', '정보없음')).strip(),
+                    "재공": str(s_row.get('재공월수', '정보없음')).strip()
                 }
     except Exception:
         pass
