@@ -42,13 +42,22 @@ if not st.session_state.authenticated:
         <div class="custom-login-box">
             <div style='text-align: center; padding-bottom: 15px;'>
                 <h2 style='color: #1e3a8a; font-weight: 800; margin-bottom: 5px;'>명인제약 생산시점관리</h2>
-                <p style='color: #64748b; font-size: 15px; margin: 0;'>MYUNG-IN Pharm POP System</p>
+                <p style='color: #64748b; font-size: 15px; margin: 0; margin-bottom: 20px;'>MYUNG-IN Pharm POP System</p>
+                
+                <div style='background-color: #eff6ff; border: 2px solid #3b82f6; border-radius: 10px; padding: 18px; margin-bottom: 20px;'>
+                    <p style='color: #1e40af; font-size: 17px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.4;'>
+                        리뉴얼된 생산시점관리로 접속하시기 바랍니다.
+                    </p>
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
         
         with st.container():
-            st.markdown("<p style='font-weight: 400; color: #ffffff; margin-top: 15px; margin-bottom: 5px; font-size: 15px;'>🔒 비밀번호는 **** 입니다.</p>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+            st.link_button("🚀 리뉴얼된 생산시점관리 바로가기", "https://myungin-pop-management-three.vercel.app", use_container_width=True)
+            
+            st.markdown("<p style='font-weight: 400; color: #ffffff; margin-top: 20px; margin-bottom: 5px; font-size: 15px;'>🔒 비밀번호는 **** 입니다.</p>", unsafe_allow_html=True)
             input_pw = st.text_input("비밀번호 입력", type="password", label_visibility="collapsed", placeholder="비밀번호를 입력하세요")
             
             st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
@@ -382,7 +391,7 @@ with st.sidebar:
 
     planned_items_edit = curr_df[curr_df['공정'] == '계획공정'] if not curr_df.empty else pd.DataFrame()
     if not planned_items_edit.empty:
-        with st.expander("✏️ 등록된 생산 계획 수정 / 삭제", expanded=False):
+        with st.expander("✏️️ 등록된 생산 계획 수정 / 삭제", expanded=False):
             planned_items_edit['수정표시'] = planned_items_edit['제품'].astype(str).str.strip() + " | " + planned_items_edit['Lot'].astype(str).str.strip()
             edit_options = planned_items_edit['수정표시'].tolist()
             selected_edit_label = st.selectbox("관리할 계획 선택", ["선택하세요"] + edit_options, key="select_plan_to_edit")
